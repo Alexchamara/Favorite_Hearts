@@ -31,8 +31,14 @@ cp apps/member/.env.example apps/member/.env.local
 
 npm run db:generate      # create SQL migrations from the Drizzle schema (first time)
 npm run db:migrate       # apply them to the Neon database in DATABASE_URL_DIRECT
-npm run dev              # api :8787, member app :5173/app/, website :4321
+npm run dev              # starts api :8787, member app :5173, website :4321
 ```
+
+Open **http://localhost:4321** — the website forwards `/app/` to the member app and
+`/api/` to the API, so Join buttons and sign-in work from that one address (as in production).
+
+One deployable folder for static hosting: `npm run build:site` → `dist/site/`
+(website at `/`, member app at `/app/`); preview it with `npm run preview:site` (http://localhost:8080).
 
 Checks: `npm run typecheck` and `npm run build`.
 

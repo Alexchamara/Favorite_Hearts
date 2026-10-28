@@ -1,0 +1,2 @@
+const names=new Intl.DisplayNames(['en'],{type:'region'});
+export const countryOptions=['Sri Lanka',...('AE AR AT AU BD BE BH BR BN BT CA CH CN CY CZ DE DK EG ES FI FR GB GR HK HU ID IE IL IN IQ IR IS IT JO JP KE KH KR KW LA LB LK LT LU LV MM MO MV MY MU MT MX NP NL NO NZ OM PH PK PL PT QA RO RS RU SA SE SG TH TR TW UA UG US UY VN ZA ZM ZW'.split(' ').filter(c=>c!=='LK').map(c=>names.of(c)!).sort())];

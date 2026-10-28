@@ -14,6 +14,8 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+    // Live reload talks to :5173 directly, also when the app is opened via the website (:4321/app/).
+    hmr: { clientPort: 5173 },
     proxy: {
       '/api': { target: 'http://localhost:8787', changeOrigin: false },
       '/health': { target: 'http://localhost:8787', changeOrigin: false },

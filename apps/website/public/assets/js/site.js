@@ -62,7 +62,7 @@
   window.addEventListener('scroll', () => { if (!frame) frame = requestAnimationFrame(updateHeader); }, {passive:true});
   ['resize','load','pageshow'].forEach(event => window.addEventListener(event, updateHeader));
   const rootUrl = window.FH_OFFLINE_ROOT ? new URL(window.FH_OFFLINE_ROOT) : new URL('../../', document.currentScript.src);
-  const localUrl = path => new URL((path.endsWith('/') ? path+'index.html' : path).replace(/^\//,''), rootUrl).href;
+  const localUrl = path => new URL(path.replace(/^\//,''), rootUrl).href;
   window.FH = {updateHeader, setMenu, localUrl};
   updateHeader();
   const dialog = document.querySelector('#dialog');

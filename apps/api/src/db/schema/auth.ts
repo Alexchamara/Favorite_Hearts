@@ -4,7 +4,7 @@
  * `npm run auth:schema -w @fh/api` and compare with auth.generated.ts.
  * Object keys (user, session, ...) are the model names Better-Auth expects.
  */
-import { boolean, index, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import { boolean, index, integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
 const updatedAt = () =>
@@ -89,6 +89,10 @@ export const twoFactor = pgTable(
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
+    // Added in Better-Auth 1.7: enrolment state and lock-out after repeated wrong codes.
+    verified: boolean('verified').default(true),
+    failedVerificationCount: integer('failed_verification_count').default(0),
+    lockedUntil: timestamp('locked_until', { withTimezone: true }),
   },
-  (t) => [index('auth_two_factor_user_idx').on(t.userId)],
+  (t) => [index('auth_two_factor_user_idx').on(t.userId), index('auth_two_factor_secret_idx').on(t.secret)],
 );

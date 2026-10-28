@@ -5,6 +5,7 @@ node_modules/
 /apps/*/dist/
 /apps/website/.astro/
 /packages/*/dist/
+/dist/
 *.tsbuildinfo
 
 # Secrets: never commit real keys. Only *.example files are tracked.
@@ -22,3 +23,4 @@ node_modules/
 .idea/
 *.log
 *.tar.gz
+.claude/

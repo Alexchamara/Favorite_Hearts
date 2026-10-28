@@ -1,0 +1,14 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> favorite-hearts-integrated-matrimony@1.0.0 build
+> node scripts/build.mjs
+
+Browserslist: caniuse-lite is outdated. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+
+Rebuilding...
+
+Done in 265ms.
+Built 21 pages into dist/; indexable=False
+Built website plus matrimony-only product. No dating entry or bundle.

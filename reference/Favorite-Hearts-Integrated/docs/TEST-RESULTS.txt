@@ -1,0 +1,16 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> favorite-hearts-integrated-matrimony@1.0.0 test
+> node tests/integration.mjs
+
+PASS 23 HTML pages, 24 linked join controls, 730 local asset/navigation targets; matrimony-only bundle.
+PASS 24 join-button click handlers across all website pages.
+PASS 24 Matrimony account assertions: signup, distinct profiles, validation, OTP, logout, login and recovery.
+PASS 70 self/manager full signup → required profile/contact → payment review → publish checks, with required phone and admin NIC approval.
+PASS 26 ordered verification, badges, phone-only acceptance, quick edits, height and menu assertions
+PASS 34 October 7 access (plus 4 activity boundary checks), free publication, privacy, invitation and profile policy assertions
+PASS 9 invitation-order, optional identity, expiry and height validation assertions
+PASS 31 delegated permissions, horoscope readiness and ownership payment assertions
+PASS 43 October 9 profile privacy, hobbies/socials, boost, featured and safety checks
+PASS 24 v7 public family/income, blocked-list privacy and social username checks
+All integrated demo checks passed. DOM simulation only; no visual browser verification.

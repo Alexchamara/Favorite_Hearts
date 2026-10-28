@@ -1,0 +1,33 @@
+@tailwind components;
+@tailwind utilities;
+
+/* Compiled Tailwind components; no CDN or runtime compiler is used. */
+.plan-card,.contact-card { @apply tw-flex tw-min-w-0 tw-flex-col; }
+.pricing-carousel { @apply tw-min-w-0 tw-max-w-full; }
+.pricing-dashes { @apply tw-flex tw-items-center tw-gap-2; }
+.footer-links { @apply tw-grid; }
+#welcome-dialog {
+  @apply tw-box-border tw-m-auto tw-overflow-y-auto tw-rounded-card tw-border tw-border-solid tw-bg-paper tw-text-ink;
+  width:min(440px,calc(100vw - 28px)); max-width:none;
+  max-height:calc(100vh - 24px); max-height:calc(100svh - 24px);
+  padding:28px; border-color:#e5e1e7; color-scheme:light;
+  box-shadow:0 24px 80px #0003;
+}
+.welcome-logo { @apply tw-table tw-mx-auto tw-text-ink; font-size:32px;margin-bottom:26px; }
+#welcome-title { @apply tw-text-left tw-font-editorial tw-font-normal; font-size:36px;line-height:1.1;letter-spacing:-.035em;margin:0 0 12px; }
+#welcome-description { @apply tw-text-left tw-font-sans tw-text-muted; font-size:14px;line-height:1.6;margin:0 0 24px; }
+.welcome-languages { @apply tw-grid tw-grid-cols-2 tw-gap-3; padding:0;border:0;margin:0 0 20px; }
+.welcome-languages legend,.welcome-country-label { @apply tw-font-sans tw-font-medium tw-text-purple; font-size:13px;line-height:1.5;margin:0 0 10px; }
+.welcome-languages legend {padding:0;float:left;width:100%;}
+.welcome-languages label { @apply tw-relative tw-flex tw-cursor-pointer tw-items-center; border-radius:12px; }
+.welcome-languages label>span { @apply tw-block tw-w-full tw-border tw-border-solid tw-text-ink; padding:14px 30px 14px 14px;border-color:#d5d0d8;border-radius:12px;font-size:15px;line-height:1.4;min-height:72px;transition:background .65s,border-color .65s; }
+.welcome-languages small { @apply tw-block tw-text-muted; font-size:11px;line-height:1.4;margin-top:4px; }
+.welcome-country-label { @apply tw-block; }
+.welcome-country-wrap { @apply tw-relative; }
+.welcome-country-wrap select { @apply tw-w-full tw-border tw-border-solid tw-bg-white tw-text-ink tw-font-sans; height:48px;padding:0 38px 0 14px;border-color:#d5d0d8;border-radius:12px;appearance:none;-webkit-appearance:none;font-size:16px; }
+#welcome-dialog .welcome-continue { @apply tw-flex tw-w-full tw-items-center tw-justify-center tw-text-center tw-bg-ink tw-text-white; min-height:48px;padding:14px 24px;margin-top:22px;font-size:16px; }
+#welcome-dialog .welcome-continue:hover { @apply tw-bg-gold tw-text-ink; }
+.welcome-footnote { @apply tw-text-center tw-text-muted; font-size:11px;line-height:1.5;margin:14px 0 0; }
+#language-note { @apply tw-text-purple; font-size:12px;line-height:1.5;margin:-4px 0 18px; }
+@media(max-width:479px){#welcome-dialog{padding:22px}.welcome-logo{font-size:28px;margin-bottom:22px}#welcome-title{font-size:32px}#welcome-description{margin-bottom:20px}}
+@media(max-height:650px){#welcome-dialog{padding-top:20px;padding-bottom:20px}.welcome-logo{font-size:26px;margin-bottom:18px}#welcome-title{font-size:30px}.welcome-languages{margin-bottom:16px}}

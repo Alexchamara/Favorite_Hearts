@@ -29,8 +29,13 @@ export default function App() {
 
   return (
     <main className="mx-auto max-w-xl px-4 py-16 font-sans">
-      <h1 className="text-3xl font-semibold">Favorite Hearts</h1>
-      <p className="mt-2 text-neutral-600">Member app scaffold. No real accounts yet.</p>
+      <a href="/" className="text-sm text-neutral-600 underline underline-offset-4">
+        ← Back to the website
+      </a>
+      <h1 className="mt-6 text-3xl font-semibold">Join Favorite Hearts</h1>
+      <p className="mt-2 text-neutral-600">
+        Sign-up and sign-in will open here. This page is a developer preview showing what is connected so far.
+      </p>
       <dl className="mt-8 divide-y divide-neutral-200 rounded-xl border border-neutral-200">
         {rows.map(([label, value]) => (
           <div key={label} className="flex justify-between gap-4 px-4 py-3 text-sm">

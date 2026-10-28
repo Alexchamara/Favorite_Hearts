@@ -1,0 +1,97 @@
+/* Favorite Hearts design system. Loaded last; change tokens before adding overrides. */
+:root {
+  --fh-ink:#191919; --fh-paper:#fff; --fh-muted:#5c5c5c;
+  --fh-purple:#321638; --fh-purple-light:#eae1ef; --fh-orange:#a86800; --fh-gold:#f1b744;
+  --fh-serif:Georgia,'Times New Roman',serif; --fh-sans:'DM Sans',Arial,sans-serif;
+  --fh-text-xs:.75rem; --fh-text-sm:.875rem;
+  --fh-text-body:clamp(1rem,.975rem + .15vw,1.0625rem);
+  --fh-text-lead:clamp(1.0625rem,1rem + .3vw,1.25rem);
+  --fh-text-label:clamp(.875rem,.83rem + .2vw,1rem);
+  --fh-text-card:clamp(1.5rem,1.3rem + .8vw,1.875rem);
+  --fh-text-section:clamp(2.25rem,1.6rem + 3vw,4rem);
+  --fh-text-page:clamp(2.75rem,1.8rem + 4vw,5rem);
+  --fh-text-question:clamp(1.0625rem,1rem + .25vw,1.1875rem);
+  --fh-space-1:.5rem; --fh-space-2:1rem; --fh-space-3:1.5rem; --fh-space-4:2rem;
+  --fh-space-5:3rem; --fh-section-space:clamp(3.5rem,6vw,6.5rem);
+  --fh-gutter:clamp(1.25rem,5vw,6rem); --fh-radius:1.25rem;
+  --fh-motion:.65s; --fh-ease:cubic-bezier(.22,.61,.36,1);
+}
+html{font-size:100%;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{font-family:var(--fh-sans);font-size:var(--fh-text-body);line-height:1.6}
+main{min-width:0}img{display:block;max-width:100%}button,input,select,textarea{font-family:var(--fh-sans)}
+.section{padding-left:max(var(--fh-gutter),calc((100vw - 1400px)/2));padding-right:max(var(--fh-gutter),calc((100vw - 1400px)/2))}
+main .label{font-size:var(--fh-text-label);font-weight:500;line-height:1.5;letter-spacing:.01em}
+.resource-intro h1,.help-intro h1,.contact-intro h1,.newsroom-intro h1,.legal-intro h1,.mission-opening h1{font-size:var(--fh-text-page);line-height:1.08;font-weight:400;letter-spacing:-.045em;text-wrap:balance}
+main .section>h2,.resource-page h2,.mission-page h2,.help-contact h2,.contact-guide h2{font-size:var(--fh-text-section);line-height:1.1;font-weight:400;letter-spacing:-.04em;text-wrap:balance}
+.resource-lead,.help-intro>p:not(.label),.contact-intro>p:last-child,.offset p,.mission-body,.value-list p,.principle p{font-size:var(--fh-text-lead);line-height:1.65}
+/* The same question/answer sizes apply to every accordion, light or dark. */
+.contact-page .contact-questions summary,.help-page .faq-items summary,.resource-page .resource-questions summary,.mission-page .accordion-item button{
+  font-family:var(--fh-sans);font-size:var(--fh-text-question);font-weight:500;line-height:1.5;letter-spacing:0;padding:1.5rem 0;gap:1.5rem;min-height:3rem;text-align:left;
+}
+.contact-page .contact-questions details p,.help-page .faq-answer p,.resource-page .resource-questions p,.mission-page .accordion-answer p{font-family:var(--fh-sans);font-size:var(--fh-text-body);font-weight:400;line-height:1.7;letter-spacing:0;max-width:70ch}
+.contact-questions summary>span,.faq-items summary>span,.resource-questions summary>span{font-size:1.5rem!important;flex-shrink:0}
+.resource-card h3,.plan-card h3,.contact-card h2{font-size:var(--fh-text-card);line-height:1.2;font-weight:400}
+.resource-card p,.contact-card>p:not(.contact-phone):not(.contact-service-label):not(.contact-hours){font-size:var(--fh-text-body);line-height:1.65}
+body .pill,body .resource-actions .pill,body .help-contact-actions .pill{font:600 1rem/1.25 var(--fh-sans);min-height:3.25rem;padding:1rem 1.75rem;max-width:100%;border-radius:100px;transition:background-color var(--fh-motion),color var(--fh-motion),transform var(--fh-motion)}
+body header>.pill{min-height:2.75rem;padding:.75rem 1.25rem;font-size:.875rem;white-space:nowrap}
+body .welcome-continue{justify-content:center;text-align:center;width:100%}
+body .help-filters button,body .news-filters button{font:500 var(--fh-text-sm)/1.4 var(--fh-sans);min-height:2.75rem;padding:.75rem 1.1rem}
+body .help-search input,body .news-search input{font-size:1rem;min-width:0}input,select,textarea{font-size:1rem}
+body .help-contact-actions>p,body .resource-end .response-hours,body .contact-hours,body .contact-hours p,body .resource-note .response-hours{font-size:var(--fh-text-xs)!important;line-height:1.6!important}
+.footer-links a,.footer-links button{font-size:clamp(1rem,.95rem + .2vw,1.125rem);line-height:1.55;font-weight:500}
+footer h3{font-size:var(--fh-text-label);font-weight:400}.footer-detail{font-size:.75rem!important;line-height:1.6!important}.copyright{flex-wrap:wrap;font-size:.75rem}
+#navigation .menu-items>a{font-size:clamp(1.75rem,1.2rem + 2.1vw,3rem);line-height:1.2;padding:.75rem 0}
+header.menu-closing .menu-toggle span:first-child,header.menu-closing .menu-toggle span:last-child{transform:none!important}
+body .menu-toggle span{transition:transform .45s var(--fh-ease)}
+:focus-visible{outline:2px solid var(--fh-orange);outline-offset:5px}
+[hidden]{display:none!important}
+/* Pricing: complete cards, never a chopped outer border. */
+.pricing-carousel{min-width:0;max-width:100%;margin-top:2rem}
+.pricing-track{display:flex;gap:1.5rem;padding:4px 2px 12px;margin:0;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-padding:2px;scrollbar-width:none;overscroll-behavior-x:contain;scroll-behavior:smooth;cursor:grab;align-items:stretch}
+.pricing-track:after{display:none}.pricing-track::-webkit-scrollbar{display:none}
+.pricing-track>article{box-sizing:border-box;flex:0 0 calc((100% - 3rem)/3);min-width:0;margin:0;scroll-snap-align:start;overflow-wrap:break-word}
+.pricing-track.dragging{scroll-snap-type:none;scroll-behavior:auto;cursor:grabbing;user-select:none}
+.pricing-track .plan-card{border:1px solid #d8cdb8;background:#f6f0e4;border-radius:var(--fh-radius);padding:clamp(1.5rem,2.3vw,2rem);color:#262117;box-shadow:0 5px 12px #19191906}
+.pricing-track .plan-card:nth-child(2){background:#eee7f3;border-color:#c9b7d5;color:#321638}
+.pricing-track .plan-card:nth-child(3){background:#321638;border-color:#513457;color:#fff}
+.plan-topline{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1.75rem}.plan-topline .label{margin:0;font:500 .875rem/1.4 var(--fh-sans);color:inherit}
+.plan-icon{width:2.75rem;height:2.75rem;border:1px solid currentColor;opacity:.85;display:grid;place-items:center;border-radius:50%;flex-shrink:0}.plan-icon svg{width:1.4rem;height:1.4rem;fill:none;stroke:currentColor;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+.pricing-track .plan-card h3{font:400 2.125rem/1.15 var(--fh-serif);min-height:0;margin:0 0 .75rem;letter-spacing:-.025em}
+.plan-tagline{font-size:.875rem;line-height:1.6;min-height:2.8em;margin:0 0 1.5rem;opacity:.85}
+.pricing-track .plan-price{font:400 clamp(2.5rem,3.2vw,3.25rem)/1.1 var(--fh-sans);letter-spacing:-.04em;white-space:nowrap;margin:0;display:flex;align-items:baseline;gap:.5rem}
+.plan-card .plan-currency{font-size:.875rem;letter-spacing:0;color:inherit}.plan-card .plan-period{font-size:.75rem;color:inherit;opacity:.75;margin:.75rem 0 1.5rem}
+.plan-card ul{margin:0 0 1.75rem;padding:0;list-style:none}.plan-card li{position:relative;font-size:.875rem;line-height:1.6;padding:.875rem 0 .875rem 1.5rem;border-color:#b7a78b66}.plan-card li:before{content:'✓';position:absolute;left:0;color:inherit}
+.plan-card:nth-child(2) li{border-color:#a28aad55}.plan-card:nth-child(3) li{border-color:#ffffff2e}.plan-card .plan-selection{color:inherit;font-size:.75rem;line-height:1.5;opacity:.85}
+.pricing-track .resource-card{background:#242424;border:1px solid #5c505f;border-radius:var(--fh-radius);padding:2rem}.pricing-track .resource-card h3{font-size:var(--fh-text-card);line-height:1.2}.pricing-track .resource-card p{font-size:1rem;line-height:1.65}.step-icon{width:2rem;height:2rem;fill:none;stroke:#d7b7e0;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round;display:block;margin-bottom:1.5rem}
+.pricing-dashes{display:flex;gap:.5rem;margin-top:.5rem}.pricing-dashes button{width:2rem;height:2.75rem;min-height:2.75rem;padding:1.25rem 0;border:0;background:none;transition:width var(--fh-motion)}.pricing-dashes button span{height:3px;display:block;border-radius:4px;background:#aaa}.pricing-dashes button[aria-current=true]{width:3rem}.pricing-dashes button[aria-current=true] span{background:#71377d}.resource-band .pricing-dashes button[aria-current=true] span{background:#d7b7e0}
+@media(max-width:1099px){.pricing-track>article{flex-basis:calc((100% - 1.5rem)/2)}}
+@media(max-width:639px){.pricing-track{gap:1rem}.pricing-track>article{flex-basis:100%}.pricing-track .plan-card,.pricing-track .resource-card{padding:1.75rem}.plan-tagline{min-height:0}.currency-control{gap:.75rem;font-size:.8125rem}.plan-topline{margin-bottom:1.5rem}body .section{padding-left:1.25rem;padding-right:1.25rem}.contact-grid{grid-template-columns:minmax(0,1fr)}.resource-split,.resource-end{grid-template-columns:minmax(0,1fr)}.copyright{gap:1rem}.contact-phone{font-size:2.125rem!important}.resource-actions{min-width:0}.resource-actions .pill{min-width:0;max-width:100%}}
+@media(min-width:1600px){footer{padding-left:max(var(--fh-gutter),calc((100vw - 1400px)/2));padding-right:max(var(--fh-gutter),calc((100vw - 1400px)/2))}}
+@media(max-width:359px){:root{--fh-text-page:2.5rem;--fh-text-section:2.25rem}body header{padding-left:.875rem;padding-right:.875rem}body header>.pill{font-size:.75rem;padding:.625rem .875rem}.pricing-track .plan-card{padding:1.25rem}.plan-price{font-size:2.5rem}.currency-control{gap:.5rem;font-size:.75rem}.danger-section .resource-note h3{font-size:.875rem;gap:.5rem}}
+@media(hover:hover){body .pill:hover{background:var(--fh-gold);color:var(--fh-ink);transform:translateY(-1px)}.pricing-dashes button:hover span{background:var(--fh-orange)}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}.reveal-ready,.resource-reveal,.help-reveal,.contact-reveal{opacity:1!important;transform:none!important}}
+
+.fh-reveal{opacity:0;transform:translateY(12px);transition:opacity .9s var(--fh-ease),transform .9s var(--fh-ease)}.fh-reveal.is-visible{opacity:1;transform:none}@media(prefers-reduced-motion:reduce){.fh-reveal{opacity:1;transform:none}}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+/* Editorial exceptions still use the same documented scale. */
+.story h1{font-size:var(--fh-text-page);font-weight:400;line-height:1.1;max-width:18ch;text-wrap:balance}
+.story-copy h2,.legal-body h2,.faq-group-heading h2{font-size:var(--fh-text-card);line-height:1.2;font-weight:400}
+.story-copy p,.legal-body p,.legal-body li{font-size:var(--fh-text-body);line-height:1.75}
+.labs-opening h1{font-size:var(--fh-text-page);line-height:1.08}
+.news-card h2,.article-open h3,.story-related h3{font-size:var(--fh-text-card);line-height:1.2}
+.method-grid h3{font:500 clamp(.875rem,.8rem + .3vw,1rem)/1.5 var(--fh-sans)}
+.story-related>h2{font-size:clamp(1.75rem,1.5rem + 1vw,2.25rem)}
+/* Service-card mastheads are compact UI titles, distinct from editorial headings. */
+.contact-card .contact-card-heading h2{font-size:clamp(1.1875rem,1rem + .65vw,1.5rem);line-height:1.25;white-space:nowrap;margin:0;letter-spacing:-.025em}
+.contact-card .contact-card-subheading{font:500 1.125rem/1.5 var(--fh-sans)}
+@media(min-width:640px) and (max-width:1099px){.contact-grid{grid-template-columns:minmax(0,1fr)}}
+/* Consistent gentle reveal across page-specific controllers. */
+.fh-reveal,.reveal-ready,.resource-reveal,.contact-reveal,.help-reveal{transition:opacity .9s var(--fh-ease),transform .9s var(--fh-ease)}
+@media(prefers-reduced-motion:reduce){
+ .fh-reveal,.reveal-ready,.resource-reveal,.contact-reveal,.help-reveal{transition:none!important;opacity:1!important;transform:none!important}
+ header.menu-open:not(.menu-closing) .menu-toggle span:first-child{transform:translateY(5px) rotate(45deg)!important}
+ header.menu-open:not(.menu-closing) .menu-toggle span:last-child{transform:translateY(-5px) rotate(-45deg)!important}
+}
+
+/* Disclosures use the shared small-copy scale. */
+.testimonial-disclosure{font:400 .875rem/1.6 var(--font-body, "DM Sans", sans-serif);max-width:44rem;margin:1rem 0 2rem;color:#ddd;}

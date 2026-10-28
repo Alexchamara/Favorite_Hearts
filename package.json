@@ -14,6 +14,8 @@
     "dev:member": "npm run dev -w @fh/member",
     "dev:website": "npm run dev -w @fh/website",
     "build": "npm run build --workspaces --if-present",
+    "build:site": "npm run build -w @fh/member && npm run build -w @fh/website && node scripts/assemble-site.mjs",
+    "preview:site": "python3 -m http.server 8080 --directory dist/site",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "db:generate": "npm run db:generate -w @fh/api",
     "db:migrate": "npm run db:migrate -w @fh/api",

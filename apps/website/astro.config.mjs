@@ -12,4 +12,16 @@ export default defineConfig({
   build: { format: 'directory', assets: '_astro' },
   compressHTML: true,
   devToolbar: { enabled: false },
+  // Development only: http://localhost:4321 serves the website and forwards
+  // /app/* to the member app (Vite, :5173) and /api/* + /health to the API (:8787),
+  // so Join buttons and sign-in work from one address, like in production.
+  vite: {
+    server: {
+      proxy: {
+        '/app': { target: 'http://localhost:5173', changeOrigin: false },
+        '/api': { target: 'http://localhost:8787', changeOrigin: false },
+        '/health': { target: 'http://localhost:8787', changeOrigin: false },
+      },
+    },
+  },
 });
