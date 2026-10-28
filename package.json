@@ -1,0 +1,29 @@
+{
+  "name": "favorite-hearts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Favorite Hearts matrimony platform: Astro website, React member app and Hono API.",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,member,web -c blue,magenta,green \"npm:dev:api\" \"npm:dev:member\" \"npm:dev:website\"",
+    "dev:api": "npm run dev -w @fh/api",
+    "dev:member": "npm run dev -w @fh/member",
+    "dev:website": "npm run dev -w @fh/website",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "db:generate": "npm run db:generate -w @fh/api",
+    "db:migrate": "npm run db:migrate -w @fh/api",
+    "db:studio": "npm run db:studio -w @fh/api"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "concurrently": "^9.0.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

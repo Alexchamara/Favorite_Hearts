@@ -1,0 +1,5 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* Design tokens from the demo (product/app/design-system.css) are migrated
+   here in Stage 1 so the member app keeps its existing look. */

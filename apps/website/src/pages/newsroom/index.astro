@@ -1,0 +1,219 @@
+---
+// Converted from the demo page src/pages/newsroom/index.html — content unchanged.
+import Header from '../../components/Header.astro';
+import Navigation from '../../components/Navigation.astro';
+import Footer from '../../components/Footer.astro';
+import Dialogs from '../../components/Dialogs.astro';
+import Seo from '../../components/Seo.astro';
+import { css, js } from '../../lib/site';
+---
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#ffffff">
+<title>Newsroom — Favorite Hearts</title>
+<meta name="description" content="Stories, ideas and updates from Favorite Hearts. Explore our approach to matrimony, relationships and a shared future.">
+<link rel="stylesheet" href={css("landing.css")}>
+<script is:inline src={js("site-config.js")} defer>
+</script>
+<script is:inline src={js("site.js")} defer>
+</script>
+<script is:inline src={js("newsroom.js")} defer>
+</script>
+<link rel="stylesheet" href={css("monochrome.css")}>
+<link rel="stylesheet" href={css("labs.css")}>
+<link rel="stylesheet" href={css("newsroom.css")}>
+<link rel="stylesheet" href={css("welcome.css")}>
+<script is:inline src={js("welcome.js")} defer>
+</script>
+<script is:inline src={js("motion.js")} defer></script>
+<link rel="stylesheet" href={css("design-system.css")}>
+<link rel="stylesheet" href={css("tailwind.css")}>
+<Seo route="/newsroom/" title={"Newsroom — Favorite Hearts"} description={"Stories, ideas and updates from Favorite Hearts. Explore our approach to matrimony, relationships and a shared future."} headline={"What’s new with Favorite Hearts."} />
+</head>
+<body class="tw-antialiased">
+<a class="skip" href="#main">Skip to content</a>
+<Header />
+<Navigation />
+<main id="main" class="newsroom-page">
+<section class="section newsroom-intro" data-theme="light">
+<p class="label">Newsroom</p>
+<h1>What’s new with<br>Favorite Hearts.</h1>
+<div class="news-search">
+<svg viewBox="0 0 24 24" aria-hidden="true">
+<circle cx="10.5" cy="10.5" r="7"/>
+<path d="m16 16 5 5"/>
+</svg>
+<label class="sr-only" for="news-search">Search newsroom articles</label>
+<input id="news-search" type="search" placeholder="Search" autocomplete="off">
+</div>
+<div class="news-filters" role="group" aria-label="Filter news by category">
+<button type="button" data-filter="All posts" aria-pressed="true">All posts</button>
+<button type="button" data-filter="Product" aria-pressed="false">Product</button>
+<button type="button" data-filter="Research &amp; Advice" aria-pressed="false">Research &amp; Advice</button>
+<button type="button" data-filter="Trust &amp; Safety" aria-pressed="false">Trust &amp; Safety</button>
+<button type="button" data-filter="Company News" aria-pressed="false">Company News</button>
+<button type="button" data-filter="Our Stories" aria-pressed="false">Our Stories</button>
+<button type="button" data-filter="Social Impact" aria-pressed="false">Social Impact</button>
+</div>
+</section>
+<section class="section newsroom-feed" data-theme="light" aria-label="News articles">
+<p id="news-status" class="sr-only" role="status" aria-live="polite">
+</p>
+<div class="news-grid" id="news-results">
+<article class="news-card" data-index="0">
+<a class="article-open" href="/newsroom/a-thoughtful-beginning/">
+<div class="article-image">
+<img src="https://images.pexels.com/photos/6271529/pexels-photo-6271529.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=1600&amp;q=90" alt="" data-stock-fallback="/assets/labs-couple.jpg" loading="lazy" decoding="async">
+</div>
+<div class="article-meta">
+<span class="article-category">Company News</span>
+<time class="article-date" datetime="2026-10">October 2026</time>
+</div>
+<h2>A shared future starts with a thoughtful beginning.</h2>
+<span class="article-tag">Read the story <span aria-hidden="true">↗</span>
+</span>
+</a>
+</article>
+<article class="news-card" data-index="1">
+<a class="article-open" href="/newsroom/matrimony-with-more-heart/">
+<div class="article-image">
+<img src="https://images.pexels.com/photos/8836421/pexels-photo-8836421.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=1600&amp;q=90" alt="" data-stock-fallback="/assets/labs-couple.jpg" loading="lazy" decoding="async">
+</div>
+<div class="article-meta">
+<span class="article-category">Product</span>
+<time class="article-date" datetime="2026-10">October 2026</time>
+</div>
+<h2>The experience we want to build: matrimony with more heart.</h2>
+<span class="article-tag">Read the story <span aria-hidden="true">↗</span>
+</span>
+</a>
+</article>
+<article class="news-card" data-index="2">
+<a class="article-open" href="/newsroom/respect-in-every-introduction/">
+<div class="article-image">
+<img src="https://images.pexels.com/photos/3967505/pexels-photo-3967505.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=1600&amp;q=90" alt="" data-stock-fallback="/assets/labs-couple.jpg" loading="lazy" decoding="async">
+</div>
+<div class="article-meta">
+<span class="article-category">Trust &amp; Safety</span>
+<time class="article-date" datetime="2026-10">October 2026</time>
+</div>
+<h2>Respect is part of every introduction.</h2>
+<span class="article-tag">Read the story <span aria-hidden="true">↗</span>
+</span>
+</a>
+</article>
+<article class="news-card" data-index="3" hidden>
+<a class="article-open" href="/newsroom/belonging-across-borders/">
+<div class="article-image">
+<img src="https://images.pexels.com/photos/5910748/pexels-photo-5910748.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=1600&amp;q=90" alt="" data-stock-fallback="/assets/labs-couple.jpg" loading="lazy" decoding="async">
+</div>
+<div class="article-meta">
+<span class="article-category">Social Impact</span>
+<time class="article-date" datetime="2026-10">October 2026</time>
+</div>
+<h2>Belonging, wherever life takes you.</h2>
+<span class="article-tag">Read the story <span aria-hidden="true">↗</span>
+</span>
+</a>
+</article>
+<article class="news-card" data-index="4" hidden>
+<a class="article-open" href="/newsroom/beyond-the-checklist/">
+<div class="article-image">
+<img src="https://images.pexels.com/photos/5910748/pexels-photo-5910748.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=1600&amp;q=90" alt="" data-stock-fallback="/assets/labs-couple.jpg" loading="lazy" decoding="async">
+</div>
+<div class="article-meta">
+<span class="article-category">Research &amp; Advice</span>
+<time class="article-date" datetime="2026-10">October 2026</time>
+</div>
+<h2>Beyond the checklist: what does a shared life look like?</h2>
+<span class="article-tag">Read the story <span aria-hidden="true">↗</span>
+</span>
+</a>
+</article>
+<article class="news-card" data-index="5" hidden>
+<a class="article-open" href="/newsroom/a-first-conversation/">
+<div class="article-image">
+<img src="https://images.pexels.com/photos/8836421/pexels-photo-8836421.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=1600&amp;q=90" alt="" data-stock-fallback="/assets/labs-couple.jpg" loading="lazy" decoding="async">
+</div>
+<div class="article-meta">
+<span class="article-category">Research &amp; Advice</span>
+<time class="article-date" datetime="2026-10">October 2026</time>
+</div>
+<h2>A first conversation that feels like you.</h2>
+<span class="article-tag">Read the story <span aria-hidden="true">↗</span>
+</span>
+</a>
+</article>
+<article class="news-card" data-index="6" hidden>
+<a class="article-open" href="/newsroom/family-and-your-voice/">
+<div class="article-image">
+<img src="https://images.pexels.com/photos/3967505/pexels-photo-3967505.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=1600&amp;q=90" alt="" data-stock-fallback="/assets/labs-couple.jpg" loading="lazy" decoding="async">
+</div>
+<div class="article-meta">
+<span class="article-category">Research &amp; Advice</span>
+<time class="article-date" datetime="2026-10">October 2026</time>
+</div>
+<h2>Family can be part of the journey. Your voice comes first.</h2>
+<span class="article-tag">Read the story <span aria-hidden="true">↗</span>
+</span>
+</a>
+</article>
+<article class="news-card" data-index="7" hidden>
+<a class="article-open" href="/newsroom/across-borders-on-the-same-page/">
+<div class="article-image">
+<img src="https://images.pexels.com/photos/5910748/pexels-photo-5910748.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=1600&amp;q=90" alt="" data-stock-fallback="/assets/labs-couple.jpg" loading="lazy" decoding="async">
+</div>
+<div class="article-meta">
+<span class="article-category">Research &amp; Advice</span>
+<time class="article-date" datetime="2026-10">October 2026</time>
+</div>
+<h2>Across borders, on the same page.</h2>
+<span class="article-tag">Read the story <span aria-hidden="true">↗</span>
+</span>
+</a>
+</article>
+<article class="news-card" data-index="8" hidden>
+<a class="article-open" href="/newsroom/before-marriage/">
+<div class="article-image">
+<img src="https://images.pexels.com/photos/8836421/pexels-photo-8836421.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=1600&amp;q=90" alt="" data-stock-fallback="/assets/labs-couple.jpg" loading="lazy" decoding="async">
+</div>
+<div class="article-meta">
+<span class="article-category">Research &amp; Advice</span>
+<time class="article-date" datetime="2026-10">October 2026</time>
+</div>
+<h2>The little things worth talking about before marriage.</h2>
+<span class="article-tag">Read the story <span aria-hidden="true">↗</span>
+</span>
+</a>
+</article>
+<article class="news-card" data-index="9" hidden>
+<a class="article-open" href="/newsroom/an-honest-profile/">
+<div class="article-image">
+<img src="https://images.pexels.com/photos/3967505/pexels-photo-3967505.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=1600&amp;q=90" alt="" data-stock-fallback="/assets/labs-couple.jpg" loading="lazy" decoding="async">
+</div>
+<div class="article-meta">
+<span class="article-category">Research &amp; Advice</span>
+<time class="article-date" datetime="2026-10">October 2026</time>
+</div>
+<h2>A thoughtful introduction starts with an honest profile.</h2>
+<span class="article-tag">Read the story <span aria-hidden="true">↗</span>
+</span>
+</a>
+</article>
+</div>
+<div id="news-empty" hidden>
+<h2>No stories here just yet.</h2>
+<p id="empty-copy">Try a different search or explore all posts.</p>
+<button class="pill" id="reset-news">View all posts</button>
+</div>
+<div class="all-posts">
+<button class="pill" id="load-news" aria-expanded="false" aria-controls="news-results">Show more</button>
+</div>
+</section>
+</main><Footer />
+<Dialogs />
+</body>
+</html>

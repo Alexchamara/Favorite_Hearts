@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Build output of the apps we maintain (the demo's reference/**/dist is kept on purpose)
+/apps/*/dist/
+/apps/website/.astro/
+/packages/*/dist/
+*.tsbuildinfo
+
+# Secrets: never commit real keys. Only *.example files are tracked.
+.env
+.env.*
+!.env.example
+
+# Local uploads / scratch
+/apps/api/.data/
+
+# OS / editor
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.log
+*.tar.gz

@@ -1,0 +1,329 @@
+---
+// Converted from the demo page src/pages/help/index.html — content unchanged.
+import Header from '../../components/Header.astro';
+import Navigation from '../../components/Navigation.astro';
+import Footer from '../../components/Footer.astro';
+import Dialogs from '../../components/Dialogs.astro';
+import Seo from '../../components/Seo.astro';
+import { css, js } from '../../lib/site';
+---
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#ffffff">
+<title>Help &amp; FAQ — Favorite Hearts</title>
+<meta name="description" content="Find answers about Favorite Hearts, matrimony introductions, family-managed profiles, payments and privacy. Search our Help, FAQ and NFAQ.">
+<link rel="stylesheet" href={css("landing.css")}>
+<script is:inline src={js("site-config.js")} defer>
+</script>
+<script is:inline src={js("site.js")} defer>
+</script>
+<script is:inline src={js("help.js")} defer>
+</script>
+<link rel="stylesheet" href={css("monochrome.css")}>
+<link rel="stylesheet" href={css("help.css")}>
+<link rel="stylesheet" href={css("welcome.css")}>
+<script is:inline src={js("welcome.js")} defer>
+</script>
+<script is:inline src={js("motion.js")} defer></script>
+<link rel="stylesheet" href={css("design-system.css")}>
+<link rel="stylesheet" href={css("tailwind.css")}>
+<Seo route="/help/" title={"Help & FAQ — Favorite Hearts"} description={"Find answers about Favorite Hearts, matrimony introductions, family-managed profiles, payments and privacy. Search our Help, FAQ and NFAQ."} headline={"Good questions. Thoughtful answers."} />
+</head>
+<body class="tw-antialiased">
+<a class="skip" href="#main">Skip to content</a>
+<Header />
+<Navigation />
+<main id="main" class="help-page" data-theme="light">
+<section class="section help-intro">
+<p class="label">A little guidance</p>
+<h1>Good questions.<br>Thoughtful answers.</h1>
+<p>From first introductions to the things you’re wondering about.<br>Find a little clarity here.</p>
+<label class="help-search" for="help-search">
+<svg viewBox="0 0 24 24" aria-hidden="true">
+<circle cx="10.5" cy="10.5" r="6.5"/>
+<path d="m16 16 5 5"/>
+</svg>
+<input id="help-search" type="search" placeholder="Search questions and answers" autocomplete="off">
+<span class="sr-only">Search help and frequently asked questions</span>
+</label>
+<div class="help-filters" role="group" aria-label="Filter questions by category">
+<button type="button" data-category="All questions" aria-pressed="true">All questions</button>
+<button type="button" data-category="Getting started" aria-pressed="false">Getting started</button>
+<button type="button" data-category="Profiles &amp; family" aria-pressed="false">Profiles &amp; family</button>
+<button type="button" data-category="Introductions" aria-pressed="false">Introductions</button>
+<button type="button" data-category="Payments" aria-pressed="false">Payments</button>
+<button type="button" data-category="Privacy &amp; safety" aria-pressed="false">Privacy &amp; safety</button>
+<button type="button" data-category="NFAQ" aria-pressed="false">NFAQ</button>
+</div>
+</section>
+<section class="section help-content" aria-label="Help and frequently asked questions">
+<p id="help-status" class="sr-only" role="status" aria-live="polite">
+</p>
+<section class="faq-group" data-group="Getting started">
+<div class="faq-group-heading">
+<h2>Getting started</h2>
+</div>
+<div class="faq-items">
+<details name="help-answer" data-category="Getting started">
+<summary>What is Favorite Hearts?<span aria-hidden="true">+</span>
+</summary>
+<div class="faq-answer">
+<p>Favorite Hearts is a matrimony platform being built for Sri Lankans at home and around the world. Our mission is to make life less lonely by bringing people together to build happy families.</p>
+</div>
+</details>
+<details name="help-answer" data-category="Getting started">
+<summary>Who is Favorite Hearts for?<span aria-hidden="true">+</span>
+</summary>
+<div class="faq-answer">
+<p>Favorite Hearts is for adults aged 18 and over who are considering marriage. Your own wishes, boundaries, and readiness should guide the journey.</p>
+</div>
+</details>
+<details name="help-answer" data-category="Getting started">
+<summary>Can I create an account on this website?<span aria-hidden="true">+</span>
+</summary>
+<div class="faq-answer">
+<p>Account registration is not available on this website yet. You can explore our approach, read our articles, and contact our team with questions about getting started.</p>
+</div>
+</details>
+<details name="help-answer" data-category="Getting started">
+<summary>Can I join if I live outside Sri Lanka?<span aria-hidden="true">+</span>
+</summary>
+<div class="faq-answer">
+<p>Our vision includes Sri Lankans living abroad as well as those in Sri Lanka. Location, plans for the future, and family expectations are useful things to discuss early.</p>
+</div>
+</details>
+</div>
+</section>
+<section class="faq-group" data-group="Profiles &amp; family">
+<div class="faq-group-heading">
+<h2>Profiles &amp; family</h2>
+</div>
+<div class="faq-items">
+<details name="help-answer" data-category="Profiles &amp; family">
+<summary>Can a parent or family member create a profile?<span aria-hidden="true">+</span>
+</summary>
+<div class="faq-answer">
+<p>The planned matrimony experience supports profiles created by a candidate or an authorised parent, guardian, or other manager. The manager’s role should be clear, and the candidate’s wishes should stay central.</p>
+</div>
+</details>
+<details name="help-answer" data-category="Profiles &amp; family">
+<summary>What should I include in a profile?<span aria-hidden="true">+</span>
+</summary>
+<div class="faq-answer">
+<p>Share an honest introduction, your interests, and what you hope for in a partnership. Details about education, work, and everyday life can help someone start a meaningful conversation.</p>
+</div>
+</details>
+<details name="help-answer" data-category="Profiles &amp; family">
+<summary>Which photos should I choose?<span aria-hidden="true">+</span>
+</summary>
+<div class="faq-answer">
+<p>Choose recent, clear photos that represent you. Use photos you have permission to share, and avoid including other people’s private information or images without their consent.</p>
+</div>
+</details>
+<details name="help-answer" data-category="Profiles &amp; family">
+<summary>How do I get help with profile changes?<span aria-hidden="true">+</span>
+</summary>
+<div class="faq-answer">
+<p>Contact our team with a short description of what you want to change. Avoid sending identity documents, passwords, or one-time codes in your first message.</p>
+</div>
+</details>
+<details name="help-answer" data-category="Profiles &amp; family">
+<summary>Does a family introduction mean I have to continue?<span aria-hidden="true">+</span>
+</summary>
+<div class="faq-answer">
+<p>No. An introduction is an invitation. Both people should feel free to ask for time, set boundaries, or decide that the connection is not right for them.</p>
+</div>
+</details>
+</div>
+</section>
+<section class="faq-group" data-group="Introductions">
+<div class="faq-group-heading">
+<h2>Introductions</h2>
+</div>
+<div class="faq-items">
+<details name="help-answer" data-category="Introductions">
+<summary>How will an interest request work?<span aria-hidden="true">+</span>
+</summary>
+<div class="faq-answer">
+<p>In the planned matrimony journey, one person sends an interest request and the other chooses whether to accept. Mutual acceptance is the next step towards getting to know each other.</p>
+</div>
+</details>
+<details name="help-answer" data-category="Introductions">
+<summary>Will there be chat inside matrimony?<span aria-hidden="true">+</span>
+</summary>
+<div class="faq-answer">
+<p>The planned matrimony experience does not include in-app chat. Contact details are intended to become available after mutual acceptance, so both people can decide how to continue.</p>
+</div>
+</details>
+<details name="help-answer" data-category="Introductions">
+<summary>When will private photos and contact details be shared?<span aria-hidden="true">+</span>
+</summary>
+<div class="faq-answer">
+<p>The planned experience keeps sensitive profile details and the full photo gallery private until both sides accept an interest request. Always consider what you feel comfortable sharing.</p>
+</div>
+</details>
+<details name="help-answer" data-category="Introductions">
+<summary>What should we talk about first?<span aria-hidden="true">+</span>
+</summary>
+<div class="faq-answer">
+<p>Begin with everyday life, what matters to each of you, and the future you hope to build. You do not need to settle every important question in the first conversation.</p>
+</div>
+</details>
+</div>
+</section>
+<section class="faq-group" data-group="Payments">
+<div class="faq-group-heading">
+<h2>Payments</h2>
+</div>
+<div class="faq-items">
+<details name="help-answer" data-category="Payments">
+<summary>Do I need to pay to publish a profile?<span aria-hidden="true">+</span>
+</summary>
+<div class="faq-answer">
+<p>The planned matrimony service requires a paid subscription to publish a profile, for both men and women. Final plans and prices will be shown before you make a payment.</p>
+</div>
+</details>
+<details name="help-answer" data-category="Payments">
+<summary>How will bank-transfer payments work?<span aria-hidden="true">+</span>
+</summary>
+<div class="faq-answer">
+<p>The planned flow is to choose a plan, follow the payment instructions, and submit proof of payment for review. A subscription becomes active after approval. This website does not currently accept payments.</p>
+</div>
+</details>
+<details name="help-answer" data-category="Payments">
+<summary>Can I ask about a payment or payment slip?<span aria-hidden="true">+</span>
+</summary>
+<div class="faq-answer">
+<p>Yes. Contact support with your question and the relevant payment reference, if you have one. Do not share passwords, one-time codes, card security codes, or full bank statements.</p>
+</div>
+</details>
+<details name="help-answer" data-category="Payments">
+<summary>Where can I find pricing and refund information?<span aria-hidden="true">+</span>
+</summary>
+<div class="faq-answer">
+<p>Our <a href="/pricing/">pricing page</a> lists proposed packages in LKR and USD. Plan duration, final benefits, and refund terms must be confirmed before payment. Ask our team for clarification; do not rely on prices in social comments or messages from other users.</p>
+</div>
+</details>
+</div>
+</section>
+<section class="faq-group" data-group="Privacy &amp; safety">
+<div class="faq-group-heading">
+<h2>Privacy &amp; safety</h2>
+</div>
+<div class="faq-items">
+<details name="help-answer" data-category="Privacy &amp; safety">
+<summary>How can I protect my personal information?<span aria-hidden="true">+</span>
+</summary>
+<div class="faq-answer">
+<p>Keep passwords, one-time codes, identity documents, financial information, and your home address private. Avoid posting sensitive details in a profile or public comment.</p>
+</div>
+</details>
+<details name="help-answer" data-category="Privacy &amp; safety">
+<summary>How do I raise a safety concern?<span aria-hidden="true">+</span>
+</summary>
+<div class="faq-answer">
+<p>Contact us on WhatsApp or by email with a short description of the concern. Keep relevant messages or screenshots, but avoid sharing unnecessary personal information. You can stop an uncomfortable interaction at any time.</p>
+</div>
+</details>
+<details name="help-answer" data-category="Privacy &amp; safety">
+<summary>What if someone asks me for money?<span aria-hidden="true">+</span>
+</summary>
+<div class="faq-answer">
+<p>Do not send money to someone you have only met online. Stop and seek support if a person pressures you to pay, invest, share bank details, or keep financial requests secret.</p>
+</div>
+</details>
+<details name="help-answer" data-category="Privacy &amp; safety">
+<summary>How should I prepare for a first meeting?<span aria-hidden="true">+</span>
+</summary>
+<div class="faq-answer">
+<p>Choose a public place, arrange your own transport, and tell someone you trust where you are going. Meet at a pace you feel comfortable with and leave if you feel uneasy.</p>
+</div>
+</details>
+<details name="help-answer" data-category="Privacy &amp; safety">
+<summary>How can I ask about my data or account?<span aria-hidden="true">+</span>
+</summary>
+<div class="faq-answer">
+<p>Email hello@favoritehearts.com with a brief description of your request. Our team can explain the appropriate next step. Never include passwords or one-time codes in your message.</p>
+</div>
+</details>
+</div>
+</section>
+<section class="faq-group" data-group="NFAQ">
+<div class="faq-group-heading">
+<h2>NFAQ</h2>
+<p>Not-so frequently asked questions</p>
+</div>
+<div class="faq-items">
+<details name="help-answer" data-category="NFAQ">
+<summary>What does NFAQ mean?<span aria-hidden="true">+</span>
+</summary>
+<div class="faq-answer">
+<p>Not-so frequently asked questions: the things you might be wondering about, even if they do not come up in every conversation.</p>
+</div>
+</details>
+<details name="help-answer" data-category="NFAQ">
+<summary>Do we need to agree on everything?<span aria-hidden="true">+</span>
+</summary>
+<div class="faq-answer">
+<p>No two people are identical. What matters is having room to talk honestly about differences, understand each other’s priorities, and decide what you can build together.</p>
+</div>
+</details>
+<details name="help-answer" data-category="NFAQ">
+<summary>What if my family and I want different things?<span aria-hidden="true">+</span>
+</summary>
+<div class="faq-answer">
+<p>Try explaining what matters to you and the kind of support you would welcome. Family can offer perspective, but your own willingness should never be replaced by pressure.</p>
+</div>
+</details>
+<details name="help-answer" data-category="NFAQ">
+<summary>Does Favorite Hearts guarantee a marriage?<span aria-hidden="true">+</span>
+</summary>
+<div class="faq-answer">
+<p>No. A meaningful partnership depends on the people involved. Introductions can create opportunities, but neither a profile nor a subscription can guarantee a relationship or marriage.</p>
+</div>
+</details>
+<details name="help-answer" data-category="NFAQ">
+<summary>Is horoscope matching available?<span aria-hidden="true">+</span>
+</summary>
+<div class="faq-answer">
+<p>Horoscope matching is not available on this website. It is reserved for a later version of the product.</p>
+</div>
+</details>
+<details name="help-answer" data-category="NFAQ">
+<summary>When can I contact the team?<span aria-hidden="true">+</span>
+</summary>
+<div class="faq-answer">
+<p>Our listed support hours are daily, 8:00 AM–10:00 PM, Sri Lanka time. You can send a WhatsApp message at any time; replies are handled during support hours. Favorite Hearts is not an emergency service.</p>
+</div>
+</details>
+</div>
+</section>
+<div id="help-empty" hidden>
+<h2>No answers found.</h2>
+<p>Try a different word, choose another category, or ask our team.</p>
+<button class="pill" id="help-reset">Show all questions</button>
+</div>
+</section>
+<section class="section help-contact" data-theme="dark">
+<div>
+<p class="label">We’re here for you</p>
+<h2>Still have<br>a question?</h2>
+<p>Some things need a conversation. Tell us what’s on your mind and we’ll help you find the next step.</p>
+</div>
+<div class="help-contact-actions">
+<a class="help-direct" href="https://wa.me/94766769894" target="_blank" rel="noopener noreferrer">WhatsApp · 076 676 9894 <span aria-hidden="true">↗</span>
+</a>
+<a class="help-direct" href="mailto:hello@favoritehearts.com">hello@favoritehearts.com <span aria-hidden="true">↗</span>
+</a>
+<p>Daily, 8:00 AM–10:00 PM<br>Sri Lanka time</p>
+<a class="pill" href="/contact/">Contact us <span aria-hidden="true">↗</span>
+</a>
+</div>
+</section>
+</main><Footer />
+<Dialogs />
+</body>
+</html>

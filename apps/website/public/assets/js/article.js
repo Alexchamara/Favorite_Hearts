@@ -1,0 +1,1 @@
+document.querySelectorAll('img[data-stock-fallback]').forEach(img=>{const fallback=()=>{if(img.dataset.stockFallback){const src=img.dataset.stockFallback;delete img.dataset.stockFallback;img.src=src}};img.addEventListener('error',fallback,{once:true});if(img.complete&&img.naturalWidth===0)fallback()});

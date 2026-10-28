@@ -1,0 +1,228 @@
+---
+// Converted from the demo page src/pages/labs/index.html — content unchanged.
+import Header from '../../components/Header.astro';
+import Navigation from '../../components/Navigation.astro';
+import Footer from '../../components/Footer.astro';
+import Dialogs from '../../components/Dialogs.astro';
+import Seo from '../../components/Seo.astro';
+import { css, js } from '../../lib/site';
+---
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#ffffff">
+<title>Favorite Labs — Favorite Hearts</title>
+<meta name="description" content="Favorite Labs explores the people, values and everyday choices behind lasting partnerships. Thoughtful matrimony for Sri Lanka and beyond.">
+<link rel="stylesheet" href={css("landing.css")}>
+<script is:inline src={js("site-config.js")} defer>
+</script>
+<script is:inline src={js("site.js")} defer>
+</script>
+<script is:inline src={js("labs.js")} defer>
+</script>
+<link rel="stylesheet" href={css("monochrome.css")}>
+<link rel="stylesheet" href={css("labs.css")}>
+<link rel="stylesheet" href={css("welcome.css")}>
+<script is:inline src={js("welcome.js")} defer>
+</script>
+<script is:inline src={js("motion.js")} defer></script>
+<link rel="stylesheet" href={css("design-system.css")}>
+<link rel="stylesheet" href={css("tailwind.css")}>
+<Seo route="/labs/" title={"Favorite Labs — Favorite Hearts"} description={"Favorite Labs explores the people, values and everyday choices behind lasting partnerships. Thoughtful matrimony for Sri Lanka and beyond."} headline={"We are love scientists."} />
+</head>
+<body class="tw-antialiased">
+<a class="skip" href="#main">Skip to content</a>
+<Header />
+<Navigation />
+<main id="main" class="labs-page">
+<section class="labs-opening" data-theme="light">
+<div class="labs-cover">
+<img src="https://images.pexels.com/photos/8836421/pexels-photo-8836421.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=2400&amp;q=90" alt="A couple enjoying a conversation in a coffee shop" fetchpriority="high" width="1600" height="1067" data-stock-fallback="/assets/labs-couple.jpg" decoding="async">
+</div>
+<div class="section">
+<p class="labs-wordmark">favorite<span>Labs</span>
+</p>
+<h1 data-reveal>We are love<br>
+<span class="scientists-mark">scientists.<svg class="draw-underline" viewBox="0 0 420 30" preserveAspectRatio="none" aria-hidden="true">
+<defs>
+<filter id="underline-ink" x="-10%" y="-50%" width="120%" height="200%">
+<feTurbulence type="fractalNoise" baseFrequency=".32" numOctaves="3" seed="8" result="rough"/>
+<feDisplacementMap in="SourceGraphic" in2="rough" scale="1.65" xChannelSelector="R" yChannelSelector="G"/>
+</filter>
+</defs>
+<path filter="url(#underline-ink)" pathLength="1" d="M8 18 C75 10 139 19 201 14 S324 11 411 16"/>
+</svg>
+</span>
+</h1>
+</div>
+</section>
+<section class="section labs-science" data-theme="light">
+<p class="label" data-reveal>Our Approach to Connection</p>
+<h2 data-reveal>Understanding people.<br>Building lasting love.</h2>
+<div class="offset">
+<p data-reveal>Favorite Labs explores the values, conversations, and everyday choices behind lasting partnerships — bringing a thoughtful perspective to matrimony in Sri Lanka and beyond.</p>
+</div>
+</section>
+<div class="labs-photo" data-theme="light">
+<img src="https://images.pexels.com/photos/3967505/pexels-photo-3967505.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=2400&amp;q=90" alt="A couple sharing coffee and looking at each other" loading="lazy" width="1536" height="1024" data-stock-fallback="/assets/labs-couple.jpg" decoding="async">
+</div>
+<section class="section labs-methods" data-theme="light">
+<p class="label">Our Research Vision</p>
+<h2 data-reveal>The lab.</h2>
+<p class="labs-body" data-reveal>We want to bring relationship research into conversation with real Sri Lankan experiences. These are the four ways we aim to learn — with care for the people behind every insight.</p>
+<div class="method-grid">
+<article data-reveal>
+<svg viewBox="0 0 80 80" aria-hidden="true">
+<path d="M18 15 12 16 16 61M25 13l35-4 2 8M25 22h40v48H25zM34 33h20M34 43h22M34 53h15"/>
+</svg>
+<h3>
+<span>Existing Scientific</span>
+<span>Literature</span>
+</h3>
+</article>
+<article data-reveal>
+<svg viewBox="0 0 80 80" aria-hidden="true">
+<path d="M10 13h23v23H10zM15 23l6 6 17-20M45 22h22M10 48h23v23H10zM45 58h22"/>
+</svg>
+<h3>
+<span>Favorite Hearts</span>
+<span>user surveys</span>
+</h3>
+</article>
+<article data-reveal>
+<svg viewBox="0 0 80 80" aria-hidden="true">
+<path d="M27 9 13 51M42 11v43M64 11v43"/>
+<circle cx="11" cy="62" r="8"/>
+<circle cx="42" cy="63" r="8"/>
+<circle cx="64" cy="63" r="8"/>
+</svg>
+<h3>
+<span>Cause and effect</span>
+<span>research</span>
+</h3>
+</article>
+<article data-reveal>
+<svg viewBox="0 0 80 80" aria-hidden="true">
+<path d="M59 69c0-14-8-20-20-20-7 5-17 1-18-6C8 42 7 27 17 23c-1-10 10-16 18-10 7-9 19-4 20 2 13-1 20 13 12 21v12M28 27c-5 7 0 14 8 12M44 24c8-3 14 4 12 11"/>
+</svg>
+<h3>
+<span>Behavioral</span>
+<span>analysis</span>
+</h3>
+</article>
+</div>
+</section>
+<section class="section labs-reading" id="advice" data-theme="light">
+<h2 data-reveal>Ideas &amp; Advice <sup>(6)</sup>
+</h2>
+<div class="article-grid">
+<article class="advice-card">
+<a class="article-open" href="/newsroom/beyond-the-checklist/">
+<div class="article-image">
+<img src="https://images.pexels.com/photos/5910748/pexels-photo-5910748.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=2400&amp;q=90" alt="" loading="lazy" data-stock-fallback="/assets/labs-couple.jpg" decoding="async">
+</div>
+<span class="article-meta">
+<span class="article-category">Shared Values</span>
+<time class="article-date" datetime="2026-10">October 2026</time>
+</span>
+<h3>Beyond the checklist: what does a shared life look like?</h3>
+<span class="article-tag">Read the story <span aria-hidden="true">↗</span>
+</span>
+</a>
+</article>
+<article class="advice-card">
+<a class="article-open" href="/newsroom/a-first-conversation/">
+<div class="article-image">
+<img src="https://images.pexels.com/photos/8836421/pexels-photo-8836421.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=2400&amp;q=90" alt="" loading="lazy" data-stock-fallback="/assets/labs-couple.jpg" decoding="async">
+</div>
+<span class="article-meta">
+<span class="article-category">Conversations</span>
+<time class="article-date" datetime="2026-10">October 2026</time>
+</span>
+<h3>A first conversation that feels like you.</h3>
+<span class="article-tag">Read the story <span aria-hidden="true">↗</span>
+</span>
+</a>
+</article>
+<article class="advice-card">
+<a class="article-open" href="/newsroom/family-and-your-voice/">
+<div class="article-image">
+<img src="https://images.pexels.com/photos/3967505/pexels-photo-3967505.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=2400&amp;q=90" alt="" loading="lazy" data-stock-fallback="/assets/labs-couple.jpg" decoding="async">
+</div>
+<span class="article-meta">
+<span class="article-category">Family & Choice</span>
+<time class="article-date" datetime="2026-10">October 2026</time>
+</span>
+<h3>Family can be part of the journey. Your voice comes first.</h3>
+<span class="article-tag">Read the story <span aria-hidden="true">↗</span>
+</span>
+</a>
+</article>
+<article class="advice-card" hidden>
+<a class="article-open" href="/newsroom/across-borders-on-the-same-page/">
+<div class="article-image">
+<img src="https://images.pexels.com/photos/5910748/pexels-photo-5910748.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=2400&amp;q=90" alt="" loading="lazy" data-stock-fallback="/assets/labs-couple.jpg" decoding="async">
+</div>
+<span class="article-meta">
+<span class="article-category">Sri Lanka & Beyond</span>
+<time class="article-date" datetime="2026-10">October 2026</time>
+</span>
+<h3>Across borders, on the same page.</h3>
+<span class="article-tag">Read the story <span aria-hidden="true">↗</span>
+</span>
+</a>
+</article>
+<article class="advice-card" hidden>
+<a class="article-open" href="/newsroom/before-marriage/">
+<div class="article-image">
+<img src="https://images.pexels.com/photos/3967505/pexels-photo-3967505.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=2400&amp;q=90" alt="" loading="lazy" data-stock-fallback="/assets/labs-couple.jpg" decoding="async">
+</div>
+<span class="article-meta">
+<span class="article-category">Everyday Partnership</span>
+<time class="article-date" datetime="2026-10">October 2026</time>
+</span>
+<h3>The little things worth talking about before marriage.</h3>
+<span class="article-tag">Read the story <span aria-hidden="true">↗</span>
+</span>
+</a>
+</article>
+<article class="advice-card" hidden>
+<a class="article-open" href="/newsroom/an-honest-profile/">
+<div class="article-image">
+<img src="https://images.pexels.com/photos/8836421/pexels-photo-8836421.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=2400&amp;q=90" alt="" loading="lazy" data-stock-fallback="/assets/labs-couple.jpg" decoding="async">
+</div>
+<span class="article-meta">
+<span class="article-category">Getting Started</span>
+<time class="article-date" datetime="2026-10">October 2026</time>
+</span>
+<h3>A thoughtful introduction starts with an honest profile.</h3>
+<span class="article-tag">Read the story <span aria-hidden="true">↗</span>
+</span>
+</a>
+</article>
+</div>
+<div class="all-posts">
+<button class="pill" id="all-posts" aria-expanded="false">All posts</button>
+</div>
+</section>
+<section class="section labs-press" data-theme="dark">
+<div class="press-row">
+<p class="label">News &amp; Media</p>
+<h3>Follow our next chapter.</h3>
+<p>Future announcements and press updates will be shared in our newsroom.</p>
+<a href="/newsroom/" class="labs-text-link">Visit our newsroom <span aria-hidden="true">↗</span>
+</a>
+</div>
+</section>
+<section class="section begin join" data-theme="light">
+<p class="label" data-reveal>Your Next Chapter</p>
+<h2 data-reveal>Make room for<br>your person.</h2>
+<p>A shared life starts with getting to know someone. Begin your next chapter with Favorite Hearts.</p>
+<button class="pill start">Join now</button>
+</section>
+</main><Footer />
+<Dialogs />
+</body>
+</html>

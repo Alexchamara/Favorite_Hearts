@@ -1,0 +1,43 @@
+# Favorite Hearts
+
+Sri Lankan matrimony platform. **Status: pre-production scaffold** — nothing here is a live service yet.
+
+Read first: [`docs/OWNER-DECISIONS.md`](docs/OWNER-DECISIONS.md) (business rules — overrides the demo),
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/BUILD-PROGRESS.md`](docs/BUILD-PROGRESS.md),
+and the developer specification [`docs/Favorite-Hearts.pdf`](docs/Favorite-Hearts.pdf).
+
+## Layout
+
+```
+apps/website/      public site — Astro, static pages            http://localhost:4321
+apps/member/       member app — Vite + React + TS (+ Tailwind, Radix, TanStack Query, Zod)   :5173/app/
+apps/api/          API — Hono on Node, Better-Auth, Drizzle/Neon, R2 + sharp, pg-boss          :8787
+packages/shared/   Zod schemas and constants shared by all apps
+docs/              decisions, architecture, progress, spec
+reference/         original demo — read-only, never deployed
+```
+
+## Requirements
+
+Node 22+ (`nvm use`), npm 10+. Accounts (owner-owned, developer as collaborator):
+Neon, Resend, Cloudflare (R2 + Pages), Fly.io or Railway, GitHub.
+
+## Getting started
+
+```sh
+npm install
+cp apps/api/.env.example apps/api/.env              # Neon dev branch URLs, Resend key, auth secret
+cp apps/member/.env.example apps/member/.env.local
+
+npm run db:generate      # create SQL migrations from the Drizzle schema (first time)
+npm run db:migrate       # apply them to the Neon database in DATABASE_URL_DIRECT
+npm run dev              # api :8787, member app :5173/app/, website :4321
+```
+
+Checks: `npm run typecheck` and `npm run build`.
+
+## Secrets
+
+Never commit real keys; only `*.example` files are tracked. Browser-visible values start with
+`VITE_` and must be public. Database, auth, Resend, SMS and R2 secrets live only in `apps/api/.env`
+locally and in the API host's secret store (Fly.io / Railway) when deployed.

@@ -1,0 +1,68 @@
+---
+/**
+ * Canonical, robots, Open Graph / Twitter tags and JSON-LD for every page.
+ * Same output the demo's build.py injected, now as a component.
+ */
+import { base, site } from '../lib/site';
+
+interface Props {
+  route: string;
+  title: string;
+  description?: string | null;
+  headline?: string | null;
+}
+
+const { route, title } = Astro.props;
+const description =
+  Astro.props.description ??
+  `Explore ${title} and thoughtful matrimony for Sri Lankans at home and abroad.`;
+const headline = Astro.props.headline ?? title;
+const url = base + route;
+const article = route.startsWith('/newsroom/') && route !== '/newsroom/';
+const robots = site.indexable ? 'index, follow, max-image-preview:large' : 'noindex, nofollow';
+const image = `${base}/assets/couple.jpg`;
+
+const page: Record<string, unknown> = {
+  '@type': article ? 'Article' : 'WebPage',
+  '@id': `${url}#page`,
+  url,
+  name: title,
+  description,
+  inLanguage: 'en',
+  isPartOf: { '@id': `${base}/#website` },
+};
+if (article) {
+  Object.assign(page, {
+    headline,
+    author: { '@type': 'Organization', name: site.siteName },
+    publisher: { '@id': `${base}/#organization` },
+  });
+}
+const graph: unknown[] = [
+  { '@type': 'Organization', '@id': `${base}/#organization`, name: site.siteName, url: `${base}/`, email: site.email, telephone: site.telephone },
+  { '@type': 'WebSite', '@id': `${base}/#website`, url: `${base}/`, name: site.siteName, inLanguage: 'en', publisher: { '@id': `${base}/#organization` } },
+  page,
+];
+if (route !== '/') {
+  const crumbs = [{ '@type': 'ListItem', position: 1, name: 'Home', item: `${base}/` }];
+  if (article) crumbs.push({ '@type': 'ListItem', position: 2, name: 'Newsroom', item: `${base}/newsroom/` });
+  crumbs.push({ '@type': 'ListItem', position: crumbs.length + 1, name: headline, item: url });
+  graph.push({ '@type': 'BreadcrumbList', itemListElement: crumbs });
+}
+const jsonLd = JSON.stringify({ '@context': 'https://schema.org', '@graph': graph }).replace(/</g, '\\u003c');
+---
+<link rel="canonical" href={url} />
+<meta name="robots" content={robots} />
+<meta property="og:type" content={article ? 'article' : 'website'} />
+<meta property="og:site_name" content={site.siteName} />
+<meta property="og:title" content={title} />
+<meta property="og:description" content={description} />
+<meta property="og:url" content={url} />
+<meta property="og:image" content={image} />
+<meta property="og:image:alt" content="A quiet moment together" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={title} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={image} />
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+<script is:inline type="application/ld+json" set:html={jsonLd} />

@@ -1,0 +1,159 @@
+---
+// Converted from the demo page src/pages/security/index.html — content unchanged.
+import Header from '../../components/Header.astro';
+import Navigation from '../../components/Navigation.astro';
+import Footer from '../../components/Footer.astro';
+import Dialogs from '../../components/Dialogs.astro';
+import Seo from '../../components/Seo.astro';
+import { css, js } from '../../lib/site';
+---
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#ffffff">
+<title>Security — Favorite Hearts</title>
+<meta name="description" content="Security at Favorite Hearts. Clear information for thoughtful matrimony introductions and support.">
+<link rel="stylesheet" href={css("landing.css")}>
+<script is:inline src={js("site-config.js")} defer>
+</script>
+<script is:inline src={js("site.js")} defer>
+</script>
+<script is:inline src={js("resource-carousel.js")} defer>
+</script>
+<script is:inline src={js("resources.js")} defer>
+</script>
+<link rel="stylesheet" href={css("monochrome.css")}>
+<link rel="stylesheet" href={css("resources.css")}>
+<link rel="stylesheet" href={css("welcome.css")}>
+<script is:inline src={js("welcome.js")} defer>
+</script>
+<script is:inline src={js("motion.js")} defer></script>
+<link rel="stylesheet" href={css("design-system.css")}>
+<link rel="stylesheet" href={css("tailwind.css")}>
+<Seo route="/security/" title={"Security — Favorite Hearts"} description={"Security at Favorite Hearts. Clear information for thoughtful matrimony introductions and support."} headline={"A little care. A safer connection."} />
+</head>
+<body class="tw-antialiased">
+<a class="skip" href="#main">Skip to content</a>
+<Header />
+<Navigation />
+<main id="main" class="resource-page" data-theme="light">
+<section class="section resource-intro">
+<p class="label">Security</p>
+<h1>A little care.<br>A safer connection.</h1>
+<p class="resource-lead">Protect your information, recognise suspicious requests, and know where to turn if something feels wrong.</p>
+</section>
+<section class="section resource-section">
+<p class="label">Good habits, from the start</p>
+<h2>Keep your information<br>in your hands.</h2>
+<div class="security-carousel" role="region" aria-roledescription="carousel" aria-label="Security habits">
+<div class="principles-track" tabindex="0" aria-label="Security habits. Use left and right arrow keys to browse.">
+<article class="principle">
+<span class="principle-number">01</span>
+<h3>Keep access private</h3>
+<p>Never share a password or one-time code. Use a unique password wherever you create an account, and sign out of shared devices.</p>
+</article>
+<article class="principle">
+<span class="principle-number">02</span>
+<h3>Check before you click</h3>
+<p>Be cautious with unexpected links, downloads, or requests to sign in. Open the website yourself when you are unsure who sent a message.</p>
+</article>
+<article class="principle">
+<span class="principle-number">03</span>
+<h3>Share only what is needed</h3>
+<p>Keep identity documents, financial details, and private contact information out of public profiles and social comments.</p>
+</article>
+</div>
+<div class="principle-controls">
+<div class="review-indicators principle-dashes" aria-hidden="true">
+<span class="active">
+</span>
+<span>
+</span>
+<span>
+</span>
+</div>
+</div>
+</div>
+</section>
+<section class="section resource-band" data-theme="dark">
+<p class="label">Understand the limits</p>
+<h2>Trust should be informed.</h2>
+<p>This website currently provides information and support links. It does not collect identity documents, process payments, or operate member accounts. We do not claim that profiles have been verified here or that a connection is risk-free.</p>
+<a class="resource-link" href="/privacy/">Read our Privacy Policy <span aria-hidden="true">↗</span>
+</a>
+</section>
+<section class="section resource-section resource-split">
+<div>
+<p class="label">Report a technical concern</p>
+<h2>Spotted something<br>that isn’t right?</h2>
+<p>If you notice a suspicious link, possible data exposure, or a weakness in the website, tell us privately.</p>
+<a class="pill" href="mailto:hello@favoritehearts.com?subject=Security%20report">Report a security issue</a>
+</div>
+<div class="report-guidance">
+<h3>
+<svg viewBox="0 0 24 24" aria-hidden="true">
+<rect x="5" y="4" width="14" height="17" rx="2"/>
+<path d="M9 4V2h6v2M9 9h6M9 13h6M9 17h4"/>
+</svg>What to include</h3>
+<ol>
+<li>The page address and a short description.</li>
+<li>What you expected and what happened instead.</li>
+<li>Your device, browser, and the approximate time.</li>
+<li>A screenshot with private information hidden, if useful.</li>
+</ol>
+</div>
+</section>
+<section class="section resource-section">
+<p class="label">Security questions</p>
+<h2>A few useful answers.</h2>
+<div class="resource-questions">
+<details name="resource-answer">
+<summary>Someone asked for my password or code. What should I do?<span aria-hidden="true">+</span>
+</summary>
+<div>
+<p>Do not share it. If you already shared a password, change it through the affected service’s official website and review its account-recovery options. Tell our team if the message claimed to be from Favorite Hearts.</p>
+</div>
+</details>
+<details name="resource-answer">
+<summary>Does HTTPS mean a person or payment request is trustworthy?<span aria-hidden="true">+</span>
+</summary>
+<div>
+<p>No. An encrypted connection helps protect traffic in transit, but it does not prove that a person is genuine or that a request is safe. Check the website address and independently confirm unexpected requests.</p>
+</div>
+</details>
+<details name="resource-answer">
+<summary>Is a verification badge a guarantee of safety?<span aria-hidden="true">+</span>
+</summary>
+<div>
+<p>No. A check can only establish what was checked at that time. Verification features are not active on this website, and no badge can guarantee someone’s intentions or future behaviour.</p>
+</div>
+</details>
+<details name="resource-answer">
+<summary>Where do I raise a concern about another person?<span aria-hidden="true">+</span>
+</summary>
+<div>
+<p>Use our <a href="/trust-and-safety/">Trust &amp; Safety guidance</a> and contact support. If there is immediate danger, contact local emergency services rather than waiting for a website response.</p>
+</div>
+</details>
+</div>
+</section>
+<section class="section resource-end" data-theme="dark">
+<div>
+<p class="label">Let’s keep it thoughtful</p>
+<h2>Questions about<br>your information?</h2>
+<p>We can help you find the right next step for a privacy or security enquiry.</p>
+</div>
+<div class="resource-actions">
+<a class="pill" href="/help/">Explore Help &amp; FAQ <span aria-hidden="true">↗</span>
+</a>
+<a class="pill" href="/contact/">Contact us <span aria-hidden="true">↗</span>
+</a>
+<p class="response-hours">Daily, 8:00 AM–10:00 PM<br>Sri Lanka time</p>
+</div>
+</section>
+</main><Footer />
+<Dialogs />
+</body>
+</html>

@@ -1,0 +1,117 @@
+---
+// Converted from the demo page src/pages/index.html — content unchanged.
+import Header from '../components/Header.astro';
+import Navigation from '../components/Navigation.astro';
+import Footer from '../components/Footer.astro';
+import Dialogs from '../components/Dialogs.astro';
+import Seo from '../components/Seo.astro';
+import { css, js } from '../lib/site';
+---
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#e8c7b1">
+<title>Favorite Hearts — Find your forever</title>
+<meta name="description" content="A thoughtful beginning for marriage. Favorite Hearts brings a fresh perspective to matrimony for Sri Lankans at home and abroad.">
+<link rel="stylesheet" href={css("landing.css")}>
+<script is:inline src={js("site-config.js")} defer>
+</script>
+<script is:inline src={js("site.js")} defer>
+</script>
+<script is:inline src={js("landing.js")} defer>
+</script>
+<link rel="stylesheet" href={css("monochrome.css")}>
+<link rel="stylesheet" href={css("welcome.css")}>
+<script is:inline src={js("welcome.js")} defer>
+</script>
+<script is:inline src={js("motion.js")} defer></script>
+<link rel="stylesheet" href={css("design-system.css")}>
+<link rel="stylesheet" href={css("tailwind.css")}>
+<Seo route="/" title={"Favorite Hearts — Find your forever"} description={"A thoughtful beginning for marriage. Favorite Hearts brings a fresh perspective to matrimony for Sri Lankans at home and abroad."} headline={"Your person. Your forever."} />
+</head>
+<body class="tw-antialiased" data-home="true">
+<a class="skip" href="#main">Skip to content</a>
+<Header />
+<Navigation />
+<main id="main">
+<section class="hero" data-theme="dark">
+<img src="/assets/date.jpg" alt="A couple laughing together at a café" fetchpriority="high" decoding="async">
+<div class="shade">
+</div>
+<h1>Your person.<br>Your forever.</h1>
+<span class="hero-note">
+<span>FAVORITE HEARTS</span>
+<span class="hero-divider" aria-hidden="true">
+</span>
+<span>SRI LANKA &amp; BEYOND</span>
+</span>
+</section>
+<section class="approach section" id="approach" data-theme="light">
+<p class="label">Our Approach</p>
+<h2>Find your person.<br>Build your <span class="circled">forever.<svg class="draw-circle" viewBox="0 0 330 120" preserveAspectRatio="none" aria-hidden="true">
+<defs>
+<filter id="ink" x="-15%" y="-15%" width="130%" height="130%">
+<feTurbulence type="fractalNoise" baseFrequency=".32" numOctaves="3" seed="8" result="rough"/>
+<feDisplacementMap in="SourceGraphic" in2="rough" scale="1.65" xChannelSelector="R" yChannelSelector="G"/>
+</filter>
+</defs>
+<path filter="url(#ink)" pathLength="1" d="M63 17 C109-3 198-3 250 15 C295 29 317 54 302 78 C286 106 227 115 166 114 C100 114 41 103 23 79 C5 55 22 29 51 20"/>
+</svg>
+</span>
+</h2>
+<div class="offset">
+<p>Shared values. Honest intentions. A future you both believe in. We’re creating a more thoughtful way for Sri Lankans, at home and abroad, to find their person.</p>
+<a class="pill" href="/mission/">How we see it</a>
+</div>
+</section>
+<section class="connection" id="labs" data-theme="light">
+<div class="photo">
+<img src="/assets/labs-couple.jpg" alt="A couple laughing together in a sunlit home" loading="lazy" decoding="async">
+</div>
+<div class="section peach">
+<p class="label">Favorite Labs</p>
+<h2>We are love<br>scientists.</h2>
+<div class="offset">
+<p>What turns a connection into a lasting partnership? Favorite Labs is our vision for exploring the people, values, and everyday choices behind a shared life.</p>
+<a class="pill" href="/labs/">Explore Favorite Labs</a>
+</div>
+</div>
+</section>
+<section class="values section" id="reviews" data-theme="dark" aria-roledescription="carousel" aria-label="Sample testimonials" tabindex="0">
+<p class="label">What our users say</p>
+<p class="testimonial-disclosure">Illustrative sample reviews — these are fictional names and stories, not verified customer experiences.</p>
+<div class="quote-wrap">
+<div class="quote-mark" aria-hidden="true">“</div>
+<blockquote id="quote">It felt good to talk openly about family, our values, and the future we wanted. We could take the time to get to know each other.</blockquote>
+<p id="quote-credit">Nethmi & Kavindu · Sample review</p>
+</div>
+<div class="review-controls">
+<div class="review-indicators" aria-hidden="true">
+<span class="active">
+</span>
+<span>
+</span>
+<span>
+</span>
+</div>
+<button class="review-pause" id="pause" aria-label="Pause automatic reviews">Pause</button>
+</div>
+</section>
+<section class="begin section join" id="join" data-theme="light">
+<p class="label">Your Forever Starts Somewhere</p>
+<h2>Make room for<br>your next chapter.</h2>
+<p>A shared home. Small everyday joys. A future you choose together. Begin your search for someone who wants to build that life with you.</p>
+<button class="pill start">Join now</button>
+</section>
+<section class="begin section press" id="press" data-theme="dark">
+<p class="label">Press</p>
+<h2>Good stories<br>deserve to be shared.</h2>
+<p>A closer look at Favorite Hearts, our mission, and the story we’re building around meaningful matrimony.</p>
+<a class="pill" href="/newsroom/">Visit our newsroom</a>
+</section>
+</main><Footer />
+<Dialogs />
+</body>
+</html>
