@@ -16,7 +16,7 @@ without output.
 | Stage | Status |
 | --- | --- |
 | 0 Baseline and rule audit (`docs/RULE-AUDIT.md`) | **done, awaiting owner review.** Rollback tag `stage-0-baseline`; evidence below. |
-| 1 Foundation: member app migration, Drizzle schema + RLS, Neon staging/production | scaffold only |
+| 1 Foundation: member app migration, Drizzle schema + RLS, Neon staging/production | **done, awaiting owner review.** Staging/production projects **BLOCKED** until the owner creates them; evidence below. |
 | 2 Accounts and verification (codes, invites, takeover, badges, staff 2FA, documents) | auth wiring only |
 | 3 Requests, connections and privacy | not started |
 | 4 Plans, payments, email, Turnstile | not started |
@@ -33,6 +33,15 @@ without output.
 | 2026-10-27 | Members sign in passwordless (codes). Staff use email + password + TOTP; no public password sign-up. | Proposed — confirm |
 | 2026-10-27 | Better-Auth pinned to ≥ 1.6.22 (fixes a high-severity email-OTP account-takeover advisory, GHSA-qq9h-g4jm-xgf3). | Engineering |
 | 2026-10-27 | Drizzle kept on the stable 0.x line (v1.0 is still beta). | Engineering |
+| 2026-10-28 | Row-level security works through the role `fh_app`: every member/staff transaction switches to it (`SET LOCAL ROLE`). No FORCE RLS, because Neon's owner role has BYPASSRLS anyway; code on the owner connection is kept minimal. | Engineering |
+| 2026-10-28 | Access-rule tests run on PGlite (PostgreSQL 18.6 in-process, the same version as Neon dev) and in CI. | Engineering |
+| 2026-10-28 | Plan catalogue seeded with the provisional §2 prices, in minor units, as versioned rows (never edited). | Engineering (per §2) |
+| 2026-10-28 | Kept out of the schema until the owner decides: boosts, featured profiles, shortlist limits (audit N01–N03). Horoscope reduced to the importance preference (§1). | Engineering |
+| 2026-10-28 | Profiles store a date of birth, to show age and check 18+. The spec (5.3) leaves this open. | Proposed — confirm |
+| 2026-10-28 | Contact details hide for the member whose own plan ended; the other member's expiry does not hide them (spec O03). | Proposed — confirm |
+| 2026-10-28 | Any active member may browse published profiles, verified or not (audit N04). | Proposed — confirm |
+| 2026-10-28 | After a takeover the candidate does not see the former manager's payment records (spec 6.3). | Proposed — confirm |
+| 2026-10-28 | Astro 7 upgrade deferred to Stage 5. The critical advisory needs `define:vars` or server islands, and the static site uses neither. | Proposed — confirm |
 
 ## Step 5 evidence
 
@@ -401,9 +410,9 @@ Membership, Privacy & safety, Boost profile, Contact us and Review workspace. Th
   @tailwindcss/postcss 4.1.16, tw-animate-css 1.4.0, jsdom 27.0.1 (tests).
 - Tools: Node 22+ and Python 3.12+.
 
-### Task checklist
+## Task checklist
 
-Built from [`RULE-AUDIT.md`](RULE-AUDIT.md); IDs refer to its rows.
+Built from [`RULE-AUDIT.md`](RULE-AUDIT.md); IDs refer to its rows. Ticked items have evidence in their stage section.
 
 **Stage 0**
 
@@ -415,13 +424,19 @@ Built from [`RULE-AUDIT.md`](RULE-AUDIT.md); IDs refer to its rows.
 
 **Stage 1: Foundation**
 
-- [ ] Schema and RLS keep private contacts separate from profile fields (P20) and allow up to 3 profiles per manager (P16).
-- [ ] Use synthetic staging data only: no fictional members, account switcher or demo codes (P06, P28).
-- [ ] Do not port the horoscope workspace; keep only the preference field (P26).
-- [ ] Correct the Supabase comment in `packages/shared/src/contact.ts` (X07).
-- [ ] Decide the astro 7 upgrade for the critical advisory.
+- [x] Schema and RLS keep private contacts separate from profile fields (P20) and allow up to 3 profiles per manager (P16).
+- [x] Use synthetic data only: test accounts are created inside the tests; no fictional members, account switcher or demo codes (P06, P28).
+- [x] Do not port the horoscope workspace; keep only the preference field (P26).
+- [x] Correct the Supabase comment in `packages/shared/src/contact.ts` (X07).
+- [x] Astro 7 upgrade: deferred, see the decisions table (proposed).
+- [ ] Apply migrations 0002–0003 to the Neon dev database. The dry run passed; this waits for a go-ahead.
+- [ ] **BLOCKED, owner action:** create the Neon staging and production projects (`docs/ARCHITECTURE.md`, "Environments").
 
 **Stage 2: Accounts and verification**
+
+- [ ] Use `withActor` for every member and staff query; set `app.role` from `staff_member` (the database re-checks it).
+- [ ] Invitation consumption and takeover as reviewed SECURITY DEFINER functions. The API role cannot change `candidate_user_id` itself.
+- [ ] Provision the first owner account and the backup reviewer: a script the developer runs with the owner.
 
 - [ ] 24-hour single-use invitations with a code to the nominated contact, contacts that differ, and limited resends (P15).
 - [ ] Takeover without a fee: the manager loses access immediately and the plan carries over. The owner confirms the fee is dropped (P14, O07).
@@ -461,3 +476,159 @@ Built from [`RULE-AUDIT.md`](RULE-AUDIT.md); IDs refer to its rows.
 - [ ] Set the real `siteUrl` once the domain is bought (X05).
 
 **Stage 6: Harden and hand over.** Unchanged from spec 17.1.
+
+## Stage 1 evidence (28 Oct 2026)
+
+Scope (spec 17.1 and Part 3 "Stage 1", adapted to the chosen stack):
+
+- Versioned SQL migrations for the data model in spec 12.1, with row-level access rules in the same migrations, deny by default.
+- Rule tests with several real accounts, not only the privileged connection.
+- Staging and production as separate projects.
+- The member app moved incrementally, keeping the public pages and styling.
+
+### What was built
+
+**Data model.** Migration `apps/api/drizzle/0002_domain_tables.sql` adds 22 tables:
+
+- **Members and profiles:** `member_account`, `profile`, `profile_manager`, `private_contact`, `photo`, `photo_original`, `invitation`.
+- **Trust:** `verification_case`.
+- **Connections and safety:** `interest`, `connection`, `shortlist`, `block`, `quota_ledger`, `disclosure_event`, `report`.
+- **Billing:** `plan`, `price_version`, `payment_submission`, `entitlement_event`.
+- **Operations:** `audit_event`, `notification_outbox`, `operations_flag`.
+
+Value lists are shared from `packages/shared/src/domain.ts`. A published profile must be complete (check constraint),
+and caste needs a consent time.
+
+**Access rules.** Migration `apps/api/drizzle/0003_access_rules.sql` is hand-written. It contains:
+
+- the `fh_app` role, with grants for only what the policies use
+- 68 row-level security policies on 23 tables
+- SECURITY DEFINER helper functions
+- invariant triggers
+- the provisional price seed and the pause switches
+
+`apps/api/src/db/actor.ts` holds the transaction wrapper that every API request will use.
+
+**Member app.** It now has the demo's design tokens (light and dark), the 12 demo UI components unchanged apart from
+two necessary edits, a theme toggle, and the existing status page restyled. Screens move with their stages.
+
+**Documentation.** The "Database access" and "Environments" sections in `docs/ARCHITECTURE.md`.
+
+### `npm test` (new: access rules on PGlite, PostgreSQL 18.6)
+
+```text
+> @fh/api@0.1.0 test
+> node --import tsx --test test/*.test.ts
+▶ the API database role
+  ✔ runs as fh_app with the actor settings for that transaction only (2.392583ms)
+▶ anonymous visitor
+  ✔ sees no member data, only the public price list (7.903958ms)
+  ✔ cannot create anything (1.683584ms)
+▶ members browsing
+  ✔ see published profiles, never drafts or paused ones of others (2.608709ms)
+  ✔ a suspended member browses nothing (1.0995ms)
+  ✔ see blurred photos; an original only when it is a cover shown publicly (2.060459ms)
+▶ private details: contacts and gallery (OWNER-DECISIONS sections 3, 4, 7)
+  ✔ a paid, connected member sees what the other side shares, and nothing more (4.377958ms)
+  ✔ members without a connection see none (2.056709ms)
+  ✔ ending the connection hides them at once (3.22275ms)
+  ✔ the member's own plan ending hides them (section 3) (2.227958ms)
+  ✔ a block hides them, and hides each profile from the other (3.8355ms)
+▶ interests and the sender blur (sections 1, 4)
+  ✔ an unpaid receiver cannot see who sent an interest, only an anonymous preview (3.660333ms)
+  ✔ once the receiver has a plan, the sender is visible (2.106958ms)
+  ✔ sending needs an active plan and a published, unblocked receiver (2.796583ms)
+  ✔ only the receiver answers, only the sender withdraws, and only while pending (6.677333ms)
+▶ managers and candidates (section 5)
+  ✔ the candidate sets the manager permissions; the manager cannot (3.232583ms)
+  ✔ a revoked manager has no access to the profile and cannot restore it (2.337625ms)
+  ✔ removing the manager takes effect immediately (3.351458ms)
+  ✔ a manager runs at most 3 profiles unless the owner raises the limit (6.449208ms)
+  ✔ a manager cannot attach to someone else's profile (1.232875ms)
+▶ publishing (section 5)
+  ✔ needs the publisher's approved document and verified phone (4.553625ms)
+▶ staff (sections 9, 10)
+  ✔ the backup reviewer handles documents and reports but sees no payments (3.025333ms)
+  ✔ the backup reviewer cannot approve a payment or grant a plan (2.55275ms)
+  ✔ the owner approves a payment exactly once (5.339958ms)
+  ✔ claiming a staff role is not enough (2.681542ms)
+  ✔ members see only their own payments and must use the current price (6.82875ms)
+  ✔ the payer can attach proof but not approve (3.217875ms)
+▶ history, prices and switches
+  ✔ plan history and the audit trail are append-only, even for the owner (1.713084ms)
+  ✔ the append-only triggers also stop the database owner (0.5065ms)
+  ✔ a price can only be closed and replaced, never edited (2.587ms)
+  ✔ the owner can pause new signups and document submissions (4.168667ms)
+▶ invariants
+  ✔ invitations: a different contact, 24 hours at most, one live at a time (7.393458ms)
+  ✔ photos: at most five, one cover (2.101083ms)
+  ✔ caste needs explicit consent (section 6) (2.0435ms)
+  ✔ members cannot change their own account status or manager capacity (2.731959ms)
+  ✔ reports stay hidden from the reported member (1.981709ms)
+ℹ tests 36
+ℹ suites 10
+ℹ pass 36
+ℹ fail 0
+```
+
+The first run failed 1 of 36 tests. The cause was in the design: the invitation expiry had been computed from the
+test machine's clock, while the 24-hour limit is measured on the database clock. The expiry is now a column default
+(`now() + 24 hours`), and the migration was regenerated before it had been applied anywhere.
+
+**Mutation check.** These policies were weakened on purpose to prove the tests catch broken rules:
+
+- **Payments readable by anyone:** 4 tests failed (anonymous, backup reviewer, spoofed owner, member isolation).
+- **The plan check removed from private details:** the "own plan ending hides them" test failed.
+
+The original file was then restored and compared.
+
+### Neon dry run (dev database, rolled back)
+
+Migrations 0002–0003 ran inside one transaction on the Neon dev database, which was then rolled back. Nothing
+persisted. Script output, with connection details never printed:
+
+```text
+server: { postgres: '18.6', role: 'neondb_owner', superuser: false, createrole: true, bypassrls: true,
+  profile_exists: false, fh_app_exists: false, applied_migrations: 2 }
+applied 288 statements inside the transaction
+checks: { tables_with_rls: 23, policies: 68, prices: 6 }
+as fh_app (anonymous): { role: 'fh_app', profiles: 0, prices: 6 }
+anonymous insert: denied: new row violates row-level security policy for table "member_account"
+after rollback: { profile_exists: false, fh_app_exists: false }
+```
+
+### `npm run typecheck` and `npm run build`
+
+Both passed (exit 0). Excerpts:
+
+```text
+> @fh/website@0.1.0 typecheck
+> astro check
+Result (32 files):
+- 0 errors
+- 0 warnings
+- 0 hints
+
+> @fh/api@0.1.0 build
+  dist/index.js       53.5kb
+> @fh/member@0.1.0 build
+✓ 1926 modules transformed.
+dist/index.html                   0.47 kB │ gzip:   0.30 kB
+dist/assets/index-CRZM2y93.css   42.07 kB │ gzip:   8.06 kB
+dist/assets/index-CKwHPc9K.js   412.66 kB │ gzip: 127.19 kB │ map: 2,075.35 kB
+✓ built in 1.01s
+> @fh/website@0.1.0 build
+17:13:48 [build] 22 page(s) built in 447ms
+```
+
+**Member app in the browser.** At `localhost:5173/app/`, the shell renders with the demo palette. The dark toggle
+switches the page background to `#1d1b18` and remembers the choice. The status list shows the API reachable and the
+database, email and storage ready.
+
+### Not done in Stage 1
+
+- Neon staging and production projects are **BLOCKED**: they must be created in the owner's account. The steps are in
+  `docs/ARCHITECTURE.md`, "Environments".
+- The new migrations are not applied to the Neon dev database yet. Only the rolled-back dry run above has touched it.
+- No API routes use the new tables yet; that starts in Stage 2. The rules are enforced in the database and tested,
+  but no member-facing feature changes.

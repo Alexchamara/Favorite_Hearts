@@ -11,14 +11,26 @@ src/
   auth.ts             Better-Auth: email/SMS codes for members, password + TOTP for staff
   middleware/         session loading, requireUser, requireStaff(role) (+ 2FA enforced)
   routes/             /health, /api/v1/me  (domain routes added per stage)
-  db/schema/          Drizzle tables (auth_* for Better-Auth, staff_member, domain tables later)
+  db/schema/          Drizzle tables: auth_* (Better-Auth), members, trust, connections, billing, operations, staff
   db/client.ts        pooled Neon connection
-  db/rls.ts           withActor(): sets app.user_id / app.role for RLS policies
+  db/actor.ts         runAsActor(): role fh_app + app.user_id / app.role for row-level security
+  db/rls.ts           withActor(): runAsActor on the API's connection — use it for every member/staff query
   messaging/          Resend email, SMS adapter (provider TBD), code templates
   storage/            R2 private buckets + signed URLs, sharp photo processing/blur
   jobs/boss.ts        pg-boss queues: document purge, retention sweep, notifications
-drizzle/              generated SQL migrations (commit them; never edit an applied one)
+drizzle/              SQL migrations (commit them; never edit an applied one). 0003_access_rules.sql is
+                      hand-written: RLS policies, helper functions, triggers, fh_app grants, plan prices
+test/                 access-rule tests on PGlite (in-process Postgres, no network needed)
 ```
+
+## Tests
+
+```sh
+npm test -w @fh/api
+```
+
+Runs every migration in an in-process Postgres and checks the access rules as separate accounts
+(anonymous, members, manager, candidate, revoked manager, backup reviewer, owner). CI runs it too.
 
 ## Run locally
 

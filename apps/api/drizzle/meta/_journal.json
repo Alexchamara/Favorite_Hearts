@@ -15,6 +15,20 @@
       "when": 1793183104681,
       "tag": "0001_zippy_boomer",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793187457034,
+      "tag": "0002_domain_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793187457500,
+      "tag": "0003_access_rules",
+      "breakpoints": true
     }
   ]
 }

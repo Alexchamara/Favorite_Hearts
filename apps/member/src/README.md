@@ -4,8 +4,9 @@
 src/
   main.tsx            entry
   App.tsx             shell / routing (placeholder for now)
-  lib/                env, Better-Auth client, api() fetch wrapper, TanStack Query client
-  styles/             Tailwind 4 entry + design tokens from the demo
+  lib/                env, Better-Auth client, api() fetch wrapper, TanStack Query client,
+                      theme (light/dark, as in the demo), cn() class helper
+  styles/             Tailwind 4 entry + design tokens from the demo (light and dark)
   features/
     auth/             login codes (email or SMS) via Better-Auth, session
     profile/          5-step wizard, profile edit, photos           (Stage 1-2)
@@ -15,7 +16,8 @@ src/
     privacy/          pause, block, report, delete                   (Stage 3)
     membership/       plans, payment proof, expiry                   (Stage 4)
     staff/            owner / backup reviewer workspace              (Stage 2-4)
-  components/ui/      Radix-based UI moved from the demo
+  components/ui/      Radix-based UI moved unchanged from the demo (shadcn/ui style; keep upstream
+                      formatting so they stay easy to compare and update)
 ```
 
 Create a feature folder only when its stage starts. Business rules come from

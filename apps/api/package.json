@@ -9,6 +9,7 @@
     "build": "node build.mjs",
     "start": "node --enable-source-maps dist/index.js",
     "typecheck": "tsc -p tsconfig.json",
+    "test": "node --import tsx --test test/*.test.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
@@ -29,6 +30,7 @@
     "zod": "^4.0.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.9",
     "@types/node": "^22.15.0",
     "@types/pg": "^8.15.0",
     "drizzle-kit": ">=0.31.0 <1.0.0",

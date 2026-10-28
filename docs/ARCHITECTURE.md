@@ -20,13 +20,13 @@ reference/         the original demo, READ-ONLY (copy from it; never edit or dep
 | --- | --- | --- |
 | Marketing site | Astro (static output) | Fast pages, tiny attack surface. Hosted as static files (Cloudflare Pages assumed). |
 | Member app | Vite, React 19, TypeScript | SPA behind login, no server rendering needed. |
-| UI | Tailwind + Radix UI | Accessible primitives; the demo's components move over in Stage 1. |
+| UI | Tailwind + Radix UI | Accessible primitives. The demo's design tokens and UI components are in `apps/member` (Stage 1); screens move with their stage. |
 | Server state | TanStack Query | The API stays the source of truth; no duplicated client state. |
 | Validation | Zod (`@fh/shared`) | Same schemas in forms and on the server; server always re-validates. |
 | API | Hono on Node 22, Fly.io or Railway | One typed API: every request passes the same auth + permission checks. |
 | Auth | Better-Auth, self-hosted (≥ 1.6.22) | Email + SMS codes, sessions, password hashing, TOTP for staff. Users in our DB, no per-user fees. |
 | Database | Neon Postgres + Drizzle ORM / Drizzle Kit | Versioned SQL migrations in `apps/api/drizzle/`. Separate staging and production. |
-| Second layer | Postgres row-level security | API sets `app.user_id` / `app.role` per transaction (`db/rls.ts`); policies deny by default. |
+| Second layer | Postgres row-level security | Member and staff transactions run as the role `fh_app` with `app.user_id` / `app.role` set (`db/actor.ts`); policies deny by default. See "Database access". |
 | Files | Cloudflare R2, private buckets | ID documents, payment proofs, original photos. Short-lived signed URLs only. |
 | Images | sharp (in the API) | Real image decoding, metadata stripping, separate blurred copies. |
 | Jobs | pg-boss (inside Postgres) | Document auto-deletion, retention, notifications. No extra service. |
@@ -87,6 +87,64 @@ Owner and backup reviewer sign in with email + password + TOTP (Better-Auth `two
 No public password sign-up; the owner provisions staff. `requireStaff('owner')` guards payments,
 `requireStaff('owner', 'backup_reviewer')` documents and reports. Both require 2FA to be enabled,
 checked on the server. RLS policies on payment tables additionally only admit `app.role = 'owner'`.
+
+## Database access
+
+Tables (`apps/api/src/db/schema/`) follow spec 12.1. Discoverable profile fields live in `profile`. Private data has
+its own tables with stricter rules: `private_contact`, `photo_original` (original photo keys; `photo` holds only the
+blurred copy) and `verification_case`. Plans are versioned (`plan`, `price_version`, amounts in minor units), and plan
+access is an append-only history (`entitlement_event`).
+
+Row-level security is the second layer under the API's own checks:
+
+- `withActor(actor, fn)` runs a transaction as the role `fh_app` (`SET LOCAL ROLE`) and sets `app.user_id` and
+  `app.role`. `fh_app` has no BYPASSRLS and only explicit grants.
+- Every domain table has RLS enabled and denies by default. The policies, helper functions and invariant triggers are
+  in `drizzle/0003_access_rules.sql`.
+- Helper functions such as `app.operates_profile()` and `app.can_view_private()` are SECURITY DEFINER and only answer
+  about the current actor.
+- Staff powers need the claimed role, an active `staff_member` row and two-step login, checked in the database. The
+  backup reviewer has no payment access at all.
+- Triggers hold what a policy cannot express:
+  - append-only history and audit
+  - prices that are versioned, never edited
+  - the 3-profile manager limit
+  - invitation rules
+  - interest, connection and payment state changes
+  - `first_published_at` set once
+- Neon's owner role (`neondb_owner`) has BYPASSRLS, so code on the plain connection bypasses the policies. That code
+  is Better-Auth, jobs, migrations and the staff lookup in `requireStaff`. Keep it minimal; everything acting for a
+  person goes through `withActor`.
+- `npm test -w @fh/api` runs every migration in PGlite (PostgreSQL 18.6 in-process, the same version as Neon dev).
+  It tests the rules with separate accounts: anonymous, two members, an unpaid member, a manager, a candidate, a
+  revoked manager, the backup reviewer and the owner (`test/access-rules.test.ts`).
+
+Adding a table:
+
+1. Define it in `src/db/schema/` and run `npm run db:generate`.
+2. In a custom migration (`npx drizzle-kit generate --custom`), grant `fh_app` only what it needs, enable RLS and add
+   the policies.
+3. Add tests. Separate every SQL statement with `--> statement-breakpoint`.
+
+## Environments
+
+| Environment | Database | Data |
+| --- | --- | --- |
+| Development | Neon dev branch (`apps/api/.env`) | Synthetic only |
+| Staging | Separate Neon project, `favorite-hearts-staging` | Synthetic only (D6) |
+| Production | Separate Neon project, `favorite-hearts-production` | Real members, after launch approval |
+
+Staging and production are separate Neon projects, not branches of one project, so no credential or branch reset can
+cross between them. They are created in the owner's Neon account (D5); the developer is a collaborator.
+
+For each project:
+
+1. Region: Asia Pacific (Singapore). Use Postgres 18, the version the migrations and tests run on.
+2. Create the database `favorite_hearts`.
+3. Put the pooled URL into `DATABASE_URL` and the direct URL into `DATABASE_URL_DIRECT` in the API host's secret store
+   for that environment. They never go in code or chat.
+4. Run `npm run db:migrate` with that environment's direct URL before the first deploy, and before every release that
+   adds migrations.
 
 ## Files
 

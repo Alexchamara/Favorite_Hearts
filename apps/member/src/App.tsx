@@ -1,14 +1,20 @@
 import { useQuery } from '@tanstack/react-query';
-import { env } from '@/lib/env';
+import { Heart, Moon, Sun } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Toaster } from '@/components/ui/sonner';
 import { enabledChannels } from '@/features/auth/login-code';
+import { env } from '@/lib/env';
+import { useTheme } from '@/lib/theme';
 
 type Health = { ok: boolean; database: boolean; email: boolean; sms: boolean; storage: boolean };
 
 /**
- * Scaffold placeholder. The demo UI (reference/Favorite-Hearts-Integrated/product)
- * moves in here screen by screen from Stage 1 onwards.
+ * App shell in the demo's design: brand header, light/dark theme and toasts. Until sign-in
+ * arrives in Stage 2 the page shows what is connected. Screens from the demo
+ * (reference/Favorite-Hearts-Integrated/product) move in with the stage that builds their API.
  */
 export default function App() {
+  const { theme, toggleTheme } = useTheme();
   const health = useQuery({
     queryKey: ['health'],
     queryFn: async (): Promise<Health> => {
@@ -28,22 +34,41 @@ export default function App() {
   ];
 
   return (
-    <main className="mx-auto max-w-xl px-4 py-16 font-sans">
-      <a href="/" className="text-sm text-neutral-600 underline underline-offset-4">
-        ← Back to the website
-      </a>
-      <h1 className="mt-6 text-3xl font-semibold">Join Favorite Hearts</h1>
-      <p className="mt-2 text-neutral-600">
-        Sign-up and sign-in will open here. This page is a developer preview showing what is connected so far.
-      </p>
-      <dl className="mt-8 divide-y divide-neutral-200 rounded-xl border border-neutral-200">
-        {rows.map(([label, value]) => (
-          <div key={label} className="flex justify-between gap-4 px-4 py-3 text-sm">
-            <dt className="font-medium">{label}</dt>
-            <dd className="text-right text-neutral-600">{value}</dd>
-          </div>
-        ))}
-      </dl>
-    </main>
+    <div className="min-h-dvh">
+      <Toaster position="top-center" />
+      <header className="flex items-center justify-between border-b px-4 py-3 sm:px-6">
+        <a href="/" className="inline-flex items-center gap-2 text-sm font-semibold">
+          <Heart className="size-4 fill-current text-brand" aria-hidden="true" />
+          Favorite Hearts
+        </a>
+        <Button
+          variant="outline"
+          size="icon"
+          className="rounded-full"
+          onClick={toggleTheme}
+          aria-label={theme === 'dark' ? 'Use the light theme' : 'Use the dark theme'}
+        >
+          {theme === 'dark' ? <Sun /> : <Moon />}
+        </Button>
+      </header>
+
+      <main className="mx-auto max-w-xl px-4 py-12 sm:py-16">
+        <a href="/" className="text-sm text-muted-foreground underline underline-offset-4">
+          ← Back to the website
+        </a>
+        <h1 className="mt-6 font-serif text-3xl">Join Favorite Hearts</h1>
+        <p className="mt-2 text-muted-foreground">
+          Sign-up and sign-in will open here. This page is a developer preview showing what is connected so far.
+        </p>
+        <dl className="mt-8 divide-y rounded-[var(--ui-panel-radius)] border bg-card shadow-[var(--ui-shadow)]">
+          {rows.map(([label, value]) => (
+            <div key={label} className="flex justify-between gap-4 px-4 py-3 text-sm">
+              <dt className="font-medium">{label}</dt>
+              <dd className="text-right text-muted-foreground">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      </main>
+    </div>
   );
 }

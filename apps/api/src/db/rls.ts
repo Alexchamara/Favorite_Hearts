@@ -1,30 +1,17 @@
 /**
  * Row-level security as the SECOND layer under the API's own permission checks.
  *
- * Every data access for a signed-in person runs inside `withActor`, which opens a
- * transaction and sets two transaction-local settings that RLS policies read:
- *   app.user_id  – the authenticated Better-Auth user id
- *   app.role     – 'member' | 'owner' | 'backup_reviewer'
- *
- * Policies (added with the domain tables in Stage 1) use helper functions such as
- *   create function app.user_id() returns text language sql stable
- *     as $$ select nullif(current_setting('app.user_id', true), '') $$;
- * and every table gets `alter table ... enable row level security; ... force row level security;`
- * so even the table owner cannot skip them. The API connects as a role WITHOUT BYPASSRLS;
- * migrations run as the owner role over the direct connection.
+ * Every data access for a signed-in person (or an anonymous visitor) runs inside `withActor`,
+ * which runs as the database role fh_app with app.user_id / app.role set for that transaction
+ * (see actor.ts). Tables have RLS enabled and deny by default; the policies, helper functions
+ * and invariant triggers are in drizzle/0003_access_rules.sql and tested in test/access-rules.test.ts.
  */
-import { sql } from 'drizzle-orm';
 import { db } from './client.ts';
+import { runAsActor, type Actor, type ActorTx } from './actor.ts';
 
-export type ActorRole = 'member' | 'owner' | 'backup_reviewer';
-export type Actor = { userId: string; role: ActorRole };
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export type { Actor, ActorRole } from './actor.ts';
+export type Tx = ActorTx<typeof db>;
 
-export async function withActor<T>(actor: Actor, fn: (tx: Tx) => Promise<T>): Promise<T> {
-  return db.transaction(async (tx) => {
-    await tx.execute(
-      sql`select set_config('app.user_id', ${actor.userId}, true), set_config('app.role', ${actor.role}, true)`,
-    );
-    return fn(tx);
-  });
+export function withActor<T>(actor: Actor | null, fn: (tx: Tx) => Promise<T>): Promise<T> {
+  return runAsActor(db, actor, fn);
 }

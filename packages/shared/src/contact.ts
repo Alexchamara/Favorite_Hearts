@@ -14,7 +14,7 @@ export function normalizeEmail(value: string): string | null {
 }
 
 /**
- * Normalise a phone number to E.164 (the format Supabase Auth expects).
+ * Normalise a phone number to E.164 (the format Better-Auth's phoneNumber plugin stores).
  * Accepts "+94 76 676 9894", "0094766769894" and, for Sri Lanka, the local
  * form "0766769894". Returns null when the result is not valid E.164.
  */

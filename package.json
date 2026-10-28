@@ -17,6 +17,7 @@
     "build:site": "npm run build -w @fh/member && npm run build -w @fh/website && node scripts/assemble-site.mjs",
     "preview:site": "python3 -m http.server 8080 --directory dist/site",
     "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
     "db:generate": "npm run db:generate -w @fh/api",
     "db:migrate": "npm run db:migrate -w @fh/api",
     "db:studio": "npm run db:studio -w @fh/api"

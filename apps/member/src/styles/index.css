@@ -1,5 +1,177 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* Design tokens from the demo (product/app/design-system.css) are migrated
-   here in Stage 1 so the member app keeps its existing look. */
+/* Favorite Hearts design system, moved from the demo (product/app/design-system.css and
+   product/preview/theme.css). The demo scoped these under .m-app with !important to sit on top
+   of its old product stylesheet; here they live on <html>, so dialogs in portals share them.
+   Screen-specific styles move with their screens from Stage 2 onwards. */
+
+/* The demo switches themes with data-theme, not the OS setting. */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-brand: var(--ui-purple);
+  --color-brand-soft: var(--ui-purple-soft);
+  --radius-sm: 0.55rem;
+  --radius-md: 0.7rem;
+  --radius-lg: 0.85rem;
+  --radius-xl: 1.1rem;
+  --font-sans: Inter, system-ui, Arial, sans-serif;
+}
+
+:root {
+  --ui-bg: #faf8f3;
+  --ui-surface: #fffefa;
+  --ui-soft: #f1edf7;
+  --ui-purple: #69508b;
+  --ui-purple-soft: #eee8f6;
+  --ui-on-purple: #ffffff;
+  --ui-line: #ded7c9;
+  --ui-text: #302b22;
+  --ui-muted: #716a5e;
+  --ui-accent: #f2b64c;
+  --ui-hover: #e6a632;
+  --ui-on-accent: #302512;
+  --ui-danger: #a93236;
+  --ui-control-radius: 10px;
+  --ui-panel-radius: 18px;
+  --ui-shadow: 0 12px 36px #342b1712;
+
+  --background: var(--ui-bg);
+  --foreground: var(--ui-text);
+  --card: var(--ui-surface);
+  --card-foreground: var(--ui-text);
+  --popover: var(--ui-surface);
+  --popover-foreground: var(--ui-text);
+  --primary: var(--ui-accent);
+  --primary-foreground: var(--ui-on-accent);
+  --secondary: var(--ui-soft);
+  --secondary-foreground: var(--ui-text);
+  --muted: var(--ui-soft);
+  --muted-foreground: var(--ui-muted);
+  --accent: var(--ui-soft);
+  --accent-foreground: var(--ui-text);
+  --destructive: var(--ui-danger);
+  --border: var(--ui-line);
+  --input: var(--ui-line);
+  --ring: #a56d17;
+  --radius: var(--ui-control-radius);
+}
+
+[data-theme="dark"] {
+  --ui-bg: #1d1b18;
+  --ui-surface: #28251f;
+  --ui-soft: #342d40;
+  --ui-purple: #c0a3e3;
+  --ui-purple-soft: #382e47;
+  --ui-on-purple: #211829;
+  --ui-line: #50493b;
+  --ui-text: #f5f0e5;
+  --ui-muted: #c4bbab;
+  --ui-accent: #efbd62;
+  --ui-hover: #f5cc82;
+  --ui-on-accent: #2c2313;
+  --ui-danger: #ffaca8;
+  --ui-shadow: 0 12px 36px #0003;
+}
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--border);
+  }
+
+  body {
+    min-height: 100dvh;
+    margin: 0;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+}
+
+/* Component details the demo set by data-slot (components/ui keeps its upstream classes). */
+@layer components {
+  [data-slot="switch"] {
+    position: relative;
+    width: 46px;
+    height: 26px;
+    border-radius: 999px;
+    background: var(--ui-line);
+  }
+
+  [data-slot="switch"][data-state="checked"] {
+    background: var(--ui-purple);
+  }
+
+  [data-slot="switch-thumb"] {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px #0002;
+    transition: left 0.18s ease;
+  }
+
+  [data-slot="switch-thumb"][data-state="checked"] {
+    left: 23px;
+  }
+
+  :is([data-slot="dialog-overlay"], [data-slot="sheet-overlay"], [data-slot="alert-dialog-overlay"]) {
+    background: #25201966;
+  }
+
+  :is([data-radix-popper-content-wrapper], [data-slot="select-content"], [data-slot="popover-content"]) {
+    z-index: 140;
+  }
+
+  :is([data-slot="dialog-content"] > [data-slot="dialog-close"], [data-slot="sheet-content"] > button:last-child) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--ui-line);
+    border-radius: 50%;
+    background: var(--ui-surface);
+    color: var(--ui-text);
+    opacity: 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-slot="switch-thumb"] {
+      transition: none;
+    }
+  }
+}
