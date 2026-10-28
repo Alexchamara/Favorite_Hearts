@@ -774,7 +774,26 @@ anonymous insert: denied: new row violates row-level security policy for table "
 after rollback: { objection_column_exists: false, app_functions: 32 }
 ```
 
-Migrations 0004–0005 are **not applied** to Neon dev yet. They wait for a go-ahead, as Stage 1's did.
+### Applied to the Neon dev database
+
+`npm run db:migrate` (owner's go-ahead, 28 Oct 2026): `[✓] migrations applied successfully!`
+
+Read-only check afterwards. The `fh_app` part ran in a transaction that was rolled back:
+
+```text
+migrations recorded: 6
+schema: { tables_with_rls: 23, policies: 68, app_functions: 48, triggers: 14,
+  profile_consent_columns: 'candidate_confirmed_at, candidate_objection_at',
+  invitation_code_columns: 'code_expires_at, code_sends',
+  one_profile_per_candidate_index: true }
+as fh_app (anonymous): { role: 'fh_app', preview_for_unknown_link: null, profiles: 0 }
+```
+
+The running dev API serves the new routes against Neon:
+
+- `GET /health` returned `{"ok":true,"database":true,"email":true,"sms":false,"storage":true}`.
+- `POST /api/v1/invitations/preview` with an unknown link returned `INVITATION_INVALID`, from the new database function.
+- `GET /api/v1/profiles` without a session returned `UNAUTHENTICATED`.
 
 ### `npm run typecheck` and `npm run build`
 
@@ -788,7 +807,6 @@ goes with the deferred Astro upgrade.
 ### Not done in 2a
 
 - The screens, in 2b.
-- Applying 0004–0005 to Neon dev, which waits for a go-ahead.
 - Creating the staff accounts on any real environment, an owner action with `npm run staff`.
 - **BLOCKED:** SMS (provider not chosen). Phone verification works in tests and in development with
   `SMS_PROVIDER=log` only. Publishing on staging or production needs a provider.
