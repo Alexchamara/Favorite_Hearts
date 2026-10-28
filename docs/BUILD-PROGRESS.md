@@ -15,7 +15,7 @@ without output.
 
 | Stage | Status |
 | --- | --- |
-| 0 Baseline and rule audit (`docs/RULE-AUDIT.md`) | not started |
+| 0 Baseline and rule audit (`docs/RULE-AUDIT.md`) | **done, awaiting owner review.** Rollback tag `stage-0-baseline`; evidence below. |
 | 1 Foundation: member app migration, Drizzle schema + RLS, Neon staging/production | scaffold only |
 | 2 Accounts and verification (codes, invites, takeover, badges, staff 2FA, documents) | auth wiring only |
 | 3 Requests, connections and privacy | not started |
@@ -208,3 +208,256 @@ Done in 117ms.
 
 11:47:33 [build] 22 page(s) built in 430ms
 11:47:33 [build] Complete!
+
+## Stage 0 evidence (28 Oct 2026)
+
+Scope (spec 17.1, Part 3 "Stage 0"):
+
+- Run the original demo's install, build and tests, and this repository's checks.
+- Record the demo's routes, simulations and dependencies.
+- Tag a rollback point.
+- List every rule conflict in [`RULE-AUDIT.md`](RULE-AUDIT.md).
+
+Nothing in `reference/`, `apps/` or `packages/` was changed. The demo was built in a scratch copy because `reference/`
+is read-only and its build rewrites files in place.
+
+### Rollback point
+
+Tag `stage-0-baseline` points to `560bf2a` ("Step 5: scaffold, website links, database migrations"), the state before
+any stage work. To inspect or restore it:
+
+```sh
+git switch -c rollback-check stage-0-baseline
+```
+
+### Environment
+
+macOS. Node v25.6.1, npm 11.13.0. `.nvmrc` and CI use Node 22, so CI remains the reference environment.
+The default `python3` is 3.9.6; Python 3.12.12 comes from miniforge.
+
+### Original demo (`reference/Favorite-Hearts-Integrated`)
+
+`npm ci`:
+
+```text
+npm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation
+
+added 221 packages, and audited 222 packages in 32s
+
+33 packages are looking for funding
+  run `npm fund` for details
+
+2 vulnerabilities (1 moderate, 1 high)
+```
+
+`npm run build` with the default Python 3.9.6 **fails**. The demo README says Python 3.10+, but `website/scripts/build.py:54`
+puts a backslash inside an f-string expression, which needs Python 3.12+. Excerpt:
+
+```text
+  File ".../website/scripts/build.py", line 54
+    <script type="application/ld+json">{json.dumps(schema,ensure_ascii=False).replace('</','<\\/')}</script>\n'''
+SyntaxError: f-string expression part cannot include a backslash
+Error: Command failed: python3 .../website/scripts/build.py
+```
+
+`npm run build` with Python 3.12.12 passes:
+
+```text
+> favorite-hearts-integrated-matrimony@1.0.0 build
+> node scripts/build.mjs
+
+Rebuilding...
+
+Done in 116ms.
+Built 21 pages into dist/; indexable=False
+Built website plus matrimony-only product. No dating entry or bundle.
+```
+
+**Reproducible build:** `diff -rq dist reference/Favorite-Hearts-Integrated/dist` reported no differences (exit 0, 70 files).
+The shipped `dist/` matches its source exactly.
+
+`npm test` passes:
+
+```text
+> favorite-hearts-integrated-matrimony@1.0.0 test
+> node tests/integration.mjs
+
+PASS 23 HTML pages, 24 linked join controls, 730 local asset/navigation targets; matrimony-only bundle.
+PASS 24 join-button click handlers across all website pages.
+PASS 24 Matrimony account assertions: signup, distinct profiles, validation, OTP, logout, login and recovery.
+PASS 70 self/manager full signup → required profile/contact → payment review → publish checks, with required phone and admin NIC approval.
+PASS 26 ordered verification, badges, phone-only acceptance, quick edits, height and menu assertions
+PASS 34 October 7 access (plus 4 activity boundary checks), free publication, privacy, invitation and profile policy assertions
+PASS 9 invitation-order, optional identity, expiry and height validation assertions
+PASS 31 delegated permissions, horoscope readiness and ownership payment assertions
+PASS 43 October 9 profile privacy, hobbies/socials, boost, featured and safety checks
+PASS 24 v7 public family/income, blocked-list privacy and social username checks
+All integrated demo checks passed. DOM simulation only; no visual browser verification.
+```
+
+**Running it.** `node scripts/serve.mjs` was opened in a browser. The landing page, pricing page and member entry (language → sign-up)
+render. Status codes from the demo's own server:
+
+```text
+/                        403
+/index.html              200
+/pricing/                200
+/matrimony/              200
+/matrimony/index.html    200
+/help/                   200
+/nope/                   404
+```
+
+`/` returns 403 because of a bug in `scripts/serve.mjs`: its root path ends in `/`, so the resolved site root fails the
+`startsWith` check. This is a demo-only issue, not fixed.
+
+`npm audit` for the demo found postcss ≤ 8.5.22 (high) and postcss-selector-parser < 6.1.5 (moderate). Both are build tools
+and are not shipped in `dist/`.
+
+### This repository at `stage-0-baseline`
+
+`npm run typecheck` passes:
+
+```text
+> @fh/api@0.1.0 typecheck
+> tsc -p tsconfig.json
+> @fh/member@0.1.0 typecheck
+> tsc -p tsconfig.json
+> @fh/website@0.1.0 typecheck
+> astro check
+Result (32 files):
+- 0 errors
+- 0 warnings
+- 0 hints
+> @fh/shared@0.1.0 typecheck
+> tsc -p tsconfig.json
+```
+
+`npm run build` passes (route list trimmed):
+
+```text
+> @fh/api@0.1.0 build
+  dist/index.js      19.2kb
+  dist/index.js.map  43.6kb
+⚡ Done in 5ms
+> @fh/member@0.1.0 build
+✓ 260 modules transformed.
+dist/index.html                   0.47 kB │ gzip:   0.31 kB
+dist/assets/index-CU5WqEdF.css    7.96 kB │ gzip:   2.25 kB
+dist/assets/index-B28ZXAgV.js   345.55 kB │ gzip: 107.00 kB │ map: 1,814.82 kB
+✓ built in 597ms
+> @fh/website@0.1.0 build
+16:24:49 [build] 22 page(s) built in 435ms
+16:24:49 [build] Complete!
+```
+
+There are no automated tests yet: no `test` script exists. The working tree stayed clean after the build.
+
+`npm audit` found 8 vulnerabilities (4 moderate, 3 high, 1 critical). None was fixed in Stage 0.
+
+| Severity | Package | Path | Fix |
+| --- | --- | --- | --- |
+| critical | astro 5.18.2 | direct (website) | astro 7, a major upgrade |
+| high | sharp 0.34.5 | direct (API); libvips CVEs | sharp 0.35.x. Do this before Stage 2, because the API decodes untrusted uploads. |
+| high | zod, zod-to-ts | inside astro | comes with astro 7 |
+| moderate | drizzle-kit, @esbuild-kit/*, esbuild | dev tools | upstream; dev only |
+
+### Demo inventory
+
+**Routes.** There are 23 HTML files: 21 marketing pages, the member app and a 404 page.
+
+- Main pages: `/`, `/mission/`, `/labs/`, `/newsroom/`, `/contact/`, `/help/`, `/pricing/`, `/trust-and-safety/`,
+  `/security/`, `/terms/`, `/privacy/`.
+- Ten articles under `/newsroom/…/`.
+- `/matrimony/`, the member app.
+- `/404.html`.
+- Redirects: `/approach/`→`/mission/`, `/explore/`→`/labs/`, `/journal/*`→`/newsroom/`, `/safety/`→`/trust-and-safety/`.
+
+The member app's own screens: Discover, Interests, Connected, Shortlist, Profile, Trust & access, Horoscope,
+Membership, Privacy & safety, Boost profile, Contact us and Review workspace. The 21 marketing routes exist in
+`apps/website` with identical text; there, `/matrimony/` is replaced by the new member app at `/app/`.
+
+**Simulations.** Nothing in the demo is a real service.
+
+| What | Where (demo paths) |
+| --- | --- |
+| All accounts, profiles, interests and payments live in page memory and are cleared on reload. | `window.__heartsNetwork`, `product/preview/matrimony.tsx:69` |
+| Sign-up and log-in keep plain-text passwords in memory. A sample login is listed in the demo README. | `product/app/matrimony/account-entry.ts:5–6, 31` |
+| Phone codes use one fixed demo code; no SMS or email is sent. | `product/lib/matrimony-trust.ts:23` |
+| Identity checks are sample-only: no document is collected, and the selfie is simulated. | `matrimony-trust.ts:24–25` |
+| Six fictional members with seeded boosts, featured profiles and pending sample receipts. | `product/lib/domain.ts:1–8`, `matrimony.tsx:136` |
+| Role switching between manager, candidate and reviewer, with a sample-account switcher. | `matrimony.tsx:58, 136`, `matrimony-trust.ts:8` |
+| Payments use a sample PDF receipt; there are no bank details and no gateway. | `matrimony.tsx:136, 175` |
+| Uploads are browser data URLs, with no storage, scanning or signed links. | `matrimony.tsx:74` |
+| Candidate invitations are never delivered. | `matrimony-trust.ts:15–16` |
+| Horoscope comparison shows a fixed fictional chart. | `product/app/matrimony/horoscope-workspace.tsx` |
+| Landing testimonials are fictional. | `website/src/scripts/landing.js:6–14` |
+
+**Demo dependencies.** All are pinned in its `package.json` and lockfile.
+
+- Runtime: react / react-dom 19.2.0, radix-ui 1.4.3, lucide-react 0.468.0, sonner 2.0.7, next-themes 0.4.6,
+  class-variance-authority 0.7.1, clsx 2.1.1, tailwind-merge 3.3.1.
+- Build: esbuild 0.25.11, tailwindcss 4.1.16 (product), tailwindcss 3.4.17 (website, as `tailwindcss3`), postcss 8.5.6,
+  @tailwindcss/postcss 4.1.16, tw-animate-css 1.4.0, jsdom 27.0.1 (tests).
+- Tools: Node 22+ and Python 3.12+.
+
+### Task checklist
+
+Built from [`RULE-AUDIT.md`](RULE-AUDIT.md); IDs refer to its rows.
+
+**Stage 0**
+
+- [x] Run the demo install, build and tests, and this repo's typecheck and build, with output above.
+- [x] Record routes, simulations and dependencies.
+- [x] Tag the rollback point `stage-0-baseline`.
+- [x] Write `docs/RULE-AUDIT.md`, with no fixes.
+- [ ] Owner reviews the audit and says "continue".
+
+**Stage 1: Foundation**
+
+- [ ] Schema and RLS keep private contacts separate from profile fields (P20) and allow up to 3 profiles per manager (P16).
+- [ ] Use synthetic staging data only: no fictional members, account switcher or demo codes (P06, P28).
+- [ ] Do not port the horoscope workspace; keep only the preference field (P26).
+- [ ] Correct the Supabase comment in `packages/shared/src/contact.ts` (X07).
+- [ ] Decide the astro 7 upgrade for the critical advisory.
+
+**Stage 2: Accounts and verification**
+
+- [ ] 24-hour single-use invitations with a code to the nominated contact, contacts that differ, and limited resends (P15).
+- [ ] Takeover without a fee: the manager loses access immediately and the plan carries over. The owner confirms the fee is dropped (P14, O07).
+- [ ] Accept NIC, passport or driving licence. Use exactly three badges with approved wording, and decide on the selfie (P17, P18, N05).
+- [ ] Add the "not verified by candidate" label (P19).
+- [ ] Owner and backup reviewer accounts with two-step login. The backup has no payment rights, enforced in the database (P09).
+- [ ] Private photo storage with server-made blurred copies; upgrade sharp first (P07).
+- [ ] 90-day document deletion job with logging (P25).
+
+**Stage 3: Requests, connections and privacy**
+
+- [ ] Server-side discovery and sender masking (P06).
+- [ ] Quotas: Starter 5 per day and 30 per month; Premium 30 per day (P02).
+- [ ] 7-day re-send rule and withdrawal log (P03, P04).
+- [ ] The expired member loses contact details; the owner answers what the still-paid member sees (P05, O03).
+- [ ] Per-field sharing for manager and candidate, candidate restrictions and a disclosure log (P20, P21).
+- [ ] Caste consent with "Prefer not to say", and income labelled "self-declared" (P22, P23).
+- [ ] Report categories and thresholds (P08). "Engaged or married" with a forfeiture warning (P24).
+- [ ] Owner decides on boost, featured profiles, shortlist limits, unverified browsing and family-detail visibility (N01–N04, N06).
+- [ ] Spec items with no owner rule: country lists and validation (G24), atomic saves (G25), report-data exposure (G28).
+
+**Stage 4: Plans, payments and email**
+
+- [ ] Versioned Starter / Premium 3 months / Premium 6 months catalogue in LKR and USD minor units (P01).
+- [ ] A unique reference per member, statement matching, and owner-only idempotent approval (P09, P10).
+- [ ] USD SWIFT and Wise/PayPal-style instructions, with real bank details from the owner (P11).
+- [ ] Upgrade, renewal and expiry rules with warnings (P12).
+- [ ] Refund statement and confirmation at the payment step (P13).
+
+**Stage 5: Content, safety and quality**
+
+- [ ] Rewrite pricing, help/FAQ, terms and privacy (W01–W12, W16, X01, X02, X04). The lawyer reviews W08–W11.
+- [ ] Remove the sample testimonials and the unproven research claims (W13, X03).
+- [ ] English and Sinhala with Tamil hidden (W14, P27).
+- [ ] Support channels and a "staff never ask for passwords or codes" statement. The owner confirms the dedicated SIM (W15, X06).
+- [ ] Admin pause for signups and submissions (P29). Deletion with the 6-month retention list (P25).
+- [ ] Set the real `siteUrl` once the domain is bought (X05).
+
+**Stage 6: Harden and hand over.** Unchanged from spec 17.1.
