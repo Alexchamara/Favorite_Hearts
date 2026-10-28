@@ -429,7 +429,7 @@ Built from [`RULE-AUDIT.md`](RULE-AUDIT.md); IDs refer to its rows. Ticked items
 - [x] Do not port the horoscope workspace; keep only the preference field (P26).
 - [x] Correct the Supabase comment in `packages/shared/src/contact.ts` (X07).
 - [x] Astro 7 upgrade: deferred, see the decisions table (proposed).
-- [ ] Apply migrations 0002–0003 to the Neon dev database. The dry run passed; this waits for a go-ahead.
+- [x] Apply migrations 0002–0003 to the Neon dev database (28 Oct 2026; output in the Stage 1 evidence).
 - [ ] **BLOCKED, owner action:** create the Neon staging and production projects (`docs/ARCHITECTURE.md`, "Environments").
 
 **Stage 2: Accounts and verification**
@@ -597,6 +597,32 @@ anonymous insert: denied: new row violates row-level security policy for table "
 after rollback: { profile_exists: false, fh_app_exists: false }
 ```
 
+### Applied to the Neon dev database
+
+`npm run db:migrate` (owner's go-ahead, 28 Oct 2026):
+
+```text
+> @fh/api@0.1.0 db:migrate
+> drizzle-kit migrate
+Using 'pg' driver for database querying
+[✓] migrations applied successfully!
+```
+
+Read-only check afterwards. The `fh_app` part ran in a transaction that was rolled back:
+
+```text
+migrations recorded: 4
+schema: { public_tables: 28, tables_with_rls: 23, policies: 68, app_functions: 32, triggers: 12,
+  fh_app_role: true, owner_can_switch_to_fh_app: true }
+seed: { current_prices: 'premium_3m LKR 850000, premium_3m USD 5500, premium_6m LKR 1500000,
+  premium_6m USD 10000, starter_1m LKR 300000, starter_1m USD 2000',
+  switches: 'signups_paused=false, document_submissions_paused=false' }
+as fh_app (anonymous): { role: 'fh_app', profiles: 0, prices: 6 }
+fh_app reading auth_user: denied: permission denied for table auth_user
+```
+
+The running dev API stayed healthy: `{"ok":true,"database":true,"email":true,"sms":false,"storage":true}`.
+
 ### `npm run typecheck` and `npm run build`
 
 Both passed (exit 0). Excerpts:
@@ -629,6 +655,5 @@ database, email and storage ready.
 
 - Neon staging and production projects are **BLOCKED**: they must be created in the owner's account. The steps are in
   `docs/ARCHITECTURE.md`, "Environments".
-- The new migrations are not applied to the Neon dev database yet. Only the rolled-back dry run above has touched it.
 - No API routes use the new tables yet; that starts in Stage 2. The rules are enforced in the database and tested,
   but no member-facing feature changes.
