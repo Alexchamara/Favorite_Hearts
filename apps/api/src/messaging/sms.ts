@@ -2,17 +2,10 @@
 // touching auth. To add one: implement SmsSender, register it below, add its name to
 // SMS_PROVIDERS in @fh/shared and its credentials to apps/api/.env.example.
 import type { SmsProvider } from '@fh/shared';
-import { env } from '../env.ts';
 import { log } from '../lib/log.ts';
+import { SmsUnavailableError, type SmsMessage } from './messenger.ts';
 
-export type SmsMessage = { to: string; body: string };
 type SmsSender = (message: SmsMessage) => Promise<void>;
-
-export class SmsUnavailableError extends Error {
-  constructor() {
-    super('SMS sign-in is not available yet. Please use email.');
-  }
-}
 
 const providers: Record<SmsProvider, SmsSender> = {
   /** Not configured yet: fail clearly instead of pretending the code was sent. */
@@ -32,13 +25,13 @@ const providers: Record<SmsProvider, SmsSender> = {
   // },
 };
 
-export const smsEnabled = env.SMS_PROVIDER !== 'none';
-
-export async function sendSms(message: SmsMessage): Promise<void> {
-  try {
-    await providers[env.SMS_PROVIDER](message);
-  } catch (err) {
-    if (!(err instanceof SmsUnavailableError)) log.error('sms.send_failed', { provider: env.SMS_PROVIDER });
-    throw err;
-  }
+export function createSmsSender(provider: SmsProvider): SmsSender {
+  return async (message) => {
+    try {
+      await providers[provider](message);
+    } catch (err) {
+      if (!(err instanceof SmsUnavailableError)) log.error('sms.send_failed', { provider });
+      throw err;
+    }
+  };
 }

@@ -155,6 +155,10 @@ export const profile = pgTable(
     coverPublic: boolean('cover_public').notNull().default(false),
     /** Adult declaration: the self-managed candidate's own, or the manager's authority declaration (§5). */
     adultDeclaredAt: at('adult_declared_at'),
+    /** The invited candidate accepted (badge "Candidate confirmed"). */
+    candidateConfirmedAt: at('candidate_confirmed_at'),
+    /** The candidate declined or withdrew consent: no one but the candidate can publish again (spec I06). */
+    candidateObjectionAt: at('candidate_objection_at'),
     /** Set once by a trigger on first publication; never bumped by later edits (spec 6.1). */
     firstPublishedAt: at('first_published_at'),
     version: integer('version').notNull().default(1),
@@ -162,7 +166,10 @@ export const profile = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [
-    index('profile_candidate_user_idx').on(t.candidateUserId),
+    /** A person is the candidate of at most one live profile (spec O14: no duplicate candidates). */
+    uniqueIndex('profile_one_per_candidate_idx')
+      .on(t.candidateUserId)
+      .where(sql`${t.candidateUserId} is not null and ${t.status} <> 'deleted'`),
     index('profile_status_idx').on(t.status),
     check('profile_display_name_length', sql`char_length(${t.displayName}) between 2 and 60`),
     check('profile_country_code_iso', sql`${t.countryCode} ~ '^[A-Z]{2}$'`),
@@ -292,7 +299,9 @@ export const invitation = pgTable(
     contact: text('contact').notNull(),
     tokenHash: text('token_hash').notNull().unique(),
     codeHash: text('code_hash'),
+    codeExpiresAt: at('code_expires_at'),
     codeAttempts: smallint('code_attempts').notNull().default(0),
+    codeSends: smallint('code_sends').notNull().default(0),
     resendNumber: smallint('resend_number').notNull().default(0),
     createdAt: createdAt(),
     /** Leave to the default: the window is measured on the database clock (spec 12.2). */

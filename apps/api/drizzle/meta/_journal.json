@@ -29,6 +29,20 @@
       "when": 1793187457500,
       "tag": "0003_access_rules",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793196744653,
+      "tag": "0004_candidate_consent",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793196745154,
+      "tag": "0005_accounts_and_trust",
+      "breakpoints": true
     }
   ]
 }

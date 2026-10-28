@@ -10,8 +10,10 @@
  * Every run must log a run id, counts and failures, never document contents (spec 10.2).
  */
 import PgBoss from 'pg-boss';
-import { env } from '../env.ts';
+import type { Db } from '../db/types.ts';
 import { log } from '../lib/log.ts';
+import type { Storage } from '../storage/storage.ts';
+import { purgeDocuments } from './purge-documents.ts';
 
 export const QUEUES = {
   documentsPurge: 'documents.purge',
@@ -19,10 +21,9 @@ export const QUEUES = {
   notificationsSend: 'notifications.send',
 } as const;
 
-export const boss = new PgBoss({ connectionString: env.DATABASE_URL_DIRECT, schema: 'pgboss' });
-boss.on('error', (err) => log.error('jobs.error', { message: err.message }));
-
-export async function startJobs(): Promise<void> {
+export async function startJobs(deps: { db: Db; storage: Storage }, connectionString: string): Promise<PgBoss> {
+  const boss = new PgBoss({ connectionString, schema: 'pgboss' });
+  boss.on('error', (err) => log.error('jobs.error', { message: err.message }));
   await boss.start();
   for (const name of Object.values(QUEUES)) await boss.createQueue(name);
 
@@ -30,8 +31,10 @@ export async function startJobs(): Promise<void> {
   await boss.schedule(QUEUES.documentsPurge, '30 20 * * *');
   await boss.schedule(QUEUES.retentionSweep, '45 20 * * *');
 
-  await boss.work(QUEUES.documentsPurge, async ([job]) => {
-    log.info('jobs.documents_purge.noop', { jobId: job?.id, note: 'implemented in Stage 2' });
+  await boss.work(QUEUES.documentsPurge, async () => {
+    const result = await purgeDocuments(deps);
+    // Failed items stay due and are retried on the next run; make the run visible as failed too.
+    if (result.failed) throw new Error(`documents.purge: ${result.failed} file(s) not deleted (run ${result.runId})`);
   });
   await boss.work(QUEUES.retentionSweep, async ([job]) => {
     log.info('jobs.retention_sweep.noop', { jobId: job?.id, note: 'implemented in Stage 5' });
@@ -41,8 +44,5 @@ export async function startJobs(): Promise<void> {
   });
 
   log.info('jobs.started', { queues: Object.values(QUEUES).join(',') });
-}
-
-export async function stopJobs(): Promise<void> {
-  await boss.stop({ graceful: true });
+  return boss;
 }

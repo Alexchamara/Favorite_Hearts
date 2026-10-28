@@ -17,7 +17,7 @@ without output.
 | --- | --- |
 | 0 Baseline and rule audit (`docs/RULE-AUDIT.md`) | **done, awaiting owner review.** Rollback tag `stage-0-baseline`; evidence below. |
 | 1 Foundation: member app migration, Drizzle schema + RLS, Neon staging/production | **done, awaiting owner review.** Staging/production projects **BLOCKED** until the owner creates them; evidence below. |
-| 2 Accounts and verification (codes, invites, takeover, badges, staff 2FA, documents) | auth wiring only |
+| 2 Accounts and verification (codes, invites, takeover, badges, staff 2FA, documents) | **2a (server) done, awaiting owner review**; 2b (member and staff screens) next. SMS **BLOCKED** until a provider is chosen. |
 | 3 Requests, connections and privacy | not started |
 | 4 Plans, payments, email, Turnstile | not started |
 | 5 Content, safety and quality | not started |
@@ -42,6 +42,15 @@ without output.
 | 2026-10-28 | Any active member may browse published profiles, verified or not (audit N04). | Proposed — confirm |
 | 2026-10-28 | After a takeover the candidate does not see the former manager's payment records (spec 6.3). | Proposed — confirm |
 | 2026-10-28 | Astro 7 upgrade deferred to Stage 5. The critical advisory needs `define:vars` or server islands, and the static site uses neither. | Proposed — confirm |
+| 2026-10-28 | Stage 2 split: 2a builds the server, 2b the member and staff screens. | Owner |
+| 2026-10-28 | SMS stays BLOCKED until a provider is chosen. In development, codes print to the API console (`SMS_PROVIDER=log`); nothing pretends an SMS was sent. | Owner |
+| 2026-10-28 | No takeover fee and no selfie (§5). Before takeover, a joined candidate confirms or declines, sets the manager's permissions and what is shared, withdraws consent or takes over, but does not edit profile fields. | Engineering (per §5) |
+| 2026-10-28 | After a takeover, a published profile pauses until the candidate's own document and phone are verified. Manager evidence never counts for the candidate (spec 6.3, O07). | Proposed — confirm |
+| 2026-10-28 | Invitation limits: 3 invitations per profile per day; 3 codes per link; each code lasts 10 minutes and allows 5 tries. §5 asks for "a limit on resends" without a number (spec O16). | Proposed — confirm |
+| 2026-10-28 | After a candidate declines, the manager cannot send further invitations for that profile. | Proposed — confirm |
+| 2026-10-28 | A person can be the candidate of only one live profile (spec O14). | Proposed — confirm |
+| 2026-10-28 | Identity documents are accepted as photos (JPEG, PNG or WebP, at most 5 MB), not PDF. | Proposed — confirm |
+| 2026-10-28 | sharp upgraded to 0.35.5 in the API (libvips, libheif and librsvg advisories). Astro's build-time copy stays until the Astro upgrade. | Engineering |
 
 ## Step 5 evidence
 
@@ -434,17 +443,31 @@ Built from [`RULE-AUDIT.md`](RULE-AUDIT.md); IDs refer to its rows. Ticked items
 
 **Stage 2: Accounts and verification**
 
-- [ ] Use `withActor` for every member and staff query; set `app.role` from `staff_member` (the database re-checks it).
-- [ ] Invitation consumption and takeover as reviewed SECURITY DEFINER functions. The API role cannot change `candidate_user_id` itself.
-- [ ] Provision the first owner account and the backup reviewer: a script the developer runs with the owner.
+Server (2a):
 
-- [ ] 24-hour single-use invitations with a code to the nominated contact, contacts that differ, and limited resends (P15).
-- [ ] Takeover without a fee: the manager loses access immediately and the plan carries over. The owner confirms the fee is dropped (P14, O07).
-- [ ] Accept NIC, passport or driving licence. Use exactly three badges with approved wording, and decide on the selfie (P17, P18, N05).
-- [ ] Add the "not verified by candidate" label (P19).
-- [ ] Owner and backup reviewer accounts with two-step login. The backup has no payment rights, enforced in the database (P09).
-- [ ] Private photo storage with server-made blurred copies; upgrade sharp first (P07).
-- [ ] 90-day document deletion job with logging (P25).
+- [x] Use `withActor` for every member and staff query; set `app.role` from `staff_member` (the database re-checks it).
+- [x] Invitation consumption and takeover as reviewed SECURITY DEFINER functions. The API role cannot change `candidate_user_id` itself.
+- [x] Provision the owner and backup reviewer with a script the developer runs with the owner (`npm run staff`).
+- [x] 24-hour single-use invitations with a code to the nominated contact, contacts that differ, and limited resends (P15).
+- [x] Takeover without a fee: the manager loses access immediately and the plan carries over (P14).
+- [x] Accept NIC, passport or driving licence. Exactly three badges; no selfie (P17, P18, N05). Badge wording is part of 2b.
+- [x] Add the "not verified by candidate" label (`notVerifiedByCandidate` in the API, P19).
+- [x] Owner and backup reviewer accounts with two-step login, enforced by the server and the database (P09).
+- [x] Upgrade sharp before decoding uploads. Photo storage and blurred copies move to Stage 3, as in spec 17.1 (P07).
+- [x] 90-day document deletion job with logging and retry (P25).
+
+Screens (2b):
+
+- [ ] Member:
+  - sign-in with an email code
+  - the profile wizard and edit, and contacts
+  - phone verification and document upload
+  - inviting the candidate
+  - the candidate's invitation page (code, accept, decline) and controls
+  - badges with the approved wording ("identity document reviewed")
+- [ ] Staff: password sign-in with two-step login, including enrolment with backup codes, and the document review queue.
+- [ ] Owner action: create the owner and backup reviewer accounts on each environment (`npm run staff`).
+- [ ] **BLOCKED:** SMS provider. Phone verification for publishing and SMS invitations wait for it.
 
 **Stage 3: Requests, connections and privacy**
 
@@ -657,3 +680,116 @@ database, email and storage ready.
   `docs/ARCHITECTURE.md`, "Environments".
 - No API routes use the new tables yet; that starts in Stage 2. The rules are enforced in the database and tested,
   but no member-facing feature changes.
+
+## Stage 2a evidence (28 Oct 2026): server for accounts and verification
+
+Scope (Part 3 "Stage 2", server half; the owner chose to split the stage): real authentication, self-managed and
+guardian-managed profiles, the 24-hour invitation with a code, candidate takeover, the three badges, the 3-profile
+limit, document upload with staff review, the 90-day deletion job, and staff roles with two-step login. The screens
+come in 2b.
+
+### What was built
+
+- **API restructure.** `createApp(deps)` takes the database, Better-Auth, storage and messaging, so the tests run
+  the real API on PGlite. Every member and staff query goes through `withActor(c, fn)` (role `fh_app`).
+- **Routes** (`apps/api/src/routes/`):
+  - `/api/v1/me`
+  - `/api/v1/profiles`: create, view, edit with a version check, publish and pause, contacts, the candidate's
+    permission switches, takeover, and withdraw or restore consent
+  - invitations: from the manager, and preview, code, accept and decline for the candidate
+  - `/api/v1/verification`: document upload and own cases
+  - `/api/v1/staff/verification`: queue, audited document link, decision
+- **Migrations.**
+  - `0004_candidate_consent.sql` adds candidate confirmation and objection, one profile per candidate, and invitation
+    code fields.
+  - `0005_accounts_and_trust.sql` is hand-written:
+    - editing and interests follow the candidate's permissions
+    - contact verification can't be self-claimed
+    - functions for badges, invitations, takeover and consent
+    - document decisions stamped with a 90-day purge date
+    - the staff queue function
+- **Jobs.** `documents.purge` deletes due files, retries failures the next run, and is logged and audited with counts
+  only.
+- **Staff.** `scripts/staff.ts` adds or revokes staff and resets two-step login. Validation lives in shared schemas
+  (`packages/shared/src/profile.ts`).
+
+### `npm test`: 56 tests (37 access rules, 19 HTTP flows)
+
+```text
+▶ accounts (A01, A02, S06)
+  ✔ sign up and sign in with an email code; wrong and reused codes fail
+  ✔ anonymous visitors get nothing
+  ✔ the owner can pause new sign-ups; existing members keep working (S06)
+▶ profiles (P01, A04, A05)
+  ✔ one own profile per person; fields are validated on the server (P01)
+  ✔ a stale edit is refused instead of overwriting (A05)
+  ✔ a manager runs up to 3 profiles (A04)
+▶ documents, staff review and publishing (P02, P05, P09, S04)
+  ✔ staff powers need two-step login, checked by the server (S04)
+  ✔ a fake image is refused and nothing is stored (P09)
+  ✔ publishing needs a complete profile, a verified phone and an approved document (P02, P05)
+  ✔ viewing a document is audited and gives a short-lived link
+▶ invitations and the candidate (I01–I09)
+  ✔ a manager prepares a profile and invites the candidate; own contact is refused (I01)
+  ✔ the link shows only who invited whom; the code goes to the nominated address (I02, I04)
+  ✔ the manager cannot accept; a wrong code is counted; the candidate accepts once (I03, I05)
+  ✔ the candidate controls the manager’s permissions and sharing (I07)
+  ✔ withdrawing consent takes the profile down; the manager cannot override (I06, I09)
+  ✔ takeover: the manager loses access at once and the plan carries over (I08)
+  ✔ declining with the code needs no account and takes the profile down (I06)
+▶ document retention (X01, S05)
+  ✔ files are deleted 90 days after the decision; a failed delete is retried
+  ✔ revoking a staff member ends their access at once (S05)
+▶ invariants
+  ✔ no invitations once the candidate has joined
+  … the 36 Stage 1 access-rule tests, all passing (list in the Stage 1 evidence)
+ℹ tests 56
+ℹ suites 15
+ℹ pass 56
+ℹ fail 0
+```
+
+These are real flows, not mocks of the rules:
+
+- sign-in uses Better-Auth email codes
+- two-step login uses real TOTP codes computed from the authenticator link
+- documents are real JPEGs decoded by sharp
+
+Only delivery and file storage are replaced: messages go to an outbox, and files are kept in memory.
+
+**First runs.** The first run failed on a SQL alias bug in the new `app.profile_people` function: inside a subquery,
+`id` meant the document case's id. It was fixed before any commit. The server log of the final run has no unhandled
+errors, only the expected refusals.
+
+One existing Stage 1 test changed: its invitation used a profile whose candidate had already joined. That is refused
+now, so the test uses a profile still waiting for its candidate. A new test checks the refusal.
+
+### Neon dry run (dev database, rolled back)
+
+```text
+applied 43 statements inside the transaction
+checks: { tables_with_rls: 23, policies: 68, prices: 6 }
+as fh_app (anonymous): { role: 'fh_app', profiles: 0, prices: 6 }
+anonymous insert: denied: new row violates row-level security policy for table "member_account"
+after rollback: { objection_column_exists: false, app_functions: 32 }
+```
+
+Migrations 0004–0005 are **not applied** to Neon dev yet. They wait for a go-ahead, as Stage 1's did.
+
+### `npm run typecheck` and `npm run build`
+
+Both passed (exit 0): `astro check` gave 0 errors, the API bundle `dist/index.js` is 99.0kb, the member app built, and
+the website built 22 pages. The running dev API reloaded with the new code: `/health` returned
+`{"ok":true,"database":true,"email":true,"sms":false,"storage":true}`.
+
+`npm audit`: the API's sharp is now 0.35.5. The remaining sharp advisory is Astro's build-time copy (0.34.5), which
+goes with the deferred Astro upgrade.
+
+### Not done in 2a
+
+- The screens, in 2b.
+- Applying 0004–0005 to Neon dev, which waits for a go-ahead.
+- Creating the staff accounts on any real environment, an owner action with `npm run staff`.
+- **BLOCKED:** SMS (provider not chosen). Phone verification works in tests and in development with
+  `SMS_PROVIDER=log` only. Publishing on staging or production needs a provider.
+- Email invitations and codes reach only the Resend account owner until the domain is verified in Resend.

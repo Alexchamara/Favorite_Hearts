@@ -1,29 +1,59 @@
 import { and, eq, isNull } from 'drizzle-orm';
 import { createMiddleware } from 'hono/factory';
-import { HTTPException } from 'hono/http-exception';
 import type { StaffRole } from '@fh/shared';
-import { auth, type AuthSession } from '../auth.ts';
-import { db } from '../db/client.ts';
+import { memberAccount } from '../db/schema/members.ts';
+import { operationsFlag } from '../db/schema/operations.ts';
 import { staffMember } from '../db/schema/staff.ts';
+import { fail, withActor, type AppEnv } from '../http.ts';
 
-export type AppEnv = {
-  Variables: {
-    session: AuthSession['session'] | null;
-    user: AuthSession['user'] | null;
-  };
-};
-
-/** Loads the Better-Auth session (if any) for every request. */
+/**
+ * Loads the Better-Auth session (if any) and decides the actor that row-level security sees.
+ * A staff role counts only with two-step login enabled; the database re-checks both.
+ */
 export const loadSession = createMiddleware<AppEnv>(async (c, next) => {
+  const { auth, db } = c.var.deps;
   const result = await auth.api.getSession({ headers: c.req.raw.headers });
+  const user = result?.user ?? null;
+  let staffRole: StaffRole | null = null;
+  if (user) {
+    const [row] = await db
+      .select({ role: staffMember.role })
+      .from(staffMember)
+      .where(and(eq(staffMember.userId, user.id), isNull(staffMember.revokedAt)))
+      .limit(1);
+    staffRole = row?.role ?? null;
+  }
+  c.set('user', user);
   c.set('session', result?.session ?? null);
-  c.set('user', result?.user ?? null);
+  c.set('staffRole', staffRole);
+  c.set('actor', user ? { userId: user.id, role: staffRole && user.twoFactorEnabled ? staffRole : 'member' } : null);
   await next();
 });
 
 /** 401 unless signed in. */
 export const requireUser = createMiddleware<AppEnv>(async (c, next) => {
-  if (!c.get('user')) throw new HTTPException(401, { message: 'Please sign in.' });
+  if (!c.var.user) fail(401, 'UNAUTHENTICATED', 'Please sign in.');
+  await next();
+});
+
+/**
+ * Signed-in member with an active account. The member account is created on first use, unless
+ * the owner has paused new sign-ups (OWNER-DECISIONS section 10). Staff accounts are separate.
+ */
+export const requireMember = createMiddleware<AppEnv>(async (c, next) => {
+  const user = c.var.user;
+  if (!user) fail(401, 'UNAUTHENTICATED', 'Please sign in.');
+  if (c.var.staffRole) fail(403, 'STAFF_ACCOUNT', 'Staff accounts cannot use the member app.');
+  const account = await withActor(c, async (tx) => {
+    const [existing] = await tx.select().from(memberAccount).where(eq(memberAccount.userId, user.id));
+    if (existing) return existing;
+    const [paused] = await tx.select().from(operationsFlag).where(eq(operationsFlag.key, 'signups_paused'));
+    if (paused?.enabled) fail(403, 'SIGNUPS_PAUSED', 'New sign-ups are paused for now. Please try again later.');
+    await tx.insert(memberAccount).values({ userId: user.id });
+    const [created] = await tx.select().from(memberAccount).where(eq(memberAccount.userId, user.id));
+    return created!;
+  });
+  if (account.status !== 'active') fail(403, 'ACCOUNT_SUSPENDED', 'This account is not active. Please contact support.');
   await next();
 });
 
@@ -33,15 +63,10 @@ export const requireUser = createMiddleware<AppEnv>(async (c, next) => {
  */
 export function requireStaff(...roles: StaffRole[]) {
   return createMiddleware<AppEnv>(async (c, next) => {
-    const user = c.get('user');
-    if (!user) throw new HTTPException(401, { message: 'Please sign in.' });
-    const [row] = await db
-      .select({ role: staffMember.role })
-      .from(staffMember)
-      .where(and(eq(staffMember.userId, user.id), isNull(staffMember.revokedAt)))
-      .limit(1);
-    if (!row || !roles.includes(row.role)) throw new HTTPException(403, { message: 'Not allowed.' });
-    if (!user.twoFactorEnabled) throw new HTTPException(403, { message: 'Two-step login is required for staff.' });
+    const user = c.var.user;
+    if (!user) fail(401, 'UNAUTHENTICATED', 'Please sign in.');
+    if (!c.var.staffRole || !roles.includes(c.var.staffRole)) fail(403, 'FORBIDDEN', 'Not allowed.');
+    if (!user.twoFactorEnabled) fail(403, 'TWO_FACTOR_REQUIRED', 'Two-step login is required for staff.');
     await next();
   });
 }

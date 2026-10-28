@@ -1,11 +1,10 @@
 import { sql } from 'drizzle-orm';
 import { Hono } from 'hono';
-import { db } from '../db/client.ts';
-import { smsEnabled } from '../messaging/sms.ts';
-import { storageConfigured } from '../storage/r2.ts';
+import type { AppEnv } from '../http.ts';
 
 /** Liveness/readiness for Fly.io / Railway. Reports configuration, never secrets. */
-export const health = new Hono().get('/', async (c) => {
+export const health = new Hono<AppEnv>().get('/', async (c) => {
+  const { db, messenger, storage } = c.var.deps;
   let database = false;
   try {
     await db.execute(sql`select 1`);
@@ -14,7 +13,7 @@ export const health = new Hono().get('/', async (c) => {
     database = false;
   }
   return c.json(
-    { ok: database, database, email: true, sms: smsEnabled, storage: storageConfigured },
+    { ok: database, database, email: true, sms: messenger.smsEnabled, storage: storage.configured },
     database ? 200 : 503,
   );
 });

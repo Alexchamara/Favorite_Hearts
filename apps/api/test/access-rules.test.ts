@@ -36,9 +36,10 @@ const u = {
   otto: 'u-otto', // owner role on record but two-step login off
   mallory: 'u-mallory', // ordinary member who claims to be the owner
   newbie: 'u-newbie', // signed in, no member account yet
+  nadia: 'u-nadia', // manager of profile N, whose candidate has not joined yet
 };
 const member = (userId: string): Actor => ({ userId, role: 'member' });
-const [alice, bob, carol, dave, maya, chandi, rex, sam, newbie] = [
+const [alice, bob, carol, dave, maya, chandi, rex, sam, newbie, nadia] = [
   u.alice,
   u.bob,
   u.carol,
@@ -48,13 +49,22 @@ const [alice, bob, carol, dave, maya, chandi, rex, sam, newbie] = [
   u.rex,
   u.sam,
   u.newbie,
-].map(member) as [Actor, Actor, Actor, Actor, Actor, Actor, Actor, Actor, Actor];
+  u.nadia,
+].map(member) as [Actor, Actor, Actor, Actor, Actor, Actor, Actor, Actor, Actor, Actor];
 const vic: Actor = { userId: u.vic, role: 'backup_reviewer' };
 const olga: Actor = { userId: u.olga, role: 'owner' };
 const otto: Actor = { userId: u.otto, role: 'owner' };
 const mallory: Actor = { userId: u.mallory, role: 'owner' };
 
-const P = { A: randomUUID(), B: randomUUID(), C: randomUUID(), D: randomUUID(), M: randomUUID(), R: randomUUID() };
+const P = {
+  A: randomUUID(),
+  B: randomUUID(),
+  C: randomUUID(),
+  D: randomUUID(),
+  M: randomUUID(),
+  N: randomUUID(),
+  R: randomUUID(),
+};
 const iAB = randomUUID(); // Alice -> Bob, accepted, connected
 const iAC = randomUUID(); // Alice -> Carol, pending
 const cAB = randomUUID();
@@ -128,9 +138,11 @@ before(async () => {
     { id: P.D, management: 'self', createdByUserId: u.dave, candidateUserId: u.dave, displayName: 'Dave' },
     { id: P.M, management: 'manager', createdByUserId: u.maya, candidateUserId: u.chandi, status: 'published', ...complete('Chandi', 'woman') },
     { id: P.R, management: 'manager', createdByUserId: u.rex, candidateUserId: u.ruth, status: 'paused', ...complete('Ruth', 'woman') },
+    { id: P.N, management: 'manager', createdByUserId: u.nadia, displayName: 'Nimali' },
   ]);
   await db.insert(s.profileManager).values([
     { profileId: P.M, managerUserId: u.maya, relationship: 'mother', authorityDeclaredAt: new Date() },
+    { profileId: P.N, managerUserId: u.nadia, relationship: 'mother', authorityDeclaredAt: new Date() },
     {
       profileId: P.R,
       managerUserId: u.rex,
@@ -146,6 +158,7 @@ before(async () => {
     { profileId: P.M, person: 'manager', kind: 'phone', value: '+94770000105', verifiedAt: new Date() },
     { profileId: P.M, person: 'candidate', kind: 'phone', value: '+94770000106' },
     { profileId: P.R, person: 'candidate', kind: 'phone', value: '+94770000108' },
+    { profileId: P.N, person: 'manager', kind: 'phone', value: '+94770000120' },
   ]);
   await db.insert(s.photo).values([
     { id: photoB0, profileId: P.B, slot: 0, isCover: true, blurredKey: 'photos/b0-blur', width: 640, height: 800 },
@@ -598,21 +611,31 @@ describe('invariants', () => {
     scenario(async (as) => {
       // The expiry is left to the database default (now + 24 hours) except to test the limit.
       const invite = (contact: string, expiresAt?: ReturnType<typeof sql>) =>
-        as(maya, (tx) =>
+        as(nadia, (tx) =>
           tx
             .insert(s.invitation)
-            .values({ profileId: P.M, issuedByUserId: u.maya, channel: 'email', contact, tokenHash: randomUUID(), ...(expiresAt && { expiresAt }) })
+            .values({ profileId: P.N, issuedByUserId: u.nadia, channel: 'email', contact, tokenHash: randomUUID(), ...(expiresAt && { expiresAt }) })
             .returning(),
         );
-      await denied(invite('maya@example.test'), /invitation_contact_matches_manager/);
-      await denied(invite('+94770000105'), /invitation_contact_matches_manager/);
-      await denied(invite('chandi@example.test', sql`now() + interval '25 hours'`), /invitation_valid_24_hours/);
-      const [first] = await invite('chandi@example.test');
-      await invite('chandi@example.test');
-      const live = await as(maya, (tx) => tx.select().from(s.invitation).where(eq(s.invitation.profileId, P.M)));
+      await denied(invite('nadia@example.test'), /invitation_contact_matches_manager/);
+      await denied(invite('+94770000120'), /invitation_contact_matches_manager/);
+      await denied(invite('nimali@example.test', sql`now() + interval '25 hours'`), /invitation_valid_24_hours/);
+      const [first] = await invite('nimali@example.test');
+      await invite('nimali@example.test');
+      const live = await as(nadia, (tx) => tx.select().from(s.invitation).where(eq(s.invitation.profileId, P.N)));
       assert.equal(live.length, 2);
       assert.ok(live.find((i) => i.id === first?.id)?.supersededAt, 'the first invitation is superseded');
       assert.equal((await as(rex, (tx) => tx.select().from(s.invitation))).length, 0);
+    }));
+
+  test('no invitations once the candidate has joined', () =>
+    scenario(async (as) => {
+      await denied(
+        as(maya, (tx) =>
+          tx.insert(s.invitation).values({ profileId: P.M, issuedByUserId: u.maya, channel: 'email', contact: 'other@example.test', tokenHash: randomUUID() }),
+        ),
+        RLS,
+      );
     }));
 
   test('photos: at most five, one cover', () =>

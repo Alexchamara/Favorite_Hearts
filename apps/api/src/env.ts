@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { SMS_PROVIDERS } from '@fh/shared';
+import type { Config } from './config.ts';
 
 const bool = z.enum(['true', 'false']).transform((v) => v === 'true');
 
@@ -7,6 +8,7 @@ const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(8787),
   API_URL: z.url(),
+  MEMBER_APP_URL: z.url().default('http://localhost:4321/app'),
   ALLOWED_ORIGINS: z
     .string()
     .transform((v) => v.split(',').map((o) => o.trim()).filter(Boolean)),
@@ -46,4 +48,16 @@ export const isLocal = env.NODE_ENV === 'development' || env.NODE_ENV === 'test'
 if (env.SMS_PROVIDER === 'log' && !isLocal) {
   console.error('SMS_PROVIDER=log is only allowed in development.');
   process.exit(1);
+}
+
+export function configFromEnv(): Config {
+  return {
+    nodeEnv: env.NODE_ENV,
+    apiUrl: env.API_URL,
+    memberAppUrl: env.MEMBER_APP_URL.replace(/\/$/, ''),
+    allowedOrigins: env.ALLOWED_ORIGINS,
+    authSecret: env.BETTER_AUTH_SECRET,
+    rateLimit: true,
+    signedUrlTtlSeconds: env.SIGNED_URL_TTL_SECONDS,
+  };
 }

@@ -83,10 +83,50 @@ Member app ─ authClient.emailOtp.sendVerificationOtp({ email })  ─▶ Better
 
 ## Staff
 
-Owner and backup reviewer sign in with email + password + TOTP (Better-Auth `twoFactor`).
-No public password sign-up; the owner provisions staff. `requireStaff('owner')` guards payments,
-`requireStaff('owner', 'backup_reviewer')` documents and reports. Both require 2FA to be enabled,
-checked on the server. RLS policies on payment tables additionally only admit `app.role = 'owner'`.
+The owner and the backup reviewer sign in with email, password and TOTP (Better-Auth `twoFactor`). There is no
+public password sign-up.
+
+- **Accounts.** The developer and the owner create staff accounts together with
+  `npm run staff -w @fh/api -- add --email … --name … --role owner|backup_reviewer`. The password is typed at a
+  hidden prompt.
+- **Two-step login.** At first sign-in, the staff member turns it on: `/api/auth/two-factor/enable` returns the
+  authenticator link and backup codes. Staff routes refuse to work until it is on.
+- **Route guards.** `requireStaff('owner')` guards payments; `requireStaff('owner', 'backup_reviewer')` guards documents
+  and reports. Both need two-step login, and the database re-checks role and two-step login in every policy.
+- **Leaving.** `npm run staff -w @fh/api -- revoke --email …` removes the role and ends every session at once.
+- **Lost authenticator.** Use a backup code first. If those are lost too, the developer and the owner run
+  `reset-2fa --email …` together. It turns two-step login off and ends all sessions, and staff powers stay locked until
+  it is set up again.
+
+## Accounts, profiles and invitations (Stage 2)
+
+The API is built by `createApp(deps)` (`src/app.ts`): database, Better-Auth, storage and messaging are passed in.
+`src/index.ts` wires the real services, and the tests wire PGlite with in-memory fakes. Route code reads and writes
+member data only through `withActor(c, tx => …)` (`src/http.ts`).
+
+- **Members.** They sign in with an email code; SMS codes stay BLOCKED until a provider is chosen. The member account
+  is created on first use, unless the owner has paused sign-ups (`operations_flag`).
+- **Profiles.** `/api/v1/profiles` covers create (self, or managed with an authority declaration), edit with a version
+  check, publish and pause, contacts, and the candidate's controls. Publishing needs a complete profile, no candidate
+  objection, and the publisher's approved document plus SMS-verified phone. The publisher is the active manager,
+  otherwise the candidate.
+- **Invitations (§5).**
+  - The link carries a 32-byte token in its fragment (`/app/invite#…`), so it never reaches server logs. It is stored
+    as sha256, is single-use, lasts 24 hours, and a new one replaces the old.
+  - A manager can send up to 3 a day per profile, and never to their own email or phone.
+  - Opening the link sends a 6-digit code to the nominated contact. Each code lasts 10 minutes and allows 5 tries;
+    up to 3 codes per link. It is stored as an HMAC.
+  - Accepting (signed in) or declining (no account needed) runs in one locked database function, so a link cannot be
+    used twice.
+- **Candidate controls.** The candidate sets the manager's permissions and decides what is shared. Withdrawing consent
+  takes the profile down, and only the candidate can lift that. Takeover revokes the manager at once and keeps the
+  plan; a published profile pauses until the candidate's own identity is verified.
+- **Documents.** NIC, passport or driving licence, as a photo (JPEG, PNG or WebP, at most 5 MB). The image is decoded
+  and re-encoded by sharp, which strips metadata, and stored in the private bucket. Members never get a link to it.
+  Staff see the queue without files; opening a document gives a 120-second signed link and writes an audit record.
+  Decisions are final and stamped by the database, with a purge date 90 days on.
+- **`documents.purge`.** It runs daily and deletes each due file before clearing its key, so a failed delete is retried
+  the next night. Each run is logged and audited with counts only.
 
 ## Database access
 
@@ -97,10 +137,11 @@ access is an append-only history (`entitlement_event`).
 
 Row-level security is the second layer under the API's own checks:
 
-- `withActor(actor, fn)` runs a transaction as the role `fh_app` (`SET LOCAL ROLE`) and sets `app.user_id` and
-  `app.role`. `fh_app` has no BYPASSRLS and only explicit grants.
+- `withActor(c, fn)` (`src/http.ts`, over `runAsActor` in `src/db/actor.ts`) runs a transaction as the role
+  `fh_app` (`SET LOCAL ROLE`) and sets `app.user_id` and `app.role`. `fh_app` has no BYPASSRLS and only explicit
+  grants.
 - Every domain table has RLS enabled and denies by default. The policies, helper functions and invariant triggers are
-  in `drizzle/0003_access_rules.sql`.
+  in `drizzle/0003_access_rules.sql`, extended in `0005_accounts_and_trust.sql`.
 - Helper functions such as `app.operates_profile()` and `app.can_view_private()` are SECURITY DEFINER and only answer
   about the current actor.
 - Staff powers need the claimed role, an active `staff_member` row and two-step login, checked in the database. The
@@ -117,7 +158,8 @@ Row-level security is the second layer under the API's own checks:
   person goes through `withActor`.
 - `npm test -w @fh/api` runs every migration in PGlite (PostgreSQL 18.6 in-process, the same version as Neon dev).
   It tests the rules with separate accounts: anonymous, two members, an unpaid member, a manager, a candidate, a
-  revoked manager, the backup reviewer and the owner (`test/access-rules.test.ts`).
+  revoked manager, the backup reviewer and the owner (`test/access-rules.test.ts`). It also drives the real HTTP API
+  through Better-Auth sign-in, invitations, document review and the purge job (`test/api.test.ts`).
 
 Adding a table:
 

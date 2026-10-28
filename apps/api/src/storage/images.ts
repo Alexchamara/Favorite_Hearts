@@ -5,7 +5,7 @@
  * - The blurred copy is a separate low-detail image, so the original never reaches
  *   a viewer who is not allowed to see it.
  */
-import sharp from 'sharp';
+import sharp, { type Metadata } from 'sharp';
 
 export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // 5 MiB, as in the demo (spec 5.3)
 const ALLOWED_FORMATS = new Set(['jpeg', 'png', 'webp']);
@@ -22,7 +22,7 @@ export type ProcessedPhoto = {
 export async function processPhoto(input: Buffer): Promise<ProcessedPhoto> {
   if (input.byteLength > MAX_UPLOAD_BYTES) throw new InvalidImageError('Photos must be 5 MB or smaller.');
 
-  let meta: sharp.Metadata;
+  let meta: Metadata;
   try {
     meta = await sharp(input, { limitInputPixels: 40_000_000 }).metadata();
   } catch {
@@ -43,4 +43,29 @@ export async function processPhoto(input: Buffer): Promise<ProcessedPhoto> {
   const blurred = await sharp(tiny).resize({ width: 640 }).blur(12).jpeg({ quality: 60 }).toBuffer();
 
   return { original, blurred, width: info.width, height: info.height };
+}
+
+export type ProcessedDocument = { image: Buffer; width: number; height: number };
+
+/**
+ * Identity document photos (NIC, passport, driving licence). Decoding is the real file check, and
+ * re-encoding drops EXIF/GPS metadata. Kept large enough to stay legible for the reviewer.
+ */
+export async function processDocument(input: Buffer): Promise<ProcessedDocument> {
+  if (input.byteLength > MAX_UPLOAD_BYTES) throw new InvalidImageError('Documents must be 5 MB or smaller.');
+  let meta: Metadata;
+  try {
+    meta = await sharp(input, { limitInputPixels: 40_000_000 }).metadata();
+  } catch {
+    throw new InvalidImageError('This file is not a supported image. Please upload a photo of the document.');
+  }
+  if (!meta.format || !ALLOWED_FORMATS.has(meta.format)) {
+    throw new InvalidImageError('Please upload a JPEG, PNG or WebP photo of the document.');
+  }
+  const { data, info } = await sharp(input, { limitInputPixels: 40_000_000 })
+    .rotate()
+    .resize({ width: 2400, height: 2400, fit: 'inside', withoutEnlargement: true })
+    .jpeg({ quality: 90, mozjpeg: true })
+    .toBuffer({ resolveWithObject: true });
+  return { image: data, width: info.width, height: info.height };
 }
