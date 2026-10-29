@@ -44,7 +44,10 @@ stops. It can run beside `npm run dev`. Four synthetic test members (verified an
 ready to sign in, and a test plan can be granted to any profile with
 `curl -X POST http://127.0.0.1:8788/sandbox/plans -H 'content-type: application/json' -d '{"profileId":"…"}'`.
 That is a shortcut: buying a plan for real needs the owner (`owner@sandbox.test`) to enter payment details first, as
-nothing is pre-filled. The API is not reloaded on code changes: restart the sandbox after pulling.
+nothing is pre-filled. To try the Turnstile widget too, start it with Cloudflare's public test keys:
+`TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA` for the sandbox API and
+`VITE_TURNSTILE_SITE_KEY=1x00000000000000000000AA` for the member app. The API is not reloaded on code changes:
+restart the sandbox after pulling.
 
 One deployable folder for static hosting: `npm run build:site` → `dist/site/`
 (website at `/`, member app at `/app/`); preview it with `npm run preview:site` (http://localhost:8080).

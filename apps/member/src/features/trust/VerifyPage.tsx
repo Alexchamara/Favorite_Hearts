@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { normalizePhone, type DocumentType, type VerificationCaseView } from '@fh/shared';
 import { SelectField, TextField } from '@/components/form/fields';
 import { AppShell, Card, Loading, Notice, PageTitle } from '@/components/layout';
+import { useBotCheck } from '@/components/turnstile';
 import { Button } from '@/components/ui/button';
 import { errorMessage, post } from '@/lib/api';
 import { authClient } from '@/lib/auth-client';
@@ -45,6 +46,7 @@ function PhoneCheck() {
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const bot = useBotCheck();
   if (!me) return null;
 
   async function send(event: FormEvent) {
@@ -53,7 +55,8 @@ function PhoneCheck() {
     if (!normalized) return setError('Enter the number with its country code, for example +94 77 123 4567.');
     setBusy(true);
     setError(null);
-    const result = await authClient.phoneNumber.sendOtp({ phoneNumber: normalized });
+    const result = await authClient.phoneNumber.sendOtp({ phoneNumber: normalized, fetchOptions: { headers: bot.headers } });
+    bot.reset();
     setBusy(false);
     if (result.error) return setError(result.error.message ?? 'Could not send the code.');
     setSentTo(normalized);
@@ -91,7 +94,8 @@ function PhoneCheck() {
           {!sentTo ? (
             <form onSubmit={send} className="flex flex-col gap-4">
               <TextField label="Mobile number" type="tel" autoComplete="tel" placeholder="+94 77 123 4567" value={phone} onChange={setPhone} />
-              <Button type="submit" className="h-11 self-start" disabled={busy || !phone.trim()}>
+              {bot.widget}
+              <Button type="submit" className="h-11 self-start" disabled={busy || !phone.trim() || !bot.ready}>
                 {busy ? 'Sending…' : 'Send code by SMS'}
               </Button>
             </form>

@@ -1,6 +1,7 @@
 /**
- * Two cards for the profile overview: the plan and what is left of its request limits (section 2), and
- * "engaged or married" (section 7), which hides the profile and ends the plan after a clear warning.
+ * Two cards for the profile overview: the plan, its expiry warning and what is left of its request limits
+ * (sections 2, 3), and "engaged or married" (section 7), which hides the profile and ends the plan after a
+ * clear warning.
  */
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -10,10 +11,10 @@ import { Card, Notice } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { errorMessage, post } from '@/lib/api';
 import { refreshRelations, storeProfile, usePlan } from '@/lib/queries';
+import { PlanSummary } from '@/features/billing/PlanPanel';
 
-const planNames: Record<string, string> = { starter_1m: 'Starter', premium_3m: 'Premium, 3 months', premium_6m: 'Premium, 6 months' };
-
-export function PlanCard({ profile }: { profile: ProfileView }) {
+/** `onOpenPlans`: switches to the profile's Plan tab. */
+export function PlanCard({ profile, onOpenPlans }: { profile: ProfileView; onOpenPlans: () => void }) {
   const plan = usePlan(profile.id);
   return (
     <Card>
@@ -23,36 +24,18 @@ export function PlanCard({ profile }: { profile: ProfileView }) {
           <Notice tone="error">{errorMessage(plan.error)}</Notice>
         </div>
       ) : plan.data.active ? (
-        <div className="mt-2 text-sm">
-          <p>
-            {planNames[plan.data.planId ?? ''] ?? 'Active plan'}, until {new Date(plan.data.endsAt!).toLocaleDateString()}.
-          </p>
-          <dl className="mt-3 grid gap-3 sm:grid-cols-2">
-            {plan.data.daily && (
-              <div>
-                <dt className="text-xs font-semibold text-muted-foreground uppercase">Requests today</dt>
-                <dd>
-                  {plan.data.daily.used} of {plan.data.daily.cap}
-                </dd>
-              </div>
-            )}
-            {plan.data.monthly && (
-              <div>
-                <dt className="text-xs font-semibold text-muted-foreground uppercase">This month of your plan</dt>
-                <dd>
-                  {plan.data.monthly.used} of {plan.data.monthly.cap}
-                </dd>
-              </div>
-            )}
-          </dl>
-          <p className="mt-3 text-xs text-muted-foreground">A new day starts at midnight, Sri Lanka time.</p>
+        <div className="mt-2">
+          <PlanSummary usage={plan.data} />
         </div>
       ) : (
         <p className="mt-2 text-sm text-muted-foreground">
           No active plan. Publishing and receiving requests are free; a plan lets you send requests, see who is interested
-          and accept. Buying a plan opens in a later update.
+          and accept.
         </p>
       )}
+      <Button variant="outline" className="mt-4 h-11" onClick={onOpenPlans}>
+        {plan.data?.active ? 'Plans and payments' : 'See plans and prices'}
+      </Button>
     </Card>
   );
 }

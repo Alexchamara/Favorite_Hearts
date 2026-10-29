@@ -20,6 +20,8 @@ const MESSAGES: Record<string, string> = {
   OTP_EXPIRED: 'That code has expired. Send a new code.',
   TOO_MANY_ATTEMPTS: 'Too many tries with this code. Send a new code.',
   TOO_MANY_REQUESTS: 'Too many requests. Please wait a minute and try again.',
+  CAPTCHA_REQUIRED: 'Please complete the security check and try again.',
+  CAPTCHA_FAILED: 'The security check did not pass. Please try again.',
 };
 
 function unwrap(result: { error: { message?: string; code?: string; status?: number } | null }) {
@@ -28,13 +30,15 @@ function unwrap(result: { error: { message?: string; code?: string; status?: num
   throw new Error(known ?? (result.error.message || 'Something went wrong. Please try again.'));
 }
 
-export async function requestLoginCode(input: RequestCodeInput): Promise<void> {
+/** `headers`: the Turnstile token (components/turnstile.tsx), when the bot check is on. */
+export async function requestLoginCode(input: RequestCodeInput, headers?: Record<string, string>): Promise<void> {
   const target = requestCodeSchema.parse(input);
   if (!enabledChannels().includes(target.channel)) throw new Error('This sign-in option is not available yet.');
+  const fetchOptions = { headers };
   if (target.channel === 'email') {
-    unwrap(await authClient.emailOtp.sendVerificationOtp({ email: target.email, type: 'sign-in' }));
+    unwrap(await authClient.emailOtp.sendVerificationOtp({ email: target.email, type: 'sign-in', fetchOptions }));
   } else {
-    unwrap(await authClient.phoneNumber.sendOtp({ phoneNumber: target.phone }));
+    unwrap(await authClient.phoneNumber.sendOtp({ phoneNumber: target.phone, fetchOptions }));
   }
 }
 

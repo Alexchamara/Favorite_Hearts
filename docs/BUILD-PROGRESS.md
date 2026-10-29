@@ -19,7 +19,7 @@ without output.
 | 1 Foundation: member app migration, Drizzle schema + RLS, Neon staging/production | **done, awaiting owner review.** Staging/production projects **BLOCKED** until the owner creates them; evidence below. |
 | 2 Accounts and verification (codes, invites, takeover, badges, staff 2FA, documents) | **done (2a server, 2b screens), awaiting owner review.** SMS **BLOCKED** until a provider is chosen; evidence below. |
 | 3 Requests, connections and privacy | **done (3a server, 3b screens), awaiting owner review.** Evidence below. |
-| 4 Plans, payments, email, Turnstile | **4a (server) done, awaiting owner review.** Screens follow in 4b. Real payment details, Turnstile keys and email to members are **BLOCKED** on the owner; evidence below. |
+| 4 Plans, payments, email, Turnstile | **done (4a server, 4b screens), awaiting owner review.** Real payment details, Turnstile keys and email to members are **BLOCKED** on the owner; evidence below. |
 | 5 Content, safety and quality | not started |
 | 6 Test, harden and hand over | not started |
 
@@ -80,6 +80,8 @@ without output.
 | 2026-10-29 | After a takeover, the former manager's payments that never got a receipt are cancelled. Receipts already sent stay with the owner, and an approval still goes to the profile. The candidate never sees the manager's payments (spec 6.3). | Proposed — confirm |
 | 2026-10-29 | Expiry emails go to everyone running the profile, 7 days before the end (when renewal opens), on the last day, and once it has ended. Payment decisions are emailed to the payer. | Proposed — confirm |
 | 2026-10-29 | Turnstile is checked by our own server code (Cloudflare siteverify) on every endpoint that sends a code or checks a password. It is off while no secret is set, required in production, and fails closed if Cloudflare cannot be reached. | Engineering |
+| 2026-10-30 | The payment step shows four draft refund points from §9 that the member must tick. The final wording comes with the lawyer's review of the terms (Stage 5). | Proposed — confirm |
+| 2026-10-30 | The owner's Approve button stays off until the statement line is typed and the owner ticks that the transfer was found in the real statement (spec 9.3: a receipt alone is not enough). | Engineering |
 
 ## Step 5 evidence
 
@@ -548,10 +550,10 @@ Server (4a):
 
 Screens (4b):
 
-- [ ] Member: plan choice with what each change does, the payment page (reference, details, refund terms), receipts,
+- [x] Member: plan choice with what each change does, the payment page (reference, details, refund terms), receipts,
   and the expiry warning in the app.
-- [ ] Owner: plans and prices, payment details, the payment queue with the residence flag, decisions and plan history.
-- [ ] Turnstile widget on sign-in and code requests.
+- [x] Owner: plans and prices, payment details, the payment queue with the residence flag, decisions and plan history.
+- [x] Turnstile widget on sign-in, code requests and staff sign-in.
 
 Open:
 
@@ -1608,3 +1610,97 @@ returned the three plans with their prices, and `GET /api/v1/owner/payments` wit
 - Payment disputes have no automatic rule: the owner revokes the plan with a reason (§9 asks the terms to say what
   happens). The refund wording itself is Stage 5 with the lawyer.
 - Migrations 0008–0009 are not applied to Neon dev yet (on request).
+
+## Stage 4b evidence (30 Oct 2026): screens for plans, payments and the bot check
+
+Scope (Part 3 "Stage 4", screens half): the member's plan and payment screens, the owner's payment, plan and
+payment-detail screens, and the Turnstile widget. The server is from 4a.
+
+### What was built
+
+- **Member** (`apps/member/src/features/billing/`):
+  - a **Plan** tab on each profile, showing:
+    - the plan in force, with the expiry warning (date, what will be hidden, renewal open) and the requests left;
+    - every plan on sale with its LKR and USD price and what buying it would do now: start, upgrade or renew (with
+      the days lost), or wait (with the date renewal opens);
+  - the **payment step**, which asks:
+    - where the payer lives, setting the currency and price;
+    - which of the owner's switched-on methods to use;
+    - for ticks on the draft refund terms and on any lost days;
+  - the **payment card**: amount, the owner's details, the reference with a copy button, receipt upload (photos or
+    screenshots, checked in the browser and on the server), the owner's message when held, and cancel before a
+    receipt;
+  - past payments;
+  - the overview's plan card now carries the expiry warning and a button to the Plan tab.
+- **Owner** (`apps/member/src/features/staff/`), three tabs only the owner sees:
+  - **Payments**, in `PaymentsQueue.tsx`:
+    - lists the payments needing a decision first, filters by status, and finds a payment by reference or statement
+      line;
+    - each payment shows its residence flags explained, its receipts (each look logged), and approve (statement line
+      plus "found in the real statement" tick), hold, reject, refund, notes, statement-line correction and delete
+      (without a receipt only);
+    - the profile's plan history, with grant and revoke.
+  - **Plans**, in `PlansAdmin.tsx`: add a plan (code suggested from the name), edit, re-price, retire or put back on
+    sale, delete if never used, and the price history.
+  - **Payment details**, in `PaymentDetailsAdmin.tsx`: the four methods, each with its details and an on/off tick.
+- **Bot check:** `src/components/turnstile.tsx` loads Cloudflare's widget when `VITE_TURNSTILE_SITE_KEY` is set and
+  sends its token with the email-code, SMS-code, invitation-code and staff password requests.
+- **Server:** the owner's list also takes `status=waiting` (in review or held). The sandbox can turn Turnstile on with
+  `TURNSTILE_SECRET_KEY`.
+
+### Browser walkthrough
+
+My own sandbox ran on spare ports (API 8798, member app 5184), with Cloudflare's published test keys, so the widget
+and its server check were real. The owner's sandbox on 8788/5174 was not touched. All accounts were the sandbox's
+synthetic ones.
+
+| Checked | Result |
+| --- | --- |
+| Staff sign-in with the widget | The widget produced Cloudflare's test token; sign-in passed the server check. Two-step login set up. |
+| Payment details | All four methods empty and off. "Switch on" without details refused; test details saved and "shown to members", with the change time. |
+| Plans | Added "Festival offer" (code suggested, LKR 5,000 / USD 35). Re-priced LKR to 4,500: the old version is kept and closed. Retired: no longer in the public catalogue. Deleted (never bought). |
+| Member sign-in with the widget | The test widget showed; the code request passed the server check. |
+| Plan tab, no plan | Three plans with prices, limits and "Starts on the day we approve your payment". |
+| Payment step | Residence Sri Lanka: LKR 3,000, bank transfer only. Changed to the UK: USD 20, Wise offered, SWIFT and PayPal "not set up yet". "Get payment details" off until the terms are ticked. |
+| Payment card | Owner's details, reference `FHQYS4M7` with copy, receipt upload (a PNG screenshot). Status "Receipt received, being checked"; other plans wait. |
+| Owner queue | The payment listed as "To review · waiting under an hour". Detail: payer, declared residence, no flags, the receipt (re-encoded to JPEG by the server). |
+| Approval | Approve off until the statement line and the tick. Approved; the plan runs "until 30 Nov 2026, 01:18 (Sri Lanka time)", one calendar month. |
+| Plan history and grant | History "Plan started … payment approved". Granted Starter for 5 days with a reason: "Plan replaced … until 4 Nov 2026". |
+| Member, plan ending soon | Overview: "Your plan ends on 4 Nov 2026, 01:20 (Sri Lanka time)" with what will be hidden. Plan tab: Starter offered as a renewal and both Premium plans as upgrades, each saying the 5 unused days are lost. The renewal's button stays off until the lost-days box is ticked. |
+| Phones (375 px) | Plan tab and the owner's payment screen: no sideways scrolling (page width 375). |
+
+### Problems the walkthrough found, all fixed
+
+- The payment card said "bank transfer in sri lanka": the method name was lower-cased. It now uses wording written
+  for the sentence.
+- The Plan tab did not show the plan already in force. It now starts with it (the same summary as the overview).
+- After approving, the payment left the "needs a decision" list and its page closed. It now stays open beside the
+  list.
+- The plan history showed `payment_approved`. System reasons are now in words; the owner's reasons stay as written.
+- On phones, wrapped tab bars spilled their second and third rows over the page. This came from the shared tab
+  component, not from this stage: it had a fixed height, so it broke whenever a tab bar wrapped. It now has a minimum
+  height instead, which fixes the profile and staff tab bars.
+
+### `npm test`, `npm run typecheck` and `npm run build`
+
+- `npm test`: `ℹ tests 106`, `ℹ pass 106`, `ℹ fail 0`. One assertion was added: the owner's `status=waiting` list
+  holds held payments and only waiting ones.
+- `npm run typecheck`: exit 0; `astro check` gave 0 errors.
+- `npm run build`: exit 0. The API bundle is 183.1kb. The member app's Profile chunk is 52.69 kB and Staff 55.64 kB.
+  The main chunk is 542.88 kB, over Vite's 500 kB warning (noted for Stage 6). The website built 22 pages.
+
+### Not done in 4b
+
+- Not tried in the browser (covered by the HTTP tests in 4a):
+  - hold, reject, refund, delete and statement-line correction;
+  - a payment with residence flags;
+  - cancelling a payment;
+  - the takeover payment rules.
+- Emails are not sent in the sandbox: it runs no scheduled jobs. Delivery to members stays **BLOCKED** until the
+  domain is verified in Resend.
+- **BLOCKED (owner):**
+  - real payment details (to enter in the Payment details tab);
+  - Turnstile keys (site key in the member app, secret in the API);
+  - the refund wording's legal review (Stage 5).
+- When security headers come in Stage 5, they must allow `challenges.cloudflare.com` for scripts and frames.
+- No database changes in 4b; migrations 0008–0009 are still waiting to be applied to Neon dev (on request).

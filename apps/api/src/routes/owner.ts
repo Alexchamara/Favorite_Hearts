@@ -207,11 +207,16 @@ async function onePayment(tx: Tx, id: string): Promise<OwnerPaymentItem> {
   return item;
 }
 
-/** ?status= one status (default: all), ?q= a reference or statement line, as written on the transfer. */
+/**
+ * ?status= one status, or `waiting` for everything that needs a decision (in review or held); default: all.
+ * ?q= a reference or statement line, as written on the transfer.
+ */
 owner.get('/payments', async (c) => {
-  const status = parse(z.enum(PAYMENT_STATUSES).optional(), c.req.query('status') || undefined);
+  const status = parse(z.enum([...PAYMENT_STATUSES, 'waiting']).optional(), c.req.query('status') || undefined);
   const query = parse(z.string().trim().max(100).optional(), c.req.query('q') || undefined);
-  return c.json({ payments: await withActor(c, (tx) => ownerPayments(tx, { status, query })) });
+  const payments = await withActor(c, (tx) => ownerPayments(tx, { status: status === 'waiting' ? undefined : status, query }));
+  // Waiting payments come first in the queue, so the filter keeps all of them.
+  return c.json({ payments: status === 'waiting' ? payments.filter((p) => p.status === 'pending_review' || p.status === 'held') : payments });
 });
 
 owner.get('/payments/:id', async (c) => {

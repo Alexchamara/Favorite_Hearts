@@ -30,12 +30,16 @@ import * as schema from '../src/db/schema/index.ts';
 import type { Deps } from '../src/http.ts';
 import { addStaff } from '../src/lib/staff-accounts.ts';
 import type { Messenger } from '../src/messaging/messenger.ts';
+import { createTurnstile } from '../src/middleware/turnstile.ts';
 import { processPhoto } from '../src/storage/images.ts';
 import { newObjectKey, type Storage } from '../src/storage/storage.ts';
 
 // Ports can be moved (e.g. to run a second sandbox): SANDBOX_API_PORT and SANDBOX_MEMBER_ORIGIN.
 const API_PORT = Number(process.env.SANDBOX_API_PORT ?? 8788);
 const MEMBER_ORIGIN = process.env.SANDBOX_MEMBER_ORIGIN ?? 'http://localhost:5174';
+// Optional bot check: TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA is Cloudflare's always-passing test
+// secret (pair it with VITE_TURNSTILE_SITE_KEY=1x00000000000000000000AA for the member app). Off by default.
+const turnstileSecret = process.env.TURNSTILE_SECRET_KEY || null;
 
 const db = drizzle({ client: new PGlite(), schema });
 await migrate(db, { migrationsFolder: fileURLToPath(new URL('../drizzle', import.meta.url)) });
@@ -77,7 +81,7 @@ const config: Config = {
   signedUrlTtlSeconds: 120,
 };
 const auth = createAuth({ db, config, messenger });
-const deps: Deps = { config, db, auth, storage, messenger, turnstile: null };
+const deps: Deps = { config, db, auth, storage, messenger, turnstile: turnstileSecret ? createTurnstile(turnstileSecret) : null };
 
 const staffPassword = randomBytes(12).toString('base64url');
 await addStaff(deps, { email: 'owner@sandbox.test', name: 'Sandbox Owner', role: 'owner', password: staffPassword });
@@ -184,8 +188,10 @@ Favorite Hearts sandbox (in-memory, nothing is sent or stored for real)
   Password   : ${staffPassword}   (both staff accounts; new on every start)
   Test members (verified and published; sign in with the email code printed below):
 ${seeded.map((m) => `    ${m.email.padEnd(22)} ${m.name.padEnd(16)} ${m.plan}`).join('\n')}
+  Payments   : sign in as the owner first and enter test payment details (nothing is pre-filled).
   Test plan  : curl -X POST http://127.0.0.1:${API_PORT}/sandbox/plans -H 'content-type: application/json' \\
                  -d '{"profileId":"<id from /app/profiles/<id>>","planId":"starter_1m"}'
+  Bot check  : ${turnstileSecret ? 'on (Turnstile, checked with Cloudflare)' : 'off (set TURNSTILE_SECRET_KEY to try it)'}
 Sign-in codes, phone codes and invitation links appear below.
 ${line}`);
 });

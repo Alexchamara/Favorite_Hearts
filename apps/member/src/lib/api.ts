@@ -37,9 +37,11 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   return body as T;
 }
 
-export const post = <T>(path: string, body: unknown = {}) =>
-  api<T>(path, { method: 'POST', body: body instanceof FormData ? body : JSON.stringify(body) });
+/** `headers`: extra request headers, e.g. the Turnstile token for a code request. */
+export const post = <T>(path: string, body: unknown = {}, headers?: Record<string, string>) =>
+  api<T>(path, { method: 'POST', body: body instanceof FormData ? body : JSON.stringify(body), headers });
 export const patch = <T>(path: string, body: unknown) => api<T>(path, { method: 'PATCH', body: JSON.stringify(body) });
+export const put = <T>(path: string, body: unknown) => api<T>(path, { method: 'PUT', body: JSON.stringify(body) });
 export const del = (path: string) => api<void>(path, { method: 'DELETE' });
 
 /** A readable message for any error thrown by api() or a Better-Auth client call. */

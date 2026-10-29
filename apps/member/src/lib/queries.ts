@@ -4,11 +4,17 @@
  */
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import type {
+  BillingOverview,
   BlockView,
   ConnectionView,
   DiscoverPage,
   MemberProfileView,
   MeView,
+  OwnerPaymentDetail,
+  OwnerPaymentItem,
+  OwnerPlanView,
+  OwnerProfilePlan,
+  PaymentSettingView,
   PhotoView,
   PlanUsage,
   ProfileView,
@@ -36,6 +42,12 @@ export const keys = {
   blocks: (profileId: string) => ['blocks', profileId] as const,
   plan: (profileId: string) => ['plan', profileId] as const,
   photos: (profileId: string) => ['photos', profileId] as const,
+  billing: (profileId: string) => ['billing', profileId] as const,
+  ownerPlans: ['owner', 'plans'] as const,
+  ownerSettings: ['owner', 'settings'] as const,
+  ownerPayments: (status: string, query: string) => ['owner', 'payments', status, query] as const,
+  ownerPayment: (id: string) => ['owner', 'payment', id] as const,
+  ownerProfilePlan: (profileId: string) => ['owner', 'profile-plan', profileId] as const,
 };
 
 /** After a request, connection or block changes: everything that shows relations is refreshed. */
@@ -165,4 +177,47 @@ export function usePhotos(profileId: string) {
     queryKey: keys.photos(profileId),
     queryFn: async () => (await api<{ photos: PhotoView[] }>(`/profiles/${profileId}/photos`)).photos,
   });
+}
+
+// --- Plans and payments (Stage 4) --------------------------------------------------------------------------
+
+/** After a payment or plan change: the plan, its usage and everything that depends on having a plan. */
+export function refreshBilling() {
+  return Promise.all(['billing', 'plan', 'requests', 'member'].map((key) => queryClient.invalidateQueries({ queryKey: [key] })));
+}
+
+export function useBilling(profileId: string) {
+  return useQuery({ queryKey: keys.billing(profileId), queryFn: () => api<BillingOverview>(`/profiles/${profileId}/billing`) });
+}
+
+export function useOwnerPlans() {
+  return useQuery({ queryKey: keys.ownerPlans, queryFn: async () => (await api<{ plans: OwnerPlanView[] }>('/owner/plans')).plans });
+}
+
+export function useOwnerSettings() {
+  return useQuery({
+    queryKey: keys.ownerSettings,
+    queryFn: async () => (await api<{ settings: PaymentSettingView[] }>('/owner/payment-settings')).settings,
+  });
+}
+
+/** `status`: a payment status, `waiting` (in review or held) or `all`; `query`: a reference or statement line. */
+export function useOwnerPayments(status: string, query: string) {
+  return useQuery({
+    queryKey: keys.ownerPayments(status, query),
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (status !== 'all') params.set('status', status);
+      if (query) params.set('q', query);
+      return (await api<{ payments: OwnerPaymentItem[] }>(`/owner/payments?${params}`)).payments;
+    },
+  });
+}
+
+export function useOwnerPayment(id: string) {
+  return useQuery({ queryKey: keys.ownerPayment(id), queryFn: () => api<OwnerPaymentDetail>(`/owner/payments/${id}`) });
+}
+
+export function useOwnerProfilePlan(profileId: string) {
+  return useQuery({ queryKey: keys.ownerProfilePlan(profileId), queryFn: () => api<OwnerProfilePlan>(`/owner/profiles/${profileId}/plan`) });
 }

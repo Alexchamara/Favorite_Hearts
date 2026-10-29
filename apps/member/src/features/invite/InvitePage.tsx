@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import type { InvitationPreview } from '@fh/shared';
 import { TextField } from '@/components/form/fields';
 import { AppShell, Card, Loading, Notice, PageTitle } from '@/components/layout';
+import { useBotCheck } from '@/components/turnstile';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -71,9 +72,11 @@ function Invitation({ token, preview }: { token: string; preview: InvitationPrev
   const manager = preview.managerName ?? 'A family member';
   const who = preview.relationship ? `${manager} (${relationshipLabels[preview.relationship].toLowerCase()})` : manager;
 
+  const bot = useBotCheck();
   const sendCode = useMutation({
-    mutationFn: () => post<{ contactHint: string }>('/invitations/code', { token }),
+    mutationFn: () => post<{ contactHint: string }>('/invitations/code', { token }, bot.headers),
     onSuccess: (sent) => setCodeSentTo(sent.contactHint),
+    onSettled: () => bot.reset(),
   });
   const accept = useMutation({
     mutationFn: () => post<{ profileId: string }>('/invitations/accept', { token, code }),
@@ -113,7 +116,8 @@ function Invitation({ token, preview }: { token: string; preview: InvitationPrev
               you. The link expires on {new Date(preview.expiresAt).toLocaleString()}.
             </p>
             {sendCode.isError && <Notice tone="error">{errorMessage(sendCode.error)}</Notice>}
-            <Button className="h-11 self-start" disabled={sendCode.isPending} onClick={() => sendCode.mutate()}>
+            {bot.widget}
+            <Button className="h-11 self-start" disabled={sendCode.isPending || !bot.ready} onClick={() => sendCode.mutate()}>
               {sendCode.isPending ? 'Sending…' : 'Send me a code'}
             </Button>
           </div>
@@ -150,10 +154,11 @@ function Invitation({ token, preview }: { token: string; preview: InvitationPrev
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-              <Button variant="ghost" className="h-11" disabled={sendCode.isPending} onClick={() => sendCode.mutate()}>
+              <Button variant="ghost" className="h-11" disabled={sendCode.isPending || !bot.ready} onClick={() => sendCode.mutate()}>
                 Send a new code
               </Button>
             </div>
+            {bot.widget}
           </div>
         )}
       </Card>

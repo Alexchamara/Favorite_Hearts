@@ -134,7 +134,7 @@ member data only through `withActor(c, tx => …)` (`src/http.ts`).
 - **`documents.purge`.** It runs daily and deletes each due file before clearing its key, so a failed delete is retried
   the next night. Each run is logged and audited with counts only.
 
-## Member app screens (Stages 2b and 3b)
+## Member app screens (Stages 2b, 3b and 4b)
 
 One single-page app at `/app` (`apps/member`, react-router with base `/app`). Members and staff use the same app; the
 staff area is `/app/staff`.
@@ -142,15 +142,30 @@ staff area is `/app/staff`.
 | Route | Screen |
 | --- | --- |
 | `/` | Sign-in with an email code, the account holder's name on first sign-in, then the dashboard: own and managed profiles, creating one, and the verification summary |
-| `/profiles/:id` | Overview (badges, publishing, the plan's remaining requests, "engaged or married"), Details in four steps, Photos, Contacts, Requests (received, sent), Connections (with blocked profiles), and for guardian-managed profiles the candidate's or manager's panel |
+| `/profiles/:id` | Overview (badges, publishing, the plan with its expiry warning and remaining requests, "engaged or married"), Details in four steps, Photos, Contacts, Requests (received, sent), Connections (with blocked profiles), Plan (the plan in force, what each plan would do now, the payment step, receipts and past payments), and for guardian-managed profiles the candidate's or manager's panel |
 | `/browse` | Discovery with filters, for verified members |
 | `/members/:id` | Another member's profile: photos (blurred unless allowed), where the acting profile stands, sending a request after seeing what will be shared, blocking and reporting |
 | `/verify` | Phone check by SMS code and the identity-document upload |
 | `/invite#…` | The candidate's invitation: code, then accept (signing in on the spot) or decline (no account) |
-| `/staff` | Staff sign-in with password and two-step login, enrolment, the document review queue and the report queue |
+| `/staff` | Staff sign-in with password and two-step login, enrolment, the document review queue and the report queue; for the owner only, the payment queue with its decisions, plans and prices, and payment details |
 
 - **Acting profile.** A manager may run several profiles, so `/browse` and `/members/:id` act for the profile in
   `?as=`. The server checks that the account really operates it.
+- **Plan and payment (4b).** The Plan tab shows each plan's price in LKR and USD and what buying it would do now:
+  start, upgrade, renew, or wait (with the date renewal opens). The payment step asks where the payer lives, offers
+  only the methods the owner switched on for that currency, shows the draft refund terms, and needs ticks for the
+  terms and any lost days. The payment card then shows the amount, the owner's details, the reference (with a copy
+  button) and the receipt upload: photos or screenshots, checked in the browser and again on the server. Plan dates
+  are shown on the Sri Lanka clock.
+- **Owner screens (4b).** The payment queue (waiting payments first, with how long each has waited and the residence
+  flags explained) opens each payment with its receipts (each look logged). Approve needs the statement line and a
+  tick that the transfer was found in the real statement. Hold, reject, refund, notes, statement-line corrections, the
+  profile's plan history, grant and revoke sit on the same page. The Plans tab adds, edits, re-prices, retires and
+  deletes plans; Payment details holds the account details members pay into. The backup reviewer never sees these
+  tabs, and the server refuses them anyway.
+- **Bot check.** With `VITE_TURNSTILE_SITE_KEY` set, the Cloudflare Turnstile widget appears on every form that sends
+  a code or tries a staff password (`src/components/turnstile.tsx`); its one-time token goes in the
+  `X-Captcha-Response` header and the widget starts over after each use. Without a key there is no widget.
 
 - **One contract.** The API's response shapes are in `packages/shared/src/api-types.ts`; the API annotates its
   responses with them and the app reads them, so both sides compile against the same types. Forms validate with the
@@ -175,8 +190,13 @@ trying the screens without any service:
   on every run. Two-step login is set up on first sign-in, as anywhere else.
 - Four synthetic test members are seeded: verified, published, "Sandbox test member" in their bio, two with generated
   placeholder photos, one on Starter and one on Premium. They sign in with the email code printed in the console.
-- Plans are bought in Stage 4, so the sandbox alone has `POST /sandbox/plans` on its API port to grant a test plan.
-  The member app's proxy does not reach it, and it is not part of the real API.
+- Payment details start empty, as everywhere: sign in as the owner and enter test details first. For a quick plan the
+  sandbox alone also has `POST /sandbox/plans` on its API port. The member app's proxy does not reach it, and it is
+  not part of the real API. The sandbox runs no scheduled jobs, so expiry and payment emails are not sent there.
+- The bot check is off unless `TURNSTILE_SECRET_KEY` is set. Cloudflare's always-passing test keys
+  (`TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA` for the sandbox and
+  `VITE_TURNSTILE_SITE_KEY=1x00000000000000000000AA` for the member app) show the test widget and check its token
+  with Cloudflare.
 - It never reads `apps/api/.env`, listens on 127.0.0.1 only, and uses ports 8788 (API) and 5174 (member app), so it
   can run beside `npm run dev`. `SANDBOX_API_PORT` and `SANDBOX_MEMBER_ORIGIN` move it, e.g. for a second sandbox.
   Nothing in it is deployed.
@@ -360,5 +380,6 @@ attempts and skips phone-only accounts until SMS exists.
 Every endpoint that sends a code or checks a password needs a Cloudflare Turnstile token in the
 `X-Captcha-Response` header. The API verifies it with Cloudflare (`src/middleware/turnstile.ts`) before anything is
 sent. The check is off while `TURNSTILE_SECRET_KEY` is empty (local development) and required in production. If
-Cloudflare cannot be reached, it fails closed. The browser widget arrives with the 4b screens; the site key and the
-secret come from the owner's Cloudflare account.
+Cloudflare cannot be reached, it fails closed. The member app shows the widget when `VITE_TURNSTILE_SITE_KEY` is set
+(see "Member app screens"); the site key and the secret come from the owner's Cloudflare account. When the member app
+gets security headers (Stage 5), they must allow `challenges.cloudflare.com` for scripts and frames.

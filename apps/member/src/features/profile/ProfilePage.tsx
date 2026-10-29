@@ -1,6 +1,7 @@
 /**
  * One profile, for the people who operate it: overview and publishing, the details editor,
- * private contacts, and the manager/candidate panel for guardian-managed profiles.
+ * private contacts, requests, its plan and payments, and the manager/candidate panel for
+ * guardian-managed profiles.
  */
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
@@ -13,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ApiError, errorMessage, post } from '@/lib/api';
 import { storeProfile, useProfile } from '@/lib/queries';
+import { PlanPanel } from '@/features/billing/PlanPanel';
 import { ConnectionsPanel } from '@/features/requests/ConnectionsPanel';
 import { RequestsPanel } from '@/features/requests/RequestsPanel';
 import { ContactsPanel } from './ContactsPanel';
@@ -81,6 +83,9 @@ function ProfileScreen({ profile }: { profile: ProfileView }) {
           <TabsTrigger value="connections" className="min-h-10 flex-none px-4">
             Connections
           </TabsTrigger>
+          <TabsTrigger value="plan" className="min-h-10 flex-none px-4">
+            Plan
+          </TabsTrigger>
           {showPeople && (
             <TabsTrigger value="people" className="min-h-10 flex-none px-4">
               {profile.me.role === 'manager' ? 'Candidate' : 'Manager and consent'}
@@ -88,7 +93,7 @@ function ProfileScreen({ profile }: { profile: ProfileView }) {
           )}
         </TabsList>
         <TabsContent value="overview">
-          <Overview profile={profile} />
+          <Overview profile={profile} onOpenPlans={() => setTab('plan')} />
         </TabsContent>
         <TabsContent value="details">
           <DetailsForm profile={profile} />
@@ -105,6 +110,9 @@ function ProfileScreen({ profile }: { profile: ProfileView }) {
         <TabsContent value="connections">
           <ConnectionsPanel profile={profile} />
         </TabsContent>
+        <TabsContent value="plan">
+          <PlanPanel profile={profile} />
+        </TabsContent>
         {showPeople && (
           <TabsContent value="people">
             <PeoplePanel profile={profile} />
@@ -115,7 +123,7 @@ function ProfileScreen({ profile }: { profile: ProfileView }) {
   );
 }
 
-function Overview({ profile }: { profile: ProfileView }) {
+function Overview({ profile, onOpenPlans }: { profile: ProfileView; onOpenPlans: () => void }) {
   const publish = useMutation({
     mutationFn: () => post<ProfileView>(`/profiles/${profile.id}/publish`),
     onSuccess: async (updated) => {
@@ -206,7 +214,7 @@ function Overview({ profile }: { profile: ProfileView }) {
         )}
       </Card>
 
-      <PlanCard profile={profile} />
+      <PlanCard profile={profile} onOpenPlans={onOpenPlans} />
       <EngagedCard profile={profile} />
     </div>
   );

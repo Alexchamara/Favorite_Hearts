@@ -7,6 +7,7 @@ import { useState, type FormEvent } from 'react';
 import type { LoginChannel } from '@fh/shared';
 import { TextField } from '@/components/form/fields';
 import { Notice } from '@/components/layout';
+import { useBotCheck } from '@/components/turnstile';
 import { Button } from '@/components/ui/button';
 import { errorMessage } from '@/lib/api';
 import { authClient } from '@/lib/auth-client';
@@ -24,6 +25,7 @@ export function SignIn({ onSignedIn, intro }: { onSignedIn?: () => void; intro?:
   const [step, setStep] = useState<Step>({ kind: 'contact' });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const bot = useBotCheck();
 
   const input = (target: LoginChannel, value: string) =>
     target === 'email' ? ({ channel: 'email', email: value } as const) : ({ channel: 'sms', phone: value } as const);
@@ -33,13 +35,14 @@ export function SignIn({ onSignedIn, intro }: { onSignedIn?: () => void; intro?:
     setBusy(true);
     setError(null);
     try {
-      await requestLoginCode(input(channel, contact));
+      await requestLoginCode(input(channel, contact), bot.headers);
       setStep({ kind: 'code', channel, contact });
       setCode('');
     } catch (err) {
       setError(errorMessage(err));
     } finally {
       setBusy(false);
+      bot.reset();
     }
   }
 
@@ -92,7 +95,8 @@ export function SignIn({ onSignedIn, intro }: { onSignedIn?: () => void; intro?:
             value={contact}
             onChange={setContact}
           />
-          <Button type="submit" className="h-11" disabled={busy || !contact.trim()}>
+          {bot.widget}
+          <Button type="submit" className="h-11" disabled={busy || !contact.trim() || !bot.ready}>
             {busy ? 'Sending…' : 'Send me a code'}
           </Button>
           <p className="text-xs text-muted-foreground">
@@ -115,8 +119,9 @@ export function SignIn({ onSignedIn, intro }: { onSignedIn?: () => void; intro?:
           <Button type="submit" className="h-11" disabled={busy || code.length !== 6}>
             {busy ? 'Checking…' : 'Continue'}
           </Button>
+          {bot.widget}
           <div className="flex flex-wrap gap-4 text-sm">
-            <button type="button" className="text-brand underline underline-offset-4" onClick={() => void sendCode()} disabled={busy}>
+            <button type="button" className="text-brand underline underline-offset-4 disabled:opacity-60" onClick={() => void sendCode()} disabled={busy || !bot.ready}>
               Send a new code
             </button>
             <button type="button" className="text-brand underline underline-offset-4" onClick={() => setStep({ kind: 'contact' })}>

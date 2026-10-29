@@ -1,7 +1,8 @@
 /**
  * Staff workspace (OWNER-DECISIONS section 10): the owner and the backup reviewer sign in with a
- * password and two-step login, then review identity documents. The server refuses every staff
- * request until two-step login is on, whatever this screen shows.
+ * password and two-step login, then review identity documents and reports; the owner also runs
+ * payments, plans and payment details. The server refuses every staff request until two-step
+ * login is on, whatever this screen shows.
  */
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -10,6 +11,7 @@ import { renderSVG } from 'uqr';
 import type { StaffQueueItem, VerificationCaseView } from '@fh/shared';
 import { CheckboxField, TextAreaField, TextField } from '@/components/form/fields';
 import { AppShell, Card, Loading, Notice, PageTitle } from '@/components/layout';
+import { useBotCheck } from '@/components/turnstile';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { api, errorMessage, post } from '@/lib/api';
@@ -17,6 +19,9 @@ import { authClient } from '@/lib/auth-client';
 import { keys, resetSession, useMe } from '@/lib/queries';
 import { queryClient } from '@/lib/query-client';
 import { documentLabels } from '@/features/profile/options';
+import { PaymentDetailsAdmin } from './PaymentDetailsAdmin';
+import { PaymentsQueue } from './PaymentsQueue';
+import { PlansAdmin } from './PlansAdmin';
 import { ReportsQueue } from './ReportsQueue';
 
 export default function StaffApp() {
@@ -41,22 +46,39 @@ export default function StaffApp() {
   );
 }
 
-/** Identity documents and reports: both roles review both (section 10); payments arrive in Stage 4, owner only. */
+type Area = 'documents' | 'reports' | 'payments' | 'plans' | 'details';
+
+const areas: { value: Area; label: string; ownerOnly?: boolean }[] = [
+  { value: 'documents', label: 'Identity documents' },
+  { value: 'reports', label: 'Reports' },
+  { value: 'payments', label: 'Payments', ownerOnly: true },
+  { value: 'plans', label: 'Plans', ownerOnly: true },
+  { value: 'details', label: 'Payment details', ownerOnly: true },
+];
+
+/**
+ * Identity documents and reports: both roles review both (section 10). Payments, plans and payment details are
+ * the owner's alone; the backup reviewer never sees those tabs, and the server refuses them anyway.
+ */
 function StaffWorkspace({ role }: { role: 'owner' | 'backup_reviewer' }) {
-  const [area, setArea] = useState<'documents' | 'reports'>('documents');
+  const [area, setArea] = useState<Area>('documents');
+  const visible = areas.filter((item) => role === 'owner' || !item.ownerOnly);
   return (
     <>
-      <Tabs value={area} onValueChange={(value) => setArea(value as typeof area)}>
-        <TabsList className="mb-6 h-auto bg-[var(--ui-soft)] p-1">
-          <TabsTrigger value="documents" className="min-h-10 px-4">
-            Identity documents
-          </TabsTrigger>
-          <TabsTrigger value="reports" className="min-h-10 px-4">
-            Reports
-          </TabsTrigger>
+      <Tabs value={area} onValueChange={(value) => setArea(value as Area)}>
+        <TabsList className="mb-6 h-auto w-full flex-wrap justify-start gap-1 bg-[var(--ui-soft)] p-1">
+          {visible.map((item) => (
+            <TabsTrigger key={item.value} value={item.value} className="min-h-10 flex-none px-4">
+              {item.label}
+            </TabsTrigger>
+          ))}
         </TabsList>
       </Tabs>
-      {area === 'documents' ? <ReviewQueue role={role} /> : <ReportsQueue role={role} />}
+      {area === 'documents' && <ReviewQueue role={role} />}
+      {area === 'reports' && <ReportsQueue role={role} />}
+      {role === 'owner' && area === 'payments' && <PaymentsQueue />}
+      {role === 'owner' && area === 'plans' && <PlansAdmin />}
+      {role === 'owner' && area === 'details' && <PaymentDetailsAdmin />}
     </>
   );
 }
@@ -73,12 +95,14 @@ function StaffSignIn() {
   const [useBackup, setUseBackup] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const bot = useBotCheck();
 
   async function signIn(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
     setError(null);
-    const result = await authClient.signIn.email({ email, password });
+    const result = await authClient.signIn.email({ email, password, fetchOptions: { headers: bot.headers } });
+    bot.reset();
     setBusy(false);
     if (result.error) return setError(result.error.message ?? 'Email or password is not right.');
     if ((result.data as { twoFactorRedirect?: boolean } | null)?.twoFactorRedirect) return setNeedsCode(true);
@@ -107,7 +131,8 @@ function StaffSignIn() {
           <form onSubmit={signIn} className="flex flex-col gap-4">
             <TextField label="Email" type="email" autoComplete="username" value={email} onChange={setEmail} />
             <TextField label="Password" type="password" autoComplete="current-password" value={password} onChange={setPassword} />
-            <Button type="submit" className="h-11" disabled={busy || !email || !password}>
+            {bot.widget}
+            <Button type="submit" className="h-11" disabled={busy || !email || !password || !bot.ready}>
               {busy ? 'Signing in…' : 'Sign in'}
             </Button>
           </form>

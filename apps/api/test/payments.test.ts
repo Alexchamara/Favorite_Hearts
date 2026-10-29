@@ -556,6 +556,9 @@ describe('hold, correction and rejection (spec 9.3, M06)', () => {
     rejected(await owner.post(`/api/v1/owner/payments/${openPayment.id}/hold`, {}), 400, 'VALIDATION');
     const held = ok(await owner.post(`/api/v1/owner/payments/${openPayment.id}/hold`, { message: 'Please upload a receipt that shows the reference.' }));
     assert.equal(held.status, 'held');
+    const waiting = ok(await owner.get('/api/v1/owner/payments?status=waiting')).payments as { id: string; status: string }[];
+    assert.ok(waiting.some((p) => p.id === openPayment.id), 'held payments still need a decision');
+    assert.ok(waiting.every((p) => p.status === 'pending_review' || p.status === 'held'));
     const seen = ok(await gita.client.get(`/api/v1/payments/${openPayment.id}`));
     assert.deepEqual([seen.status, seen.message], ['held', 'Please upload a receipt that shows the reference.']);
     assert.match(seen.instructions, /TEST ONLY/, 'the account details stay visible while it is open');
