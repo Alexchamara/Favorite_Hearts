@@ -299,7 +299,14 @@ describe('members browsing', () => {
   test('see published profiles, never drafts or paused ones of others', () =>
     scenario(async (as) => {
       assert.deepEqual(await as(alice, profileIds), [P.A, P.B, P.C, P.M].sort());
-      assert.deepEqual(await as(dave, profileIds), [P.A, P.B, P.C, P.D, P.M].sort());
+      // A joined candidate relies on the manager's checks.
+      assert.deepEqual(await as(chandi, profileIds), [P.A, P.B, P.C, P.M].sort());
+    }));
+
+  test('an unverified member sees only their own profile (owner decision, audit N04)', () =>
+    scenario(async (as) => {
+      assert.deepEqual(await as(dave, profileIds), [P.D]);
+      assert.deepEqual(await as(member(u.ruth), profileIds), [P.R], 'after a takeover the candidate needs their own checks');
     }));
 
   test('a suspended member browses nothing', () =>
@@ -351,8 +358,11 @@ describe('private details: contacts and gallery (OWNER-DECISIONS sections 3, 4, 
 
   test('a block hides them, and hides each profile from the other', () =>
     scenario(async (as) => {
-      await as(alice, (tx) => tx.insert(s.block).values({ blockerProfileId: P.A, blockedProfileId: P.B }));
+      await denied(as(alice, (tx) => tx.insert(s.block).values({ blockerProfileId: P.A, blockedProfileId: P.B })), RLS);
+      await as(alice, (tx) => tx.execute(sql`select app.block_profile(${P.A}, ${P.B})`));
       assert.equal((await as(alice, (tx) => contactsOf(tx, P.B))).length, 0);
+      const [ended] = await as(alice, (tx) => tx.select().from(s.connection).where(eq(s.connection.id, cAB)));
+      assert.equal(ended?.endReason, 'blocked', 'blocking ends the connection');
       assert.ok(!(await as(bob, profileIds)).includes(P.A));
       assert.equal((await as(bob, (tx) => tx.select().from(s.block))).length, 0, 'the blocked side never sees the block');
     }));
@@ -378,21 +388,23 @@ describe('interests and the sender blur (sections 1, 4)', () => {
 
   test('sending needs an active plan and a published, unblocked receiver', () =>
     scenario(async (as) => {
-      const send = (actor: Actor, from: string, to: string, userId: string) =>
-        as(actor, (tx) =>
-          tx.insert(s.interest).values({ senderProfileId: from, receiverProfileId: to, senderUserId: userId, shareConsentVersion: 'v1' }),
-        );
-      await denied(send(carol, P.C, P.B, u.carol), RLS);
-      await denied(send(alice, P.A, P.D, u.alice), RLS);
-      await send(alice, P.A, P.M, u.alice);
+      const send = (actor: Actor, from: string, to: string) =>
+        as(actor, (tx) => tx.execute(sql`select app.send_interest(${from}, ${to}, 'v1', null::text) as id`));
+      await denied(send(carol, P.C, P.B), /interest_needs_plan/);
+      await denied(send(alice, P.A, P.D), /interest_receiver_unavailable/);
+      await send(alice, P.A, P.M);
+      await denied(
+        as(alice, (tx) =>
+          tx.insert(s.interest).values({ senderProfileId: P.A, receiverProfileId: P.M, senderUserId: u.alice, shareConsentVersion: 'v1' }),
+        ),
+        RLS,
+      );
     }));
 
   test('only the receiver answers, only the sender withdraws, and only while pending', () =>
     scenario(async (as) => {
-      const id = randomUUID();
-      await as(alice, (tx) =>
-        tx.insert(s.interest).values({ id, senderProfileId: P.A, receiverProfileId: P.M, senderUserId: u.alice, shareConsentVersion: 'v1' }),
-      );
+      const sent = await as(alice, (tx) => tx.execute(sql`select app.send_interest(${P.A}, ${P.M}, 'v1', null::text) as id`));
+      const id = (sent.rows[0] as { id: string }).id;
       const answer = (actor: Actor, status: 'accepted' | 'withdrawn', interestId = id) =>
         as(actor, (tx) => tx.update(s.interest).set({ status }).where(eq(s.interest.id, interestId)).returning());
       await denied(answer(alice, 'accepted'), /only the receiver can answer/);

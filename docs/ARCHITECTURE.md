@@ -171,6 +171,58 @@ trying the screens without any service:
 - It never reads `apps/api/.env`, listens on 127.0.0.1 only, and uses ports 8788 (API) and 5174 (member app), so it
   can run beside `npm run dev`. Nothing in it is deployed.
 
+## Requests, connections and privacy (Stage 3)
+
+Server side (3a). The rules live in `drizzle/0007_requests_and_privacy.sql`; the routes are `src/routes/discover.ts`,
+`requests.ts`, `photos.ts` and `reports.ts`, plus the report queue in `staff.ts`.
+
+- **Who browses.** Only verified members (owner decision, 29 Oct 2026). That means the account passed its own checks
+  (SMS-verified phone and an approved document), or it operates a profile whose publisher did. A candidate who joined
+  through an invitation relies on the manager's checks. On real environments this waits for the SMS provider, like
+  publishing.
+- **Discovery.**
+  - `GET /api/v1/discover` filters on the server and lists newest first, 20 per page with a cursor. Filters: gender,
+    age range, country, religion, marital status, height range, and caste (consenting profiles only).
+  - `GET /api/v1/discover/:id?as=<profile>` returns one profile, plus where the acting profile stands with it.
+  - Members get an allowlist (`src/lib/member-view.ts`): age, never the date of birth; caste only with consent; parents'
+    names only after both accept (owner decision); contact details only through `app.can_view_private`.
+- **One path per action.** Sending, accepting, ending a connection, blocking, reporting, reviewing a report and
+  "engaged or married" are each one database function with its own checks. Each takes an advisory lock on the
+  profile or the pair, so simultaneous requests give one consistent result. Members cannot insert interests,
+  connections, request charges, sharing-log rows, reports or blocks directly.
+- **Request limits (section 2).**
+  - Starter: 5 a day and 30 in each 30-day block of the plan. Premium: 30 a day. A day starts at midnight Sri Lanka
+    time.
+  - Each request is charged once, in `quota_ledger`, and never refunded. A repeated idempotency key returns the first
+    request.
+- **7-day wait (section 4).** After a decline, a withdrawn request or an ended connection, neither profile can send
+  the other a new request for 7 days.
+- **Sender blur (sections 1, 4).** A receiver without a plan gets previews only: age, occupation and date. The API
+  never puts the sender in that response, and the database hides pending requests from unpaid receivers. Answering
+  needs a plan.
+- **Plan expiry (section 3).** Only the viewer's own plan matters (owner decision, spec O03). The member whose plan
+  ended loses contact details and original photos; the paying member keeps them while the connection lasts.
+- **Sharing log (section 4).** `disclosure_event` records categories (e.g. `manager_phone`, `gallery`,
+  `family_names`), never values. It is written when a request is accepted, when a connection ends, and when a contact
+  changes while connected.
+- **Blocks.** A block hides each profile from the other, ends their connection and closes open requests. Lifting it
+  restores nothing. The blocked side never sees the block.
+- **Reports (section 7).**
+  - Serious categories hide the content after 1 open report; others after open reports from 3 different verified
+    accounts. A photo report hides only that photo; a profile report hides the profile until staff decide.
+  - A hidden profile is frozen: it is out of discovery, and it neither shows nor sees private details.
+  - Staff decide each report. Upheld keeps the content hidden; dismissed restores it unless the remaining reports
+    still meet a threshold. The queue shows each reporter's earlier dismissed reports. Decisions are audited.
+- **Photos (sections 6, 7).**
+  - Up to 5, one cover. sharp re-encodes the original into the private bucket and makes a separate blurred copy in
+    the derived bucket.
+  - A signed link is made only for what row-level security returned: the original for the profile's operators, a
+    cover the member chose to show, or a connection with a plan; otherwise the blurred copy.
+  - Changing photos needs edit rights.
+- **Engaged or married (section 7).** The member confirms the warning first. The profile is hidden, the plan is
+  forfeited and open requests close; connections stay on record. The profile may be published again later, without
+  the forfeited plan.
+
 ## Database access
 
 Tables (`apps/api/src/db/schema/`) follow spec 12.1. Discoverable profile fields live in `profile`. Private data has

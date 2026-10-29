@@ -5,4 +5,5 @@ export * from './contact.ts';
 export * from './domain.ts';
 export * from './login-channels.ts';
 export * from './profile.ts';
+export * from './requests.ts';
 export * from './schemas.ts';

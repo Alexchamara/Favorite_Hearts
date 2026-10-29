@@ -6,7 +6,14 @@
 import { and, eq, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { VERIFICATION_STATUSES, verificationDecisionSchema, type StaffQueueItem } from '@fh/shared';
+import {
+  REPORT_STATUSES,
+  reportDecisionSchema,
+  VERIFICATION_STATUSES,
+  verificationDecisionSchema,
+  type StaffQueueItem,
+  type StaffReportItem,
+} from '@fh/shared';
 import { verificationCase } from '../db/schema/trust.ts';
 import { fail, parse, readJson, withActor, type AppEnv } from '../http.ts';
 import { audit } from '../lib/audit.ts';
@@ -58,4 +65,74 @@ staff.post('/verification/:id/decision', async (c) => {
     return row;
   });
   return c.json({ id: decided.id, status: decided.status, reviewedAt: decided.reviewedAt, purgeAfter: decided.purgeAfter });
+});
+
+/**
+ * Section 7: the report queue, hidden content first so wrongly hidden members wait least. Each reporter's
+ * earlier dismissed reports are counted, so repeated false reporting is visible.
+ */
+staff.get('/reports', async (c) => {
+  const status = parse(z.enum(REPORT_STATUSES).default('open'), c.req.query('status'));
+  const items = await withActor(c, async (tx): Promise<StaffReportItem[]> => {
+    const found = rows<{
+      id: string;
+      category: StaffReportItem['category'];
+      detail: string | null;
+      status: StaffReportItem['status'];
+      created_at: string;
+      target_profile_id: string | null;
+      target_name: string | null;
+      target_photo_id: string | null;
+      hidden: boolean | null;
+      reporter_profile_id: string | null;
+      reporter_name: string | null;
+      dismissed_before: number;
+    }>(
+      await tx.execute(sql`
+        select r.id, r.category, r.detail, r.status, r.created_at,
+               r.target_profile_id, tp.display_name as target_name, r.target_photo_id,
+               case when r.target_photo_id is not null then ph.moderation_status = 'hidden'
+                    else tp.moderation_hidden_at is not null end as hidden,
+               r.reporter_profile_id, rp.display_name as reporter_name,
+               (select count(*)::int from report d
+                 where d.reporter_user_id = r.reporter_user_id and d.status = 'dismissed') as dismissed_before
+        from report r
+        left join profile tp on tp.id = r.target_profile_id
+        left join photo ph on ph.id = r.target_photo_id
+        left join profile rp on rp.id = r.reporter_profile_id
+        where r.status = ${status}::report_status
+        order by hidden desc nulls last, r.created_at asc
+        limit 200`),
+    );
+    return found.map((r) => ({
+      id: r.id,
+      category: r.category,
+      detail: r.detail,
+      status: r.status,
+      createdAt: r.created_at,
+      target: { profileId: r.target_profile_id, displayName: r.target_name, photoId: r.target_photo_id, hidden: Boolean(r.hidden) },
+      reporter: { profileId: r.reporter_profile_id, displayName: r.reporter_name, dismissedBefore: r.dismissed_before },
+    }));
+  });
+  return c.json({ reports: items });
+});
+
+/** Upheld keeps the content hidden; dismissed restores it unless other open reports still meet a threshold. */
+staff.post('/reports/:id/decision', async (c) => {
+  const id = parse(z.uuid(), c.req.param('id'));
+  const input = parse(reportDecisionSchema, await readJson(c));
+  const hidden = await withActor(c, async (tx) => {
+    const [row] = rows<{ hidden: boolean }>(
+      await tx.execute(sql`select app.review_report(${id}, ${input.decision}::report_status, ${input.note ?? null}::text) as hidden`),
+    );
+    await audit(c, tx, {
+      action: `report.${input.decision}`,
+      entityType: 'report',
+      entityId: id,
+      reason: input.note,
+      metadata: { contentHidden: row!.hidden },
+    });
+    return row!.hidden;
+  });
+  return c.json({ id, status: input.decision, contentHidden: hidden });
 });

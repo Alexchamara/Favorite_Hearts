@@ -153,6 +153,8 @@ export const profile = pgTable(
     horoscopeImportance: horoscopeImportance('horoscope_importance').notNull().default('prefer_not_to_say'),
     /** §7: the cover photo is shown to other members only when this is on. */
     coverPublic: boolean('cover_public').notNull().default(false),
+    /** §7: hidden by the report thresholds until staff review it. Members never set this. */
+    moderationHiddenAt: at('moderation_hidden_at'),
     /** Adult declaration: the self-managed candidate's own, or the manager's authority declaration (§5). */
     adultDeclaredAt: at('adult_declared_at'),
     /** The invited candidate accepted (badge "Candidate confirmed"). */

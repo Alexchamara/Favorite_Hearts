@@ -1,0 +1,1 @@
+ALTER TABLE "profile" ADD COLUMN "moderation_hidden_at" timestamp with time zone;

@@ -6,11 +6,14 @@ import type {
   CONTACT_KINDS,
   CONTACT_PERSONS,
   DOCUMENT_TYPES,
+  INTEREST_STATUSES,
   INVITATION_CHANNELS,
   LOCALES,
   MANAGER_RELATIONSHIPS,
   PROFILE_MANAGEMENT,
   PROFILE_STATUSES,
+  REPORT_CATEGORIES,
+  REPORT_STATUSES,
   SOCIAL_PLATFORMS,
   VERIFICATION_STATUSES,
 } from './domain.ts';
@@ -121,4 +124,136 @@ export type StaffQueueItem = VerificationCaseView & {
     phoneVerified: boolean;
     profiles: { displayName: string | null; role: 'candidate' | 'manager' }[];
   };
+};
+
+// --- Discovery, requests and connections (Stage 3) ---------------------------------------------------
+
+/** A photo as this viewer may see it: the original, or the separate blurred copy (section 7). */
+export type PhotoView = { id: string; slot: number; isCover: boolean; url: string; blurred: boolean; hidden: boolean };
+
+/** What every member who may browse sees: an allowlist, never the stored row (spec 4.4). */
+export type MemberCard = {
+  id: string;
+  displayName: string | null;
+  age: number | null;
+  gender: ProfileFields['gender'];
+  city: string | null;
+  region: string | null;
+  countryCode: string | null;
+  occupation: string | null;
+  education: string | null;
+  heightCm: number | null;
+  maritalStatus: ProfileFields['maritalStatus'];
+  religion: ProfileFields['religion'];
+  management: (typeof PROFILE_MANAGEMENT)[number];
+  managerRelationship: (typeof MANAGER_RELATIONSHIPS)[number] | null;
+  badges: Badges;
+  cover: PhotoView | null;
+  photoCount: number;
+};
+
+export type DiscoverPage = { profiles: MemberCard[]; nextCursor: string | null };
+
+/** A contact as a connection sees it: only what the profile shares (section 4). */
+export type SharedContact = Pick<ContactView, 'person' | 'kind' | 'platform' | 'value' | 'notVerifiedByCandidate'>;
+
+/**
+ * Why contact details are not shown: no connection; the viewer's own plan is not active (section 3); or a
+ * manager whose candidate turned off "see the contact details connections share".
+ */
+export type ContactsHidden = 'not_connected' | 'plan_needed' | 'not_allowed';
+
+/** Where the acting profile stands with another profile. Without a plan only `canSend` is filled in. */
+export type RelationView = {
+  actingProfileId: string;
+  connectionId: string | null;
+  latestInterest: {
+    id: string;
+    direction: 'sent' | 'received';
+    status: (typeof INTEREST_STATUSES)[number];
+    createdAt: ApiDate;
+  } | null;
+  cooldownUntil: ApiDate | null;
+  canSend: boolean;
+  /** Why a request cannot be sent now. */
+  reason: 'no_plan' | 'not_published' | 'not_allowed' | 'pending' | 'connected' | 'cooldown' | null;
+};
+
+type AboutFields = Pick<
+  ProfileFields,
+  | 'languages'
+  | 'motherTongue'
+  | 'bio'
+  | 'values'
+  | 'hobbies'
+  | 'timeline'
+  | 'relocation'
+  | 'incomeRange'
+  | 'communityOpenness'
+  | 'diet'
+  | 'smoking'
+  | 'drinking'
+  | 'childrenPlan'
+  | 'horoscopeImportance'
+>;
+
+export type MemberProfileView = MemberCard &
+  AboutFields & {
+    /** Shown only when the profile consented (section 6). */
+    caste: string | null;
+    family: Pick<ProfileFields, 'familyStory' | 'motherOccupation' | 'fatherOccupation' | 'sisters' | 'brothers' | 'familyInvolvement'> & {
+      /** Parents' names only after both accept (owner decision 29 Oct 2026). */
+      motherName: string | null;
+      fatherName: string | null;
+      namesShown: boolean;
+    };
+    photos: PhotoView[];
+    contacts: SharedContact[] | null;
+    contactsHidden: ContactsHidden | null;
+    relation: RelationView | null;
+  };
+
+/** Sections 1 and 4: without an active plan the receiver gets previews only; the sender stays on the server. */
+export type ReceivedInterests =
+  | { identified: true; interests: { id: string; receivedAt: ApiDate; sender: MemberCard | null }[] }
+  | { identified: false; previews: { id: string; receivedAt: ApiDate; senderAge: number | null; senderOccupation: string | null }[] };
+
+export type SentInterestView = {
+  id: string;
+  status: (typeof INTEREST_STATUSES)[number];
+  createdAt: ApiDate;
+  respondedAt: ApiDate | null;
+  receiver: MemberCard | null;
+  connectionId: string | null;
+  cooldownUntil: ApiDate | null;
+};
+
+export type ConnectionView = {
+  id: string;
+  acceptedAt: ApiDate;
+  profileId: string;
+  profile: MemberCard | null;
+  contacts: SharedContact[] | null;
+  contactsHidden: ContactsHidden | null;
+};
+
+export type BlockView = { id: string; profileId: string | null; displayName: string | null; blockedAt: ApiDate };
+
+/** Section 2: the active plan and what is left of its request limits. */
+export type PlanUsage = {
+  active: boolean;
+  planId: string | null;
+  endsAt: ApiDate | null;
+  daily: { used: number; cap: number } | null;
+  monthly: { used: number; cap: number } | null;
+};
+
+export type StaffReportItem = {
+  id: string;
+  category: (typeof REPORT_CATEGORIES)[number];
+  detail: string | null;
+  status: (typeof REPORT_STATUSES)[number];
+  createdAt: ApiDate;
+  target: { profileId: string | null; displayName: string | null; photoId: string | null; hidden: boolean };
+  reporter: { profileId: string | null; displayName: string | null; dismissedBefore: number };
 };

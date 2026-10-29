@@ -18,7 +18,7 @@ without output.
 | 0 Baseline and rule audit (`docs/RULE-AUDIT.md`) | **done, awaiting owner review.** Rollback tag `stage-0-baseline`; evidence below. |
 | 1 Foundation: member app migration, Drizzle schema + RLS, Neon staging/production | **done, awaiting owner review.** Staging/production projects **BLOCKED** until the owner creates them; evidence below. |
 | 2 Accounts and verification (codes, invites, takeover, badges, staff 2FA, documents) | **done (2a server, 2b screens), awaiting owner review.** SMS **BLOCKED** until a provider is chosen; evidence below. |
-| 3 Requests, connections and privacy | not started |
+| 3 Requests, connections and privacy | **3a (server) done, awaiting owner review**; 3b (screens) next. Evidence below. |
 | 4 Plans, payments, email, Turnstile | not started |
 | 5 Content, safety and quality | not started |
 | 6 Test, harden and hand over | not started |
@@ -38,8 +38,8 @@ without output.
 | 2026-10-28 | Plan catalogue seeded with the provisional §2 prices, in minor units, as versioned rows (never edited). | Engineering (per §2) |
 | 2026-10-28 | Kept out of the schema until the owner decides: boosts, featured profiles, shortlist limits (audit N01–N03). Horoscope reduced to the importance preference (§1). | Engineering |
 | 2026-10-28 | Profiles store a date of birth, to show age and check 18+. The spec (5.3) leaves this open. | Proposed — confirm |
-| 2026-10-28 | Contact details hide for the member whose own plan ended; the other member's expiry does not hide them (spec O03). | Proposed — confirm |
-| 2026-10-28 | Any active member may browse published profiles, verified or not (audit N04). | Proposed — confirm |
+| 2026-10-28 | Contact details hide for the member whose own plan ended; the other member's expiry does not hide them (spec O03). | Owner (confirmed 29 Oct 2026) |
+| 2026-10-28 | ~~Any active member may browse published profiles, verified or not (audit N04).~~ Replaced on 29 Oct 2026: verified members only. | Owner |
 | 2026-10-28 | After a takeover the candidate does not see the former manager's payment records (spec 6.3). | Proposed — confirm |
 | 2026-10-28 | Astro 7 upgrade deferred to Stage 5. The critical advisory needs `define:vars` or server islands, and the static site uses neither. | Proposed — confirm |
 | 2026-10-28 | Stage 2 split: 2a builds the server, 2b the member and staff screens. | Owner |
@@ -54,6 +54,17 @@ without output.
 | 2026-10-29 | Staff screens live in the member app at `/app/staff`, not in a separate admin app. They share sign-in, design and the API contract; the server and database decide what staff may do. | Engineering |
 | 2026-10-29 | The two-step login QR code is drawn in the browser (`uqr`), so the secret never goes to a QR service. | Engineering |
 | 2026-10-29 | `npm run dev:sandbox` runs the real API on an in-memory database for trying the screens; codes print to its console. It is a development tool only and never deployed. | Engineering |
+| 2026-10-29 | Stage 3 split: 3a builds the server, 3b the screens. | Owner |
+| 2026-10-29 | Only verified members browse: their own checks (SMS-verified phone and approved document), or an operated profile whose publisher passed them (audit N04). | Owner |
+| 2026-10-29 | Family details: browsing members see the family story, parents' jobs and siblings; parents' names only after both accept (audit N06, spec O13). | Owner |
+| 2026-10-29 | 7-day wait: after a decline, a withdrawn request or an ended connection, neither profile may send the other a new request for 7 days, counted from that event (spec O05). | Proposed — confirm |
+| 2026-10-29 | Request limits: a day starts at midnight Sri Lanka time; Starter's 30 a month counts within each 30-day block of the plan. Each request is charged once and not refunded when withdrawn or declined (spec O05). | Proposed — confirm |
+| 2026-10-29 | The 2-re-sends-per-pair cap is not built: it is only recommended (§4, spec O04). The receiver can always block. | Engineering |
+| 2026-10-29 | A receiver without a plan sees previews only and cannot answer (accept or decline) until they have a plan (§1). | Proposed — confirm |
+| 2026-10-29 | Accepting needs both profiles published: a paused profile forms no new connections (spec O12). | Proposed — confirm |
+| 2026-10-29 | "Engaged or married" closes open requests (sent ones withdrawn, received ones declined); connections stay; the profile may be published again without the forfeited plan (spec O12). | Proposed — confirm |
+| 2026-10-29 | A profile hidden by reports is frozen until staff decide: out of discovery, and it neither shows nor sees private details. Only verified members report; the 3 reporters are counted by account (spec O11). | Proposed — confirm |
+| 2026-10-29 | Original photos for a connection follow the contact rule: the viewer's own plan must be active (spec O03, photo expiry). | Proposed — confirm |
 
 ## Step 5 evidence
 
@@ -478,15 +489,32 @@ Screens (2b):
 
 **Stage 3: Requests, connections and privacy**
 
-- [ ] Server-side discovery and sender masking (P06).
-- [ ] Quotas: Starter 5 per day and 30 per month; Premium 30 per day (P02).
-- [ ] 7-day re-send rule and withdrawal log (P03, P04).
-- [ ] The expired member loses contact details; the owner answers what the still-paid member sees (P05, O03).
-- [ ] Per-field sharing for manager and candidate, candidate restrictions and a disclosure log (P20, P21).
-- [ ] Caste consent with "Prefer not to say", and income labelled "self-declared" (P22, P23).
-- [ ] Report categories and thresholds (P08). "Engaged or married" with a forfeiture warning (P24).
-- [ ] Owner decides on boost, featured profiles, shortlist limits, unverified browsing and family-detail visibility (N01–N04, N06).
-- [ ] Spec items with no owner rule: country lists and validation (G24), atomic saves (G25), report-data exposure (G28).
+Server (3a):
+
+- [x] Server-side discovery and sender masking (P06).
+- [x] Quotas: Starter 5 per day and 30 per month; Premium 30 per day (P02).
+- [x] 7-day re-send rule and withdrawal log (P03, P04).
+- [x] The expired member loses contact details; the owner decided the still-paid member keeps seeing them (P05, O03).
+- [x] Per-contact sharing chosen by the candidate (from 2a), and a disclosure log of what was shared and when (P20, P21).
+- [x] Caste only with consent and never to visitors; caste filter matches consenting profiles only (P22, server side).
+- [x] Report categories and thresholds, with staff review (P08). "Engaged or married" ends the plan after confirmation (P24).
+- [x] Server-side blurred photos, the cover toggle, and up to 5 photos (P07).
+- [x] Owner decided unverified browsing and family-detail visibility (N04, N06).
+- [x] Concurrent requests: one database function per action, with locks on the profile or the pair.
+
+Screens (3b):
+
+- [ ] Discovery with filters, the member profile view, and sending a request with the "what will be shared" confirmation.
+- [ ] Received (blurred without a plan) and sent requests; connections with shared details; blocks.
+- [ ] Photo manager with the cover toggle; reporting; the staff report queue.
+- [ ] "Engaged or married" with the forfeit warning; the plan's remaining requests.
+- [ ] "Prefer not to say" for caste and the "self-declared" label for income on the member view (P22, P23).
+
+Open:
+
+- [ ] Owner decides on boost, featured profiles and shortlist limits (N01–N03). Not built.
+- [ ] Spec items with no owner rule: country lists and validation (G24), atomic saves (G25). Report data (G28): the
+  reported member never sees reports, and reporters see only their own.
 
 **Stage 4: Plans, payments and email**
 
@@ -1030,3 +1058,146 @@ In the in-app browser at `http://localhost:4321/app/`, through the website's pro
 `/health` gave `{"ok":true,"database":true,"email":true,"sms":false,"storage":true}`, and the same wrong-code
 request got `400 INVALID_OTP`, so it passed the origin check. `npm run typecheck` (0 errors), `npm test` (56 of 56)
 and `npm run build` all passed. A real sign-in code was not sent; the owner signs in themself.
+
+## Stage 3a evidence (29 Oct 2026): server for requests, connections and privacy
+
+Scope (Part 3 "Stage 3", server half; the owner chose to split the stage again):
+- discovery, interests (send, accept, decline, withdraw), connections, blocks and reports, all on the server;
+- mutual acceptance, the sender blur, the 7-day wait, Starter and Premium limits;
+- the cover-photo toggle and server-side blurred photos;
+- expiry hiding contact details for the expired member;
+- report thresholds, withdraw, pause, and "engaged or married";
+- consistent results for simultaneous requests.
+
+The screens come in 3b.
+
+### Owner decisions taken at the start
+
+- Browsing is for verified members only (N04).
+- When one plan ends, only that member loses the details (O03).
+- Parents' names are shown only after both accept (N06).
+
+The decisions table also lists the engineering choices marked "Proposed — confirm".
+
+### What was built
+
+- **Migrations.** `0006_moderation_hidden.sql` (generated) adds `profile.moderation_hidden_at`.
+  `0007_requests_and_privacy.sql` is hand-written. It adds:
+  - verified-member browsing and the profile-row access for connections;
+  - one function per action: `send_interest`, `accept_interest`, `end_connection`, `block_profile`, `file_report`,
+    `review_report` and `mark_engaged`, each with advisory locks;
+  - the 7-day wait, the request limits and the report thresholds;
+  - the sharing log (on accept, on end, and a trigger for contact changes);
+  - photo editing restricted to editors.
+
+  Direct inserts into interests, connections, request charges, the sharing log, reports and blocks are closed. The
+  internal helpers cannot be called by the API role.
+- **API routes.**
+  - `GET /api/v1/discover` and `GET /api/v1/discover/:id`.
+  - Under `/api/v1/profiles/:id`: requests (send and lists), connections, blocks, plan usage, "engaged or married",
+    photos (upload, delete, cover) and cover visibility.
+  - `/api/v1/interests/:id/accept`, `/decline` and `/withdraw`; `/api/v1/connections/:id/end`; `/api/v1/reports`.
+  - Staff: `/api/v1/staff/reports` and its decision route.
+- **Shared contract.** `packages/shared/src/requests.ts` holds the input schemas; `api-types.ts` holds the cards,
+  views, requests, connections, plan usage and the report queue.
+- **Docs.** `docs/ARCHITECTURE.md`, "Requests, connections and privacy (Stage 3)".
+
+### `npm test`: 73 tests, all passing
+
+The 16 new HTTP flow tests run as real signed-in, SMS-verified members with reviewed documents:
+
+```text
+▶ discovery (owner decision 29 Oct 2026: verified members only; sections 1, 6)
+  ✔ anonymous and unverified members cannot browse
+  ✔ verified members see published profiles, never their own; filters run on the server
+  ✔ cards and profiles carry only the member allowlist; parents’ names wait for a connection
+▶ requests: plan, limits and the 7-day wait (sections 1, 2, 4)
+  ✔ sending needs a plan and a published profile, never to your own
+  ✔ a retry with the same key sends and charges once; a withdrawal starts the 7-day wait
+  ✔ Starter allows 5 a day and 30 a month; Premium 30 a day
+▶ the sender blur and connections (sections 1, 3, 4)
+  ✔ without a plan the receiver gets previews only; the sender never leaves the server
+  ✔ accepting opens one connection, logs what each side shares, and shows contacts and names
+  ✔ when one plan ends only that member loses the details (owner decision 29 Oct 2026, O03)
+  ✔ ending a connection hides details both ways, is logged, and starts the 7-day wait
+▶ blocks (sections 4, 7)
+  ✔ a block hides both profiles from each other and closes open requests; lifting it restores no connection
+▶ photos (sections 6, 7)
+  ✔ the original stays private and members get a separate blurred copy; at most 5
+▶ reports and moderation (section 7)
+  ✔ a serious category hides the profile at once; staff dismissing it restores it
+  ✔ other categories need 3 different verified members; an upheld report keeps it hidden
+  ✔ a photo report hides only that photo
+▶ engaged or married (section 7)
+  ✔ needs the forfeit confirmation; hides the profile, ends the plan and closes open requests
+ℹ tests 73
+ℹ suites 22
+ℹ pass 73
+ℹ fail 0
+```
+
+The access-rule tests are now 38. One test is new:
+
+```text
+  ✔ an unverified member sees only their own profile (owner decision, audit N04)
+```
+
+Three existing tests now go through the new functions instead of inserting rows directly, and also check that
+direct inserts are refused. They cover blocking, sending, and answering.
+
+Plans are granted directly in the database, because buying one arrives in Stage 4. The limit tests add earlier
+sends directly too, since sending 30 real requests in a test is not practical.
+
+**Mutation checks.** Each rule was broken on purpose, the tests were rerun, and the file was restored. Every
+break was caught:
+
+| Rule broken | Result |
+| --- | --- |
+| No daily limit | 1 test fails |
+| No 7-day wait | 5 fail |
+| Unverified members may browse | 1 fails |
+| API skips the preview path for unpaid receivers | 1 fails |
+| Parents' names always shown | 2 fail |
+| Report threshold 2 instead of 3 | 1 fails |
+| Expired member keeps contact details | 4 fail |
+| Accepting not logged | 1 fails |
+| Original photos for any browsing member | 2 fail |
+
+**Concurrency.** The tests send three identical requests at once (one goes through) and accept twice at once (one
+connection). PGlite runs a single connection, though, so this proves the logic and the idempotency, not lock
+contention. Real contention under load is for the Stage 6 load test.
+
+### Neon dry run (dev database, rolled back)
+
+`0006` and `0007` were applied inside one transaction on the Neon dev database (PostgreSQL 18.6), checked, then
+rolled back:
+
+```text
+migrations recorded before: 6
+applied inside the transaction: 44 statements
+app functions before: 48
+checks: { app_functions: 67, policies: 62, insert_policies_on_closed_tables: 0, moderation_column: true,
+  disclosure_trigger: true, internal_helpers_callable_by_fh_app: 0 }
+as fh_app (anonymous): { role: 'fh_app', verified: false, profiles_visible: 0 }
+direct interest insert: denied: new row violates row-level security policy for table "interest"
+send_interest without a member: refused: interest_not_allowed
+advisory lock: { advisory_lock_calls: 1 }
+after rollback: { moderation_column: false, send_interest_exists: false, app_functions: 48 }
+```
+
+Policies went from 68 to 62 because the six direct-insert policies were removed. Migrations 0006 and 0007 are **not
+applied** to Neon dev. Until they are, the new routes fail on the regular dev stack (`npm run dev`); the sandbox
+applies every migration on start.
+
+### `npm run typecheck` and `npm run build`
+
+Both passed (exit 0): `astro check` gave 0 errors, the API bundle `dist/index.js` is 135.3kb, the member app built,
+and the website built 22 pages.
+
+### Not done in 3a
+
+- The screens (3b).
+- Applying 0006–0007 to Neon dev, on the owner's go-ahead.
+- Boosts, featured profiles and shortlist limits (N01–N03): not built until the owner decides.
+- The 2-re-sends-per-pair cap: recommended only, not built (O04).
+- Lock contention under real load: Stage 6.
