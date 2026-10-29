@@ -128,6 +128,43 @@ member data only through `withActor(c, tx => …)` (`src/http.ts`).
 - **`documents.purge`.** It runs daily and deletes each due file before clearing its key, so a failed delete is retried
   the next night. Each run is logged and audited with counts only.
 
+## Member app screens (Stage 2b)
+
+One single-page app at `/app` (`apps/member`, react-router with base `/app`). Members and staff use the same app; the
+staff area is `/app/staff`.
+
+| Route | Screen |
+| --- | --- |
+| `/` | Sign-in with an email code, the account holder's name on first sign-in, then the dashboard: own and managed profiles, creating one, and the verification summary |
+| `/profiles/:id` | Overview (badges, publish and pause), Details in four steps, Contacts, and for guardian-managed profiles the candidate's or manager's panel |
+| `/verify` | Phone check by SMS code and the identity-document upload |
+| `/invite#…` | The candidate's invitation: code, then accept (signing in on the spot) or decline (no account) |
+| `/staff` | Staff sign-in with password and two-step login, enrolment, and the document review queue |
+
+- **One contract.** The API's response shapes are in `packages/shared/src/api-types.ts`; the API annotates its
+  responses with them and the app reads them, so both sides compile against the same types. Forms validate with the
+  same Zod schemas as the API (`profileFieldsSchema`, `contactSchema`). The details form sends only changed fields,
+  with the version it was based on.
+- **Data.** TanStack Query hooks in `src/lib/queries.ts`; signing in or out resets the cache. API errors arrive as
+  `{ code, message, fields }` and are shown as written, with field errors next to their fields.
+- **Two-step enrolment.** The QR code is drawn in the browser (`uqr`), so the secret never goes to a QR service.
+  Backup codes are shown once and must be confirmed as saved.
+- **Failures.** A screen that fails to render shows a reload notice instead of a blank page (`ErrorBoundary`, reset
+  when the route changes).
+
+### Sandbox
+
+`npm run dev:sandbox` (`apps/api/scripts/sandbox.ts`) runs the real `createApp` on PGlite with every migration, for
+trying the screens without any service:
+
+- Email and SMS go to the console (codes, invitation links). `/health` reports SMS as available, so the phone screens
+  can be tried; on real environments SMS stays BLOCKED until a provider is chosen.
+- Files stay in memory; staff see documents as `data:` URLs instead of signed links.
+- Two staff accounts (`owner@sandbox.test`, `reviewer@sandbox.test`) get a random password, printed at start and new
+  on every run. Two-step login is set up on first sign-in, as anywhere else.
+- It never reads `apps/api/.env`, listens on 127.0.0.1 only, and uses ports 8788 (API) and 5174 (member app), so it
+  can run beside `npm run dev`. Nothing in it is deployed.
+
 ## Database access
 
 Tables (`apps/api/src/db/schema/`) follow spec 12.1. Discoverable profile fields live in `profile`. Private data has

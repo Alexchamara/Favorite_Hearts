@@ -6,7 +6,7 @@
 import { and, eq, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { VERIFICATION_STATUSES, verificationDecisionSchema } from '@fh/shared';
+import { VERIFICATION_STATUSES, verificationDecisionSchema, type StaffQueueItem } from '@fh/shared';
 import { verificationCase } from '../db/schema/trust.ts';
 import { fail, parse, readJson, withActor, type AppEnv } from '../http.ts';
 import { audit } from '../lib/audit.ts';
@@ -18,7 +18,7 @@ export const staff = new Hono<AppEnv>().use(requireStaff('owner', 'backup_review
 staff.get('/verification', async (c) => {
   const status = parse(z.enum(VERIFICATION_STATUSES).default('pending'), c.req.query('status'));
   const queue = await withActor(c, async (tx) =>
-    rows<{ queue: unknown[] }>(await tx.execute(sql`select app.staff_verification_queue(${status}) as queue`))[0]!.queue,
+    rows<{ queue: StaffQueueItem[] }>(await tx.execute(sql`select app.staff_verification_queue(${status}) as queue`))[0]!.queue,
   );
   return c.json({ cases: queue });
 });

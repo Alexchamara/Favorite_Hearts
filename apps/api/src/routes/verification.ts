@@ -5,7 +5,7 @@
  */
 import { and, desc, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
-import { documentTypeSchema } from '@fh/shared';
+import { documentTypeSchema, type VerificationCaseView } from '@fh/shared';
 import { operationsFlag } from '../db/schema/operations.ts';
 import { verificationCase } from '../db/schema/trust.ts';
 import { fail, parse, withActor, type AppEnv } from '../http.ts';
@@ -13,7 +13,7 @@ import { requireMember } from '../middleware/session.ts';
 import { InvalidImageError, processDocument } from '../storage/images.ts';
 import { newObjectKey } from '../storage/storage.ts';
 
-const caseView = (row: typeof verificationCase.$inferSelect) => ({
+const caseView = (row: typeof verificationCase.$inferSelect): VerificationCaseView => ({
   id: row.id,
   documentType: row.documentType,
   status: row.status,

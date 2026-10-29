@@ -14,8 +14,18 @@ export function enabledChannels(): LoginChannel[] {
   ];
 }
 
-function unwrap(result: { error: { message?: string } | null }) {
-  if (result.error) throw new Error(result.error.message || 'Something went wrong. Please try again.');
+/** Better-Auth error codes, in words people understand. */
+const MESSAGES: Record<string, string> = {
+  INVALID_OTP: 'That code is not right. Check the latest code we sent you.',
+  OTP_EXPIRED: 'That code has expired. Send a new code.',
+  TOO_MANY_ATTEMPTS: 'Too many tries with this code. Send a new code.',
+  TOO_MANY_REQUESTS: 'Too many requests. Please wait a minute and try again.',
+};
+
+function unwrap(result: { error: { message?: string; code?: string; status?: number } | null }) {
+  if (!result.error) return;
+  const known = (result.error.code && MESSAGES[result.error.code]) || (result.error.status === 429 ? MESSAGES.TOO_MANY_REQUESTS : undefined);
+  throw new Error(known ?? (result.error.message || 'Something went wrong. Please try again.'));
 }
 
 export async function requestLoginCode(input: RequestCodeInput): Promise<void> {

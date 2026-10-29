@@ -37,10 +37,15 @@ npm run dev              # starts api :8787, member app :5173, website :4321
 Open **http://localhost:4321** — the website forwards `/app/` to the member app and
 `/api/` to the API, so Join buttons and sign-in work from that one address (as in production).
 
+To try the member and staff screens without Neon, Resend, SMS or R2, run `npm run dev:sandbox` and open
+**http://localhost:5174/app/** (staff: `/app/staff`). It runs the real API on an in-memory database. Sign-in codes,
+invitation links and the staff password print in that terminal; nothing is sent, and everything is gone when it
+stops. It can run beside `npm run dev`.
+
 One deployable folder for static hosting: `npm run build:site` → `dist/site/`
 (website at `/`, member app at `/app/`); preview it with `npm run preview:site` (http://localhost:8080).
 
-Checks: `npm run typecheck` and `npm run build`.
+Checks: `npm run typecheck`, `npm test` and `npm run build`.
 
 ## Secrets
 

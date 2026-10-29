@@ -17,7 +17,7 @@ without output.
 | --- | --- |
 | 0 Baseline and rule audit (`docs/RULE-AUDIT.md`) | **done, awaiting owner review.** Rollback tag `stage-0-baseline`; evidence below. |
 | 1 Foundation: member app migration, Drizzle schema + RLS, Neon staging/production | **done, awaiting owner review.** Staging/production projects **BLOCKED** until the owner creates them; evidence below. |
-| 2 Accounts and verification (codes, invites, takeover, badges, staff 2FA, documents) | **2a (server) done, awaiting owner review**; 2b (member and staff screens) next. SMS **BLOCKED** until a provider is chosen. |
+| 2 Accounts and verification (codes, invites, takeover, badges, staff 2FA, documents) | **done (2a server, 2b screens), awaiting owner review.** SMS **BLOCKED** until a provider is chosen; evidence below. |
 | 3 Requests, connections and privacy | not started |
 | 4 Plans, payments, email, Turnstile | not started |
 | 5 Content, safety and quality | not started |
@@ -51,6 +51,9 @@ without output.
 | 2026-10-28 | A person can be the candidate of only one live profile (spec O14). | Proposed — confirm |
 | 2026-10-28 | Identity documents are accepted as photos (JPEG, PNG or WebP, at most 5 MB), not PDF. | Proposed — confirm |
 | 2026-10-28 | sharp upgraded to 0.35.5 in the API (libvips, libheif and librsvg advisories). Astro's build-time copy stays until the Astro upgrade. | Engineering |
+| 2026-10-29 | Staff screens live in the member app at `/app/staff`, not in a separate admin app. They share sign-in, design and the API contract; the server and database decide what staff may do. | Engineering |
+| 2026-10-29 | The two-step login QR code is drawn in the browser (`uqr`), so the secret never goes to a QR service. | Engineering |
+| 2026-10-29 | `npm run dev:sandbox` runs the real API on an in-memory database for trying the screens; codes print to its console. It is a development tool only and never deployed. | Engineering |
 
 ## Step 5 evidence
 
@@ -458,16 +461,20 @@ Server (2a):
 
 Screens (2b):
 
-- [ ] Member:
+- [x] Member:
   - sign-in with an email code
   - the profile wizard and edit, and contacts
   - phone verification and document upload
   - inviting the candidate
   - the candidate's invitation page (code, accept, decline) and controls
   - badges with the approved wording ("identity document reviewed")
-- [ ] Staff: password sign-in with two-step login, including enrolment with backup codes, and the document review queue.
+- [x] Staff: password sign-in with two-step login, including enrolment with backup codes, and the document review queue.
 - [ ] Owner action: create the owner and backup reviewer accounts on each environment (`npm run staff`).
 - [ ] **BLOCKED:** SMS provider. Phone verification for publishing and SMS invitations wait for it.
+- [ ] With the SMS provider: let a joined candidate confirm a phone number the manager entered. Until then it keeps the
+  "not verified by candidate" label, unless the candidate accepted an SMS invitation to that number.
+- [ ] Before the first deploy, with the host choice: tell Better-Auth which header carries the client IP (see "Not done
+  in 2b"). Otherwise the code and sign-in limits fall back to one bucket shared by many members.
 
 **Stage 3: Requests, connections and privacy**
 
@@ -811,3 +818,168 @@ goes with the deferred Astro upgrade.
 - **BLOCKED:** SMS (provider not chosen). Phone verification works in tests and in development with
   `SMS_PROVIDER=log` only. Publishing on staging or production needs a provider.
 - Email invitations and codes reach only the Resend account owner until the domain is verified in Resend.
+
+## Stage 2b evidence (29 Oct 2026): member and staff screens
+
+Scope: the Stage 2 screens on top of the 2a server. Members sign in, build and publish a profile, verify a phone and
+send a document, invite a candidate, and the candidate accepts, declines, sets permissions or takes over. Staff sign
+in with two-step login and review documents.
+
+### What was built
+
+- **Member app** (`apps/member/src/features/`): `home` (sign-in, name, dashboard), `profile` (overview, four-step
+  details, contacts, the manager's and the candidate's panels), `trust` (phone and document checks), `invite` (the
+  candidate's page) and `staff` (sign-in, two-step enrolment, review queue). Routes and conventions are in
+  `docs/ARCHITECTURE.md`, "Member app screens".
+- **One contract.** `packages/shared/src/api-types.ts` holds the API's response shapes; the API annotates its
+  responses with them and the app reads them. Validation messages in `packages/shared/src/profile.ts` are now written
+  for members ("Write at least 20 characters.").
+- **Sandbox.** `npm run dev:sandbox` runs the real API on PGlite with console delivery, for trying the screens
+  without any service (README, ARCHITECTURE).
+- **Error boundary.** A screen that fails to render shows a reload notice instead of a blank page.
+
+### Browser walkthrough (sandbox, synthetic accounts)
+
+Run in the in-app browser against `npm run dev:sandbox`: the real API and every migration on PGlite. Codes and links
+were read from the sandbox console.
+
+Self-managed member:
+
+1. Signed in with an email code, gave a name, created an own profile with the adult declaration.
+2. Saved Essentials (version 2). A too-short bio was refused before sending ("Write at least 20 characters."), then
+   About saved with values (version 3). "Still needed" then listed only the phone contact.
+3. Added a phone contact; it was stored as `+94700000001`.
+4. Publish was refused: "Before publishing, you need a phone number verified by SMS code and an approved identity
+   document."
+5. On `/verify`: phone verified with the SMS code; a passport photo uploaded and shown as "Waiting for review".
+6. Staff: password sign-in led to the two-step setup; until then the API refused the queue
+   (`403 TWO_FACTOR_REQUIRED`). After setup (QR code, key, backup codes, authenticator code) the queue showed the case.
+   "Show the document (logged)" displayed the re-encoded image, then Accept.
+7. Member again: the dashboard showed "Passport: reviewed and accepted" and the "Candidate identity verified" badge.
+   Publish, Pause and "Publish again" all worked.
+
+Guardian-managed profile:
+
+1. A manager (relationship: father) created a profile for a family member with the declaration, and added the
+   candidate's phone, labelled "Not verified by candidate".
+2. Inviting the manager's own email, in capitals, was refused: "Use the candidate's own email or phone, not yours."
+   The invitation to the candidate's email showed "waiting, link valid until …"; the email text was checked in the
+   console.
+3. The candidate opened the link signed out. The page showed "Sunil Fernando (father) has started a matrimony profile
+   for Nimali." and the masked address `n•••@sandbox.test`. After the invitation code, Accept asked the candidate to
+   sign in on the page, then accepted by itself.
+4. As the candidate: the "Candidate confirmed" badge, "You cannot edit this profile", the email proven by the
+   invitation shown as Verified.
+   - Turning off "Edit the profile" made `manager.canEdit` false in the API.
+   - Withdrawing consent (with confirmation) hid the profile; restoring it worked.
+   - Taking over (with confirmation) made the profile self-managed. The former manager's dashboard became empty and
+     the API returned 404 for the profile.
+5. Decline: a second invitation, the code, then Decline with confirmation showed "You declined". The used link then
+   showed "This invitation cannot be used".
+
+Also checked:
+
+- Staff daily sign-in: password, then the authenticator code. `/api/v1/me` stayed `401` until the code was entered;
+  then the queue loaded (`200`).
+- Phone width (375 px): sign-in, dashboard, the create dialog and the details form lay out in one column. Sign-in and
+  the details form were measured: no sideways scroll (`scrollWidth` 375, no element past the edge).
+- The regular dev API on Neon dev serves the 2b code. `GET /health` returned
+  `{"ok":true,"database":true,"email":true,"sms":false,"storage":true}`, and an unknown invitation link returned the new
+  `INVITATION_INVALID` message.
+
+### Problems the walkthrough found, all fixed
+
+1. After a correct sign-in code the screen stayed on the code step, and a second try reused the spent code ("Invalid
+   OTP"). Signing in cleared the query cache instead of refetching. It now resets and refetches.
+2. A self-managed profile showed a "Manager and consent" tab. It now shows only on guardian-managed profiles.
+3. "plus the your identity document" on the overview. Fixed wording.
+4. The API labelled every unverified candidate phone "not verified by candidate", also on self-managed profiles.
+   OWNER-DECISIONS section 4 limits the label to guardian-managed profiles; `contactView` now checks that. The
+   publishing test asserts it, and fails without the fix (below).
+5. The overview went blank for an account with no document: the shared type missed `documentStatus: 'none'`. Fixed
+   the type and the screen. The new error boundary was then tried by forcing a bad response; it showed the reload
+   notice.
+6. After a takeover the open "Manager and consent" tab disappeared and left an empty panel. Tabs now fall back to the
+   overview. Checked by switching the page's data from managed to self-managed with that tab open.
+7. The invitation page had two fields called "Code", and "create one with the same code" was ambiguous. The first is
+   now "Invitation code", and the sign-in step says a separate code comes.
+8. A used invitation link said "Ask for a new one", which is wrong after a decline or an accept. The API now gives one
+   message for every unusable link (so a link reveals nothing), and the page adds "If you accepted it, sign in".
+9. "You declined … only you can change that" was untrue for a candidate without an account. It now says the manager
+   cannot publish the profile or invite again, as the confirmation said.
+10. Document status read "approved" on the dashboard but "Reviewed and accepted" elsewhere. One shared wording now.
+11. The sandbox API listened on every network interface. It now listens on 127.0.0.1 only.
+
+### `npm test`: 56 tests, all passing
+
+The 37 access-rule tests are unchanged (list in the Stage 1 and 2a evidence). The 19 HTTP flow tests:
+
+```text
+▶ accounts (A01, A02, S06)
+  ✔ sign up and sign in with an email code; wrong and reused codes fail
+  ✔ anonymous visitors get nothing
+  ✔ the owner can pause new sign-ups; existing members keep working (S06)
+▶ profiles (P01, A04, A05)
+  ✔ one own profile per person; fields are validated on the server (P01)
+  ✔ a stale edit is refused instead of overwriting (A05)
+  ✔ a manager runs up to 3 profiles (A04)
+▶ documents, staff review and publishing (P02, P05, P09, S04)
+  ✔ staff powers need two-step login, checked by the server (S04)
+  ✔ a fake image is refused and nothing is stored (P09)
+  ✔ publishing needs a complete profile, a verified phone and an approved document (P02, P05)
+  ✔ viewing a document is audited and gives a short-lived link
+▶ invitations and the candidate (I01–I09)
+  ✔ a manager prepares a profile and invites the candidate; own contact is refused (I01)
+  ✔ the link shows only who invited whom; the code goes to the nominated address (I02, I04)
+  ✔ the manager cannot accept; a wrong code is counted; the candidate accepts once (I03, I05)
+  ✔ the candidate controls the manager’s permissions and sharing (I07)
+  ✔ withdrawing consent takes the profile down; the manager cannot override (I06, I09)
+  ✔ takeover: the manager loses access at once and the plan carries over (I08)
+  ✔ declining with the code needs no account and takes the profile down (I06)
+▶ document retention (X01, S05)
+  ✔ files are deleted 90 days after the decision; a failed delete is retried
+  ✔ revoking a staff member ends their access at once (S05)
+ℹ tests 56
+ℹ suites 15
+ℹ pass 56
+ℹ fail 0
+```
+
+The publishing test now also checks that a self-managed profile's phone has no "not verified by candidate" label.
+With the fix removed, it fails as it should:
+
+```text
+ℹ pass 0
+ℹ fail 1
+  AssertionError [ERR_ASSERTION]: the label is for guardian-managed profiles only (section 4)
+```
+
+### `npm run typecheck` and `npm run build`
+
+Both passed (exit 0): `astro check` gave 0 errors, the API bundle `dist/index.js` is 99.7kb and the website built 22
+pages. The member app splits each area into its own chunk:
+
+```text
+dist/assets/InvitePage-….js       4.43 kB │ gzip:   1.90 kB
+dist/assets/VerifyPage-….js       5.11 kB │ gzip:   2.12 kB
+dist/assets/StaffApp-….js        20.08 kB │ gzip:   7.34 kB
+dist/assets/ProfilePage-….js     28.06 kB │ gzip:   8.72 kB
+dist/assets/index-….js          529.37 kB │ gzip: 166.61 kB
+(!) Some chunks are larger than 500 kB after minification.
+```
+
+### Not done in 2b
+
+- No database changes, so nothing to apply to Neon.
+- Not clicked through in the browser: staff rejection with a reason (the API test covers it and the member seeing the
+  reason), staff sign-in with a backup code, and SMS invitations. The new "You declined" wording was type-checked but
+  not seen on screen. The dark theme was not reviewed screen by screen.
+- The main member chunk is 529 kB (167 kB gzipped), over Vite's 500 kB warning. Split the vendor code in Stage 6.
+- **Before the first deploy:** tell Better-Auth which header carries the client IP. The sandbox log showed "Rate
+  limiting could not determine a client IP and is falling back to a single shared per-path bucket". Better-Auth 1.7
+  trusts `X-Forwarded-For` only when it holds a single address. Members behind proxies that add their own would share
+  one bucket, so the 3-codes-a-minute limit would apply to them together. The setting depends on the host: on Fly.io
+  `advanced.ipAddress.ipAddressHeaders: ['fly-client-ip']`; behind another proxy, `trustedProxies`.
+- With the SMS provider: let a joined candidate confirm a phone number the manager entered.
+- Owner actions, unchanged: staff accounts on each real environment (`npm run staff`), the SMS provider (**BLOCKED**),
+  the Neon staging and production projects (**BLOCKED**), and the decisions marked "Proposed — confirm".

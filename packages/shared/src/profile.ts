@@ -37,8 +37,16 @@ export function ageOn(birthDate: string, today: Date = new Date()): number {
   return age;
 }
 
-const text = (min: number, max: number) => z.string().trim().min(min).max(max);
-const optionalText = (max: number) => z.string().trim().max(max).nullable();
+// Messages are shown to members as-is, next to the field.
+const text = (min: number, max: number) =>
+  z
+    .string()
+    .trim()
+    .min(min, min === 1 ? 'Required.' : `Write at least ${min} characters.`)
+    .max(max, `Keep it to ${max} characters or fewer.`);
+const optionalText = (max: number) => z.string().trim().max(max, `Keep it to ${max} characters or fewer.`).nullable();
+const choice = <T extends readonly [string, ...string[]]>(values: T) => z.enum(values, { error: 'Choose one of the options.' });
+const upTo = <T extends z.ZodType>(item: T, max: number) => z.array(item).max(max, `Choose up to ${max}.`);
 const birthDate = z.iso.date().refine((value) => {
   const age = ageOn(value);
   return age >= MIN_AGE && age <= MAX_AGE;
@@ -59,7 +67,7 @@ export type ProfileCreateInput = z.input<typeof profileCreateSchema>;
 export const profileFieldsSchema = z
   .object({
     displayName: text(2, 60),
-    gender: z.enum(GENDERS),
+    gender: choice(GENDERS),
     birthDate,
     countryCode: z
       .string()
@@ -70,34 +78,41 @@ export const profileFieldsSchema = z
     city: text(1, 80),
     occupation: text(1, 100),
     education: text(1, 200),
-    heightCm: z.number().int().min(100).max(230),
-    maritalStatus: z.enum(MARITAL_STATUSES),
-    religion: z.enum(RELIGIONS),
-    languages: z.array(text(1, 40)).max(10),
+    heightCm: z
+      .number({ error: 'Enter the height in centimetres.' })
+      .int('Enter whole centimetres.')
+      .min(100, 'Enter a height between 100 and 230 cm.')
+      .max(230, 'Enter a height between 100 and 230 cm.'),
+    maritalStatus: choice(MARITAL_STATUSES),
+    religion: choice(RELIGIONS),
+    languages: upTo(text(1, 40), 10),
     motherTongue: optionalText(80),
     bio: text(20, 600),
     familyStory: optionalText(600),
-    values: z.array(z.enum(PROFILE_VALUES)).max(5),
-    hobbies: z.array(text(1, 50)).max(6),
-    timeline: z.enum(TIMELINES),
-    relocation: z.enum(RELOCATION_PREFERENCES),
+    values: upTo(choice(PROFILE_VALUES), 5),
+    hobbies: upTo(text(1, 50), 6),
+    timeline: choice(TIMELINES),
+    relocation: choice(RELOCATION_PREFERENCES),
     motherName: optionalText(80),
     motherOccupation: optionalText(100),
     fatherName: optionalText(80),
     fatherOccupation: optionalText(100),
-    sisters: z.array(text(1, 100)).max(12),
-    brothers: z.array(text(1, 100)).max(12),
-    incomeRange: z.enum(INCOME_RANGES),
-    communityOpenness: z.enum(COMMUNITY_OPENNESS).nullable(),
-    diet: z.enum(DIETS).nullable(),
-    smoking: z.enum(HABIT_FREQUENCIES).nullable(),
-    drinking: z.enum(HABIT_FREQUENCIES).nullable(),
-    childrenPlan: z.enum(CHILDREN_PLANS).nullable(),
-    familyInvolvement: z.enum(FAMILY_INVOLVEMENT).nullable(),
-    horoscopeImportance: z.enum(HOROSCOPE_IMPORTANCE),
+    sisters: upTo(text(1, 100), 12),
+    brothers: upTo(text(1, 100), 12),
+    incomeRange: choice(INCOME_RANGES),
+    communityOpenness: choice(COMMUNITY_OPENNESS).nullable(),
+    diet: choice(DIETS).nullable(),
+    smoking: choice(HABIT_FREQUENCIES).nullable(),
+    drinking: choice(HABIT_FREQUENCIES).nullable(),
+    childrenPlan: choice(CHILDREN_PLANS).nullable(),
+    familyInvolvement: choice(FAMILY_INVOLVEMENT).nullable(),
+    horoscopeImportance: choice(HOROSCOPE_IMPORTANCE),
     /** §6: optional, only with explicit consent; null removes it. */
     caste: z
-      .object({ value: text(1, 80), consent: z.literal(true) })
+      .object({
+        value: text(1, 80),
+        consent: z.literal(true, { error: 'Caste is saved only with your explicit consent.' }),
+      })
       .nullable(),
     /** The self-managed candidate's own 18+ declaration (managers declare when creating). */
     adultDeclared: z.literal(true),

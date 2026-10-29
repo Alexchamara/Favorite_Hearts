@@ -79,6 +79,7 @@ export const INVITATION_TTL_HOURS = 24;
 
 /** §5: badge wording must say "identity document reviewed", never "government verified". */
 export const DOCUMENT_TYPES = ['nic', 'passport', 'driving_licence'] as const;
+export type DocumentType = (typeof DOCUMENT_TYPES)[number];
 export const VERIFICATION_STATUSES = ['pending', 'approved', 'rejected'] as const;
 /** §8: documents are deleted 90 days after the decision. */
 export const DOCUMENT_RETENTION_DAYS = 90;

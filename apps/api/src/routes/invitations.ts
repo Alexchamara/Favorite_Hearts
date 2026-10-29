@@ -6,7 +6,7 @@
 import { sql } from 'drizzle-orm';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
-import { invitationCodeSchema, invitationTokenSchema } from '@fh/shared';
+import { invitationCodeSchema, invitationTokenSchema, type InvitationPreview } from '@fh/shared';
 import { fail, parse, readJson, withActor, type AppEnv } from '../http.ts';
 import { codeDigest, maskContact, newInvitationCode, tokenDigest } from '../lib/invitation-tokens.ts';
 import { rows } from '../lib/profile-view.ts';
@@ -38,7 +38,8 @@ function codeProblem(status: string): never {
     case 'already_candidate':
       fail(409, 'ALREADY_CANDIDATE', 'This account already has its own profile.');
     default:
-      fail(404, 'INVITATION_INVALID', 'This invitation link has expired or was replaced. Ask for a new one.');
+      // One answer for every unusable link, so the token reveals nothing about the invitation.
+      fail(404, 'INVITATION_INVALID', 'This invitation link can no longer be used: it has expired, been replaced by a newer one, or already been answered.');
   }
 }
 
@@ -47,13 +48,13 @@ export const invitations = new Hono<AppEnv>();
 invitations.post('/preview', async (c) => {
   const { token } = parse(tokenBody, await readJson(c));
   const preview = await withActor(c, async (tx) => {
-    const [row] = rows<{ preview: { channel: 'email' | 'phone'; contact: string; expiresAt: string; candidateName: string | null; managerName: string | null; relationship: string | null } | null }>(
+    const [row] = rows<{ preview: { channel: 'email' | 'phone'; contact: string; expiresAt: string; candidateName: string | null; managerName: string | null; relationship: InvitationPreview['relationship'] } | null }>(
       await tx.execute(sql`select app.invitation_preview(${tokenDigest(token)}) as preview`),
     );
     return row?.preview ?? null;
   });
   if (!preview) codeProblem('invalid');
-  return c.json({
+  return c.json<InvitationPreview>({
     candidateName: preview.candidateName,
     managerName: preview.managerName,
     relationship: preview.relationship,

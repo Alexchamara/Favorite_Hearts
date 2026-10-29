@@ -178,7 +178,7 @@ profiles.post('/:id/contacts', async (c) => {
   const id = idParam(c.req.param('id'));
   const input = parse(contactSchema, await readJson(c));
   const contact = await withActor(c, async (tx) => {
-    await operatedProfile(tx, id);
+    const row = await operatedProfile(tx, id);
     if (!(await actorRights(tx, id)).canEdit) fail(403, 'CANNOT_EDIT', 'You cannot change this profile’s contacts.');
     if (input.kind === 'social') {
       const [socials] = await tx
@@ -191,7 +191,7 @@ profiles.post('/:id/contacts', async (c) => {
       .insert(privateContact)
       .values({ profileId: id, ...input })
       .returning();
-    return contactView(created!);
+    return contactView(created!, row.management);
   });
   return c.json(contact, 201);
 });
@@ -202,14 +202,14 @@ profiles.patch('/:id/contacts/:contactId', async (c) => {
   const contactId = idParam(c.req.param('contactId'));
   const input = parse(contactUpdateSchema, await readJson(c));
   const contact = await withActor(c, async (tx) => {
-    await operatedProfile(tx, id);
+    const row = await operatedProfile(tx, id);
     const [updated] = await tx
       .update(privateContact)
       .set(input)
       .where(and(eq(privateContact.id, contactId), eq(privateContact.profileId, id)))
       .returning();
     if (!updated) fail(404, 'NOT_FOUND', 'Contact not found.');
-    return contactView(updated);
+    return contactView(updated, row.management);
   });
   return c.json(contact);
 });

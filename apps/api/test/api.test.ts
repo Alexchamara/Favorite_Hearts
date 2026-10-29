@@ -215,6 +215,7 @@ describe('documents, staff review and publishing (P02, P05, P09, S04)', () => {
     assert.equal(published.status, 'published');
     assert.ok(published.firstPublishedAt);
     assert.equal(published.badges.candidateIdentityVerified, true);
+    assert.equal(published.contacts[0].notVerifiedByCandidate, false, 'the label is for guardian-managed profiles only (section 4)');
     assert.equal(ok(await member.post(`/api/v1/profiles/${profile.id}/pause`)).status, 'paused');
   });
 

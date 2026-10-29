@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { Hono } from 'hono';
+import type { MeView } from '@fh/shared';
 import { memberAccount } from '../db/schema/members.ts';
 import { withActor, type AppEnv } from '../http.ts';
 import { PHONE_ONLY_EMAIL_DOMAIN } from '../messaging/messenger.ts';
@@ -15,7 +16,7 @@ export const me = new Hono<AppEnv>().use(requireUser).get('/', async (c) => {
   const [account] = await withActor(c, (tx) =>
     tx.select().from(memberAccount).where(eq(memberAccount.userId, user.id)),
   );
-  return c.json({
+  return c.json<MeView>({
     id: user.id,
     name: user.name,
     email: hasRealEmail ? user.email : null,

@@ -3,6 +3,7 @@
  * never serialise a database row directly (spec 4.4, G28).
  */
 import { and, asc, eq, sql } from 'drizzle-orm';
+import type { Badges, ContactView, InvitationState, ProfileFields, ProfileView } from '@fh/shared';
 import { invitation, privateContact, profile } from '../db/schema/members.ts';
 import { fail, type Tx } from '../http.ts';
 
@@ -50,25 +51,14 @@ export async function actorRights(tx: Tx, id: string) {
   return { canEdit: Boolean(rights?.can_edit), canManageInterests: Boolean(rights?.can_manage_interests) };
 }
 
-type People = {
-  manager: {
-    name: string;
-    relationship: string;
-    canEdit: boolean;
-    canManageInterests: boolean;
-    canViewPrivateDetails: boolean;
-    since: string;
-  } | null;
-  candidateJoined: boolean;
-  publisher: { isMe: boolean; phoneVerified: boolean; documentStatus: string | null } | null;
-};
+type People = Pick<ProfileView, 'manager' | 'publisher'> & { candidateJoined: boolean };
 
 export async function profilePeople(tx: Tx, id: string): Promise<People> {
   const [row] = rows<{ people: People }>(await tx.execute(sql`select app.profile_people(${id}) as people`));
   return row!.people;
 }
 
-export async function profileBadges(tx: Tx, id: string) {
+export async function profileBadges(tx: Tx, id: string): Promise<Badges> {
   const [badges] = rows<{ manager_verified: boolean; candidate_confirmed: boolean; candidate_identity_verified: boolean }>(
     await tx.execute(sql`select * from app.profile_badges(${id})`),
   );
@@ -79,7 +69,7 @@ export async function profileBadges(tx: Tx, id: string) {
   };
 }
 
-export function contactView(contact: ContactRow) {
+export function contactView(contact: ContactRow, management: ProfileRow['management']): ContactView {
   return {
     id: contact.id,
     person: contact.person,
@@ -87,13 +77,13 @@ export function contactView(contact: ContactRow) {
     platform: contact.platform,
     value: contact.value,
     verified: contact.verifiedAt !== null,
-    // OWNER-DECISIONS section 4: a candidate phone entered by a manager is labelled until confirmed.
-    notVerifiedByCandidate: contact.person === 'candidate' && contact.kind === 'phone' && contact.verifiedAt === null,
+    // OWNER-DECISIONS section 4: on a guardian-managed profile, the candidate's phone is labelled until they confirm it.
+    notVerifiedByCandidate: management === 'manager' && contact.person === 'candidate' && contact.kind === 'phone' && contact.verifiedAt === null,
     shareWithConnections: contact.shareWithConnections,
   };
 }
 
-export async function invitationStatus(tx: Tx, id: string) {
+export async function invitationStatus(tx: Tx, id: string): Promise<ProfileView['invitation']> {
   const [latest] = await tx
     .select()
     .from(invitation)
@@ -101,7 +91,7 @@ export async function invitationStatus(tx: Tx, id: string) {
     .orderBy(sql`${invitation.createdAt} desc`)
     .limit(1);
   if (!latest) return null;
-  const state = latest.consumedAt
+  const state: InvitationState = latest.consumedAt
     ? 'used'
     : latest.supersededAt
       ? 'replaced'
@@ -112,7 +102,7 @@ export async function invitationStatus(tx: Tx, id: string) {
 }
 
 /** Everything the profile's own operators may see, for the actor `userId`. */
-export async function ownProfileView(tx: Tx, id: string, userId: string) {
+export async function ownProfileView(tx: Tx, id: string, userId: string): Promise<ProfileView> {
   const row = await operatedProfile(tx, id);
   const [contacts, people, badges, rights] = [
     await tx.select().from(privateContact).where(eq(privateContact.profileId, id)).orderBy(asc(privateContact.createdAt)),
@@ -144,7 +134,7 @@ export async function ownProfileView(tx: Tx, id: string, userId: string) {
       motherTongue: row.motherTongue,
       bio: row.bio,
       familyStory: row.familyStory,
-      values: row.values,
+      values: row.values as ProfileFields['values'],
       hobbies: row.hobbies,
       timeline: row.timeline,
       relocation: row.relocation,
@@ -174,7 +164,7 @@ export async function ownProfileView(tx: Tx, id: string, userId: string) {
     manager: people.manager,
     publisher: people.publisher,
     badges,
-    contacts: contacts.map(contactView),
+    contacts: contacts.map((contact) => contactView(contact, row.management)),
     invitation: isCandidate ? null : await invitationStatus(tx, id),
     missing,
   };
