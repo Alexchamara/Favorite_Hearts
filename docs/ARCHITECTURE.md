@@ -58,6 +58,12 @@ same host). Until the domain is bought, test locally: the Vite dev server proxie
 the API so everything is same-origin. Do not rely on `*.fly.dev` + `*.pages.dev` together —
 browsers treat them as different sites and block the cookie.
 
+Same-origin for the browser is not enough for Better-Auth: it compares the browser's `Origin`
+header with `ALLOWED_ORIGINS` and refuses anything else with `403 Invalid origin`. List every
+address members open: locally the website (`http://localhost:4321`) and the member app's dev
+server (`http://localhost:5173`); in staging and production the site's own origin. The API
+refuses to start when the origin of `MEMBER_APP_URL` is missing from `ALLOWED_ORIGINS`.
+
 ## Login codes (email now, SMS built in)
 
 ```

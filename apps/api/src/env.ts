@@ -50,6 +50,14 @@ if (env.SMS_PROVIDER === 'log' && !isLocal) {
   process.exit(1);
 }
 
+// Better-Auth refuses requests from untrusted origins, so without this every sign-in and invitation
+// from the member app fails with "Invalid origin".
+const memberOrigin = new URL(env.MEMBER_APP_URL).origin;
+if (!env.ALLOWED_ORIGINS.includes(memberOrigin)) {
+  console.error(`ALLOWED_ORIGINS must include ${memberOrigin}, the origin of MEMBER_APP_URL.`);
+  process.exit(1);
+}
+
 export function configFromEnv(): Config {
   return {
     nodeEnv: env.NODE_ENV,

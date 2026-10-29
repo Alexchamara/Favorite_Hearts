@@ -983,3 +983,50 @@ dist/assets/index-….js          529.37 kB │ gzip: 166.61 kB
 - With the SMS provider: let a joined candidate confirm a phone number the manager entered.
 - Owner actions, unchanged: staff accounts on each real environment (`npm run staff`), the SMS provider (**BLOCKED**),
   the Neon staging and production projects (**BLOCKED**), and the decisions marked "Proposed — confirm".
+
+### Fix after review: sign-in from `localhost:4321` (29 Oct 2026)
+
+The owner tried to sign in on the regular dev stack (Neon dev, Resend) at `http://localhost:4321/app/`, the address
+the README gives. The first code request failed with `403`, and the retries with `429 Too Many Requests`. The screen
+showed only the last error, "Too many requests".
+
+**Cause.** `ALLOWED_ORIGINS` listed only `http://localhost:5173`, in `.env.example` and so in the local `.env`.
+Better-Auth compares the browser's `Origin` header with that list and refused the website's address. Each refused
+request still counted towards the limit of 3 code requests a minute, so the retries were blocked as well. The 2b
+walkthrough used the sandbox, which has its own settings, so it did not catch this.
+
+Probe with a wrong code for a made-up address (no email sent), before the fix:
+
+```text
+http://localhost:4321 -> {"message":"Invalid origin","code":"INVALID_ORIGIN"} [403]
+http://localhost:5173 -> {"message":"Invalid OTP","code":"INVALID_OTP"} [400]
+```
+
+**Fix.**
+
+- `apps/api/.env.example` (and the local `.env`): `ALLOWED_ORIGINS=http://localhost:4321,http://localhost:5173`.
+- `apps/api/src/env.ts`: the API refuses to start when `ALLOWED_ORIGINS` lacks the origin of `MEMBER_APP_URL`, so a
+  staging or production setup cannot repeat this.
+- `docs/ARCHITECTURE.md`, "Domains and cookies": why the proxy's same-origin is not enough.
+
+**Checked.** The running dev API restarted on its own and gave:
+
+```text
+http://localhost:4321 -> {"message":"Invalid OTP","code":"INVALID_OTP"} [400]
+http://localhost:5173 -> {"message":"Invalid OTP","code":"INVALID_OTP"} [400]
+http://evil.example -> {"message":"Invalid origin","code":"INVALID_ORIGIN"} [403]
+```
+
+The start-up check, both ways:
+
+```text
+ALLOWED_ORIGINS must include http://localhost:4321, the origin of MEMBER_APP_URL.
+without :4321 -> exit 1
+settings accepted
+with the fixed .env -> exit 0
+```
+
+In the in-app browser at `http://localhost:4321/app/`, through the website's proxy with the browser's own `Origin`:
+`/health` gave `{"ok":true,"database":true,"email":true,"sms":false,"storage":true}`, and the same wrong-code
+request got `400 INVALID_OTP`, so it passed the origin check. `npm run typecheck` (0 errors), `npm test` (56 of 56)
+and `npm run build` all passed. A real sign-in code was not sent; the owner signs in themself.
