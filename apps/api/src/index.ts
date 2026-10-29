@@ -10,6 +10,7 @@ import { log } from './lib/log.ts';
 import { createResendSender } from './messaging/email.ts';
 import type { Messenger } from './messaging/messenger.ts';
 import { createSmsSender } from './messaging/sms.ts';
+import { createTurnstile } from './middleware/turnstile.ts';
 import { createR2Storage } from './storage/r2.ts';
 
 // Production wiring: real Neon, Resend, SMS adapter and R2 (tests build the app with fakes instead).
@@ -28,7 +29,8 @@ const storage = createR2Storage({
   derivedBucket: env.R2_BUCKET_DERIVED,
   signedUrlTtlSeconds: env.SIGNED_URL_TTL_SECONDS,
 });
-const deps: Deps = { config, db, auth: createAuth({ db, config, messenger }), storage, messenger };
+const turnstile = env.TURNSTILE_SECRET_KEY ? createTurnstile(env.TURNSTILE_SECRET_KEY) : null;
+const deps: Deps = { config, db, auth: createAuth({ db, config, messenger }), storage, messenger, turnstile };
 const app = createApp(deps);
 
 const server = serve({ fetch: app.fetch, port: env.PORT }, (info) => {
@@ -37,7 +39,7 @@ const server = serve({ fetch: app.fetch, port: env.PORT }, (info) => {
 
 let boss: PgBoss | null = null;
 if (env.RUN_JOBS) {
-  startJobs({ db, storage }, env.DATABASE_URL_DIRECT)
+  startJobs({ db, storage, messenger, config }, env.DATABASE_URL_DIRECT)
     .then((started) => {
       boss = started;
     })

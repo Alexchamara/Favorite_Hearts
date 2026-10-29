@@ -11,9 +11,11 @@ import type { Config } from './config.ts';
 import { runAsActor, type Actor, type ActorTx } from './db/actor.ts';
 import type { Db } from './db/types.ts';
 import type { Messenger } from './messaging/messenger.ts';
+import type { Turnstile } from './middleware/turnstile.ts';
 import type { Storage } from './storage/storage.ts';
 
-export type Deps = { config: Config; db: Db; auth: Auth; storage: Storage; messenger: Messenger };
+/** `turnstile` is null until a Turnstile secret key is configured (then code and password endpoints need a token). */
+export type Deps = { config: Config; db: Db; auth: Auth; storage: Storage; messenger: Messenger; turnstile: Turnstile | null };
 
 export type AppEnv = {
   Variables: {

@@ -1,5 +1,5 @@
 /**
- * Plans, prices, manual payments and plan access (§2, §3, §9).
+ * Plans, prices, manual payments and plan access (§2, §3, §9). The owner manages the plans.
  * Money is stored in minor units with its currency. Prices are versioned rows, never edited:
  * a change closes the current version and inserts a new one, so payments keep their quote.
  */
@@ -43,17 +43,29 @@ export const plan = pgTable(
   'plan',
   {
     id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    description: text('description'),
     tier: planTier('tier').notNull(),
+    /**
+     * Owner decision (29 Oct 2026): a higher level is an upgrade (starts on approval), the same level
+     * renews only in the last 7 days, and a lower level is blocked while a plan is active.
+     */
+    level: smallint('level').notNull(),
+    sortOrder: smallint('sort_order').notNull().default(0),
     termMonths: smallint('term_months').notNull(),
     /** §2: Starter 5/day and 30/month; Premium fair-use 30/day. */
     dailyRequestCap: smallint('daily_request_cap').notNull(),
     monthlyRequestCap: smallint('monthly_request_cap'),
+    /** Retired plans are no longer sold; a plan that was ever bought is retired, never deleted. */
     active: boolean('active').notNull().default(true),
     createdAt: createdAt(),
+    updatedAt: updatedAt(),
   },
   (t) => [
     check('plan_term_positive', sql`${t.termMonths} > 0`),
     check('plan_caps_positive', sql`${t.dailyRequestCap} > 0 and (${t.monthlyRequestCap} is null or ${t.monthlyRequestCap} > 0)`),
+    check('plan_name_length', sql`char_length(${t.name}) between 2 and 40`),
+    check('plan_level_range', sql`${t.level} between 1 and 99`),
   ],
 );
 
@@ -105,12 +117,31 @@ export const paymentSubmission = pgTable(
     reference: text('reference').notNull().unique(),
     channel: paymentChannel('channel').notNull(),
     declaredResidenceCountry: varchar('declared_residence_country', { length: 2 }),
+    /** The quote as the member saw it, so later plan edits never change what they paid for. */
+    planName: text('plan_name'),
+    planLevel: smallint('plan_level'),
+    termMonths: smallint('term_months'),
+    dailyRequestCap: smallint('daily_request_cap'),
+    monthlyRequestCap: smallint('monthly_request_cap'),
+    /** new | upgrade | renewal, when the payment was started; approval checks again. */
+    changeKind: text('change_kind'),
+    /** §3: days the member confirmed losing on the current plan (upgrade or early renewal). */
+    lostDaysAck: smallint('lost_days_ack'),
+    /** §9: the refund terms version the member confirmed. */
+    refundTermsVersion: text('refund_terms_version'),
+    /** Latest receipt (every receipt is kept in payment_proof). */
     proofKey: text('proof_key'),
+    /** First receipt: a renewal sent before the plan ended keeps access for up to 3 days (§3). */
+    proofSubmittedAt: at('proof_submitted_at'),
     status: paymentStatus('status').notNull().default('awaiting_proof'),
+    /** The matched statement line (bank, Wise or PayPal transaction): usable once across all payments. */
     settlementRef: text('settlement_ref').unique(),
     reviewedByUserId: text('reviewed_by_user_id').references(() => user.id, { onDelete: 'set null' }),
     reviewedAt: at('reviewed_at'),
+    /** Shown to the payer: why it was rejected, or what the owner needs. */
     decisionNote: text('decision_note'),
+    /** The owner's own note; never shown to members. */
+    ownerNote: text('owner_note'),
     refundReason: refundReason('refund_reason'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -118,6 +149,10 @@ export const paymentSubmission = pgTable(
   (t) => [
     index('payment_submission_profile_idx').on(t.profileId),
     index('payment_submission_status_idx').on(t.status),
+    /** One open payment per profile, so a transfer can only be meant for one of them. */
+    uniqueIndex('payment_submission_one_open_idx')
+      .on(t.profileId)
+      .where(sql`${t.status} in ('awaiting_proof', 'pending_review', 'held')`),
     check('payment_submission_amount_positive', sql`${t.amountMinor} > 0`),
     check('payment_submission_proof_before_review', sql`${t.status} <> 'pending_review' or ${t.proofKey} is not null`),
     check(
@@ -125,6 +160,40 @@ export const paymentSubmission = pgTable(
       sql`${t.status} not in ('approved', 'refunded') or (${t.settlementRef} is not null and ${t.reviewedAt} is not null)`,
     ),
     check('payment_submission_refund_reason', sql`(${t.status} = 'refunded') = (${t.refundReason} is not null)`),
+  ],
+);
+
+/** Every receipt a payer uploaded (spec 9.3: resubmission keeps the earlier evidence). Private bucket. */
+export const paymentProof = pgTable(
+  'payment_proof',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    paymentId: uuid('payment_id')
+      .notNull()
+      .references(() => paymentSubmission.id, { onDelete: 'cascade' }),
+    objectKey: text('object_key').notNull(),
+    uploadedByUserId: text('uploaded_by_user_id').references(() => user.id, { onDelete: 'set null' }),
+    uploadedAt: at('uploaded_at').notNull().defaultNow(),
+  },
+  (t) => [index('payment_proof_payment_idx').on(t.paymentId)],
+);
+
+/**
+ * The owner's real payment details per channel (§9: never invented). Members see a channel only once
+ * the owner has entered its details and switched it on.
+ */
+export const paymentChannelSetting = pgTable(
+  'payment_channel_setting',
+  {
+    channel: paymentChannel('channel').primaryKey(),
+    enabled: boolean('enabled').notNull().default(false),
+    instructions: text('instructions'),
+    updatedByUserId: text('updated_by_user_id').references(() => user.id, { onDelete: 'set null' }),
+    updatedAt: at('updated_at'),
+  },
+  (t) => [
+    check('payment_channel_setting_ready', sql`not ${t.enabled} or char_length(${t.instructions}) >= 10`),
+    check('payment_channel_setting_length', sql`char_length(${t.instructions}) <= 1500`),
   ],
 );
 

@@ -15,6 +15,7 @@ import type { Config } from '../src/config.ts';
 import * as schema from '../src/db/schema/index.ts';
 import type { Deps } from '../src/http.ts';
 import type { EmailMessage, Messenger, SmsMessage } from '../src/messaging/messenger.ts';
+import type { Turnstile } from '../src/middleware/turnstile.ts';
 import type { Storage } from '../src/storage/storage.ts';
 
 export const ORIGIN = 'http://localhost:5173';
@@ -25,7 +26,8 @@ export type Outbox = { emails: EmailMessage[]; sms: SmsMessage[] };
 export type Res = { status: number; body: any };
 type FetchApp = { request: (input: string, init?: RequestInit) => Response | Promise<Response> };
 
-export async function createTestApp() {
+/** `turnstile`: a fake bot check (the real one asks Cloudflare); none by default, as in development. */
+export async function createTestApp(options: { turnstile?: Turnstile } = {}) {
   const db = drizzle({ client: new PGlite(), schema });
   await migrate(db, { migrationsFolder: fileURLToPath(new URL('../drizzle', import.meta.url)) });
 
@@ -60,7 +62,7 @@ export async function createTestApp() {
     signedUrlTtlSeconds: 120,
   };
   const auth = createAuth({ db, config, messenger });
-  const deps: Deps = { config, db, auth, storage, messenger };
+  const deps: Deps = { config, db, auth, storage, messenger, turnstile: options.turnstile ?? null };
   const app = createApp(deps);
   return { app, db, deps, outbox, files, storage, client: () => new Client(app, outbox) };
 }
@@ -106,6 +108,8 @@ export function totp(otpauthUri: string, at = Date.now()): string {
 
 export class Client {
   private cookies = new Map<string, string>();
+  /** Extra headers sent with every request, e.g. a Turnstile token. */
+  headers: Record<string, string> = {};
 
   constructor(
     private app: FetchApp,
@@ -113,7 +117,7 @@ export class Client {
   ) {}
 
   async request(method: string, path: string, body?: unknown): Promise<Res> {
-    const headers = new Headers({ origin: ORIGIN, 'x-forwarded-for': '127.0.0.1' });
+    const headers = new Headers({ origin: ORIGIN, 'x-forwarded-for': '127.0.0.1', ...this.headers });
     if (body !== undefined && !(body instanceof FormData)) headers.set('content-type', 'application/json');
     if (this.cookies.size) headers.set('cookie', [...this.cookies].map(([name, value]) => `${name}=${value}`).join('; '));
     const res = await this.app.request(`${API}${path}`, {
@@ -142,6 +146,7 @@ export class Client {
   get = (path: string) => this.request('GET', path);
   post = (path: string, body: unknown = {}) => this.request('POST', path, body);
   patch = (path: string, body: unknown) => this.request('PATCH', path, body);
+  put = (path: string, body: unknown) => this.request('PUT', path, body);
   delete = (path: string) => this.request('DELETE', path);
 
   /** Passwordless sign-in (creates the account on first use), optionally setting the display name. */

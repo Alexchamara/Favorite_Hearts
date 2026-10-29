@@ -112,7 +112,8 @@ export const RESIDENCE_BANDS = ['local', 'diaspora'] as const;
 export const CURRENCIES = ['LKR', 'USD'] as const;
 /** §9: LKR bank transfer; diaspora SWIFT into a USD account, or Wise/PayPal-style with proof. */
 export const PAYMENT_CHANNELS = ['lkr_bank_transfer', 'usd_swift', 'wise', 'paypal'] as const;
-export const PAYMENT_STATUSES = ['awaiting_proof', 'pending_review', 'approved', 'rejected', 'held', 'refunded'] as const;
+/** `held`: the owner asked the payer for more (a clearer receipt); `cancelled`: the payer stopped before sending a receipt. */
+export const PAYMENT_STATUSES = ['awaiting_proof', 'pending_review', 'approved', 'rejected', 'held', 'refunded', 'cancelled'] as const;
 /** §9: the only refund exceptions. */
 export const REFUND_REASONS = ['duplicate_payment', 'mistaken_payment', 'our_failure'] as const;
 export const ENTITLEMENT_KINDS = ['grant', 'replace', 'forfeit', 'refund', 'revoke'] as const;

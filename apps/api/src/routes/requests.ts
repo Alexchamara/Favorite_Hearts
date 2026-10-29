@@ -9,6 +9,7 @@ import { z } from 'zod';
 import {
   blockSchema,
   engagedSchema,
+  RENEWAL_GRACE_DAYS,
   sendInterestSchema,
   SHARING_POLICY_VERSION,
   type BlockView,
@@ -187,14 +188,16 @@ profileRequests.get('/:id/plan', async (c) => {
     const [row] = rows<{
       active: boolean;
       plan_id: string | null;
+      plan_name: string | null;
       ends_at: string | null;
+      ended: boolean;
       daily_cap: number | null;
       monthly_cap: number | null;
       daily_used: number;
       monthly_used: number;
     }>(
       await tx.execute(sql`
-        select app.has_active_entitlement(${id}) as active, e.plan_id, e.ends_at,
+        select app.has_active_entitlement(${id}) as active, e.plan_id, p.name as plan_name, e.ends_at, e.ends_at <= now() as ended,
           coalesce(e.daily_request_cap, p.daily_request_cap) as daily_cap,
           coalesce(e.monthly_request_cap, p.monthly_request_cap) as monthly_cap,
           (select count(*)::int from quota_ledger q where q.profile_id = ${id}
@@ -204,11 +207,18 @@ profileRequests.get('/:id/plan', async (c) => {
         from entitlement_event e left join plan p on p.id = e.plan_id
         where e.profile_id = ${id} order by e.seq desc limit 1`),
     );
-    if (!row?.active) return { active: false, planId: null, endsAt: null, daily: null, monthly: null };
+    if (!row?.active) {
+      return { active: false, planId: null, planName: null, endsAt: null, inGrace: false, graceEndsAt: null, daily: null, monthly: null };
+    }
+    const endsAt = new Date(row.ends_at!);
     return {
       active: true,
       planId: row.plan_id,
-      endsAt: isoDate(row.ends_at),
+      planName: row.plan_name,
+      endsAt: endsAt.toISOString(),
+      // Section 3 (owner decision, 29 Oct 2026): ended, but a renewal receipt sent in time is waiting for review.
+      inGrace: row.ended,
+      graceEndsAt: row.ended ? new Date(endsAt.getTime() + RENEWAL_GRACE_DAYS * 86_400_000).toISOString() : null,
       daily: row.daily_cap === null ? null : { used: row.daily_used, cap: row.daily_cap },
       monthly: row.monthly_cap === null ? null : { used: row.monthly_used, cap: row.monthly_cap },
     };

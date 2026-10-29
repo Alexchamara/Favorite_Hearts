@@ -22,6 +22,9 @@ const schema = z.object({
   EMAIL_FROM: z.string().min(3),
   EMAIL_REPLY_TO: z.string().optional().transform((v) => v || undefined),
 
+  /** Cloudflare Turnstile secret key. Empty = no bot check (development); required in production. */
+  TURNSTILE_SECRET_KEY: z.string().optional().transform((v) => v || undefined),
+
   SMS_PROVIDER: z.enum(SMS_PROVIDERS).default('none'),
   SMS_SENDER_ID: z.string().default('FavHearts'),
 
@@ -47,6 +50,11 @@ export const isLocal = env.NODE_ENV === 'development' || env.NODE_ENV === 'test'
 
 if (env.SMS_PROVIDER === 'log' && !isLocal) {
   console.error('SMS_PROVIDER=log is only allowed in development.');
+  process.exit(1);
+}
+
+if (isProduction && !env.TURNSTILE_SECRET_KEY) {
+  console.error('TURNSTILE_SECRET_KEY is required in production (bot check on sign-in and code requests).');
   process.exit(1);
 }
 

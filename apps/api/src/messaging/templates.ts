@@ -68,3 +68,70 @@ export function invitationEmail({ managerName, candidateName, link, hours }: Inv
 export function invitationSms({ managerName, link, hours }: InvitationWording): string {
   return `${managerName} started a Favorite Hearts matrimony profile for you. Review, accept or decline within ${hours}h: ${link}`;
 }
+
+// --- Plan and payment notifications (OWNER-DECISIONS sections 3 and 9; queued in notification_outbox) ---
+
+const sriLankaTime = new Intl.DateTimeFormat('en-GB', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Asia/Colombo' });
+const when = (value: unknown) => `${sriLankaTime.format(new Date(String(value)))} (Sri Lanka time)`;
+const str = (value: unknown, fallback: string) => (typeof value === 'string' && value.trim() ? value : fallback);
+
+type Rendered = { subject: string; text: string; html: string };
+
+function notice(subject: string, lines: string[], appUrl: string): Rendered {
+  const safety = 'Favorite Hearts staff will never ask you for a password or a code.';
+  const text = `${lines.join('\n\n')}\n\nOpen Favorite Hearts: ${appUrl}\n\n${safety}`;
+  const html = layout(
+    subject,
+    `${lines.map((line) => `<p style="margin:0 0 16px">${escape(line)}</p>`).join('\n')}
+<p style="margin:0 0 24px"><a href="${escape(appUrl)}" style="display:inline-block;background:#f2b64c;color:#302512;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:700">Open Favorite Hearts</a></p>
+<p style="margin:0;font-size:14px;color:#6b6b6b">${safety}</p>`,
+  );
+  return { subject, text, html };
+}
+
+/** One email per outbox template; null for an unknown template (the sender marks it failed). */
+export function notificationEmail(template: string, payload: Record<string, unknown>, appUrl: string): Rendered | null {
+  const plan = str(payload.planName, 'Your plan');
+  const profile = str(payload.profileName, 'your profile');
+  const reference = str(payload.reference, '');
+  const renewalPending = 'We have your renewal payment and are checking it. Access continues for up to 3 days after the end while we do.';
+  switch (template) {
+    case 'payment_approved':
+      return notice('Your plan is active', [
+        `We matched your payment ${reference} in our account. ${plan} is now active for ${profile} until ${when(payload.endsAt)}.`,
+        'You can now send requests, see who sent you interest, and accept requests.',
+      ], appUrl);
+    case 'payment_rejected':
+      return notice('We could not confirm your payment', [
+        `We could not confirm payment ${reference} for ${plan}.`,
+        `Reason: ${str(payload.reason, 'not given')}`,
+        'You can start a new payment from the plan page of the profile. If you think this is a mistake, reply to this email.',
+      ], appUrl);
+    case 'payment_held':
+      return notice('We need something more for your payment', [
+        `Before we can confirm payment ${reference} for ${plan}, we need the following:`,
+        str(payload.message, 'Please contact us.'),
+        'Add it on the plan page of the profile.',
+      ], appUrl);
+    case 'payment_refunded':
+      return notice('Your payment was refunded', [
+        `Payment ${reference} for ${plan} was refunded.`,
+        payload.planEnded === true ? 'The plan it paid for has ended.' : 'Your current plan stays active.',
+      ], appUrl);
+    case 'plan_expiring':
+      return notice(`Your plan ends on ${sriLankaTime.format(new Date(String(payload.endsAt)))}`, [
+        `${plan} for ${profile} ends on ${when(payload.endsAt)}.`,
+        'After that you will no longer see the contact details or social handles of anyone, including your connections. Your connections stay, and their details come back when you renew.',
+        payload.renewalPending === true ? renewalPending : 'You can renew the same plan in its last 7 days, or upgrade at any time.',
+      ], appUrl);
+    case 'plan_ended':
+      return notice('Your plan has ended', [
+        `${plan} for ${profile} ended on ${when(payload.endsAt)}.`,
+        payload.renewalPending === true
+          ? renewalPending
+          : 'Contact details and social handles are now hidden, including those of your connections. Your connections stay, and their details come back when you renew.',
+      ], appUrl);
+    default:
+      return null;
+  }
+}

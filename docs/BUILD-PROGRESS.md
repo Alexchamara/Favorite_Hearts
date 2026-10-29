@@ -19,7 +19,7 @@ without output.
 | 1 Foundation: member app migration, Drizzle schema + RLS, Neon staging/production | **done, awaiting owner review.** Staging/production projects **BLOCKED** until the owner creates them; evidence below. |
 | 2 Accounts and verification (codes, invites, takeover, badges, staff 2FA, documents) | **done (2a server, 2b screens), awaiting owner review.** SMS **BLOCKED** until a provider is chosen; evidence below. |
 | 3 Requests, connections and privacy | **done (3a server, 3b screens), awaiting owner review.** Evidence below. |
-| 4 Plans, payments, email, Turnstile | not started |
+| 4 Plans, payments, email, Turnstile | **4a (server) done, awaiting owner review.** Screens follow in 4b. Real payment details, Turnstile keys and email to members are **BLOCKED** on the owner; evidence below. |
 | 5 Content, safety and quality | not started |
 | 6 Test, harden and hand over | not started |
 
@@ -66,6 +66,20 @@ without output.
 | 2026-10-29 | A profile hidden by reports is frozen until staff decide: out of discovery, and it neither shows nor sees private details. Only verified members report; the 3 reporters are counted by account (spec O11). | Proposed — confirm |
 | 2026-10-29 | Original photos for a connection follow the contact rule: the viewer's own plan must be active (spec O03, photo expiry). | Proposed — confirm |
 | 2026-10-29 | The sandbox seeds four synthetic test members and, as plans are bought in Stage 4, has a sandbox-only route to grant a test plan. Neither exists outside the sandbox. | Engineering |
+| 2026-10-29 | Stage 4 split: 4a builds the server, 4b the screens. | Owner |
+| 2026-10-29 | The owner fully controls plans and payments. Plans: add, edit, re-price (a new price version), retire, and delete one nobody ever bought or was granted (otherwise retire it). Payments: approve, hold, reject, refund, grant or revoke a plan, notes and statement-line corrections, and delete a payment that never had a receipt. The owner types in the real payment details. | Owner |
+| 2026-10-29 | Plan changes follow an owner-set level. A higher level is an upgrade: it starts on approval and the unused days are lost, shown first and confirmed by the member. The same level renews only in the last 7 days, counted from approval. A lower level is blocked while a plan is active. Premium 3 → 6 months is an upgrade. | Owner |
+| 2026-10-29 | Renewal grace: access continues for up to 3 days after the end while a receipt sent before the end waits for review (in review, or held for more). A rejection ends it at once. | Owner (was recommended in §3) |
+| 2026-10-29 | Payment receipts are photos or screenshots (JPEG, PNG or WebP, at most 5 MB), re-encoded on the server. No PDF. | Owner |
+| 2026-10-29 | The price band follows the payer's declared country of residence: Sri Lanka pays the local LKR price, anywhere else the diaspora USD price. The owner's queue flags a different profile country or a non-Sri Lankan phone (or the reverse) for review; nothing is rejected automatically. | Proposed — confirm |
+| 2026-10-29 | LKR is paid by local bank transfer; USD by SWIFT, Wise or PayPal. A method shows to members only after the owner enters its details and switches it on. | Proposed — confirm |
+| 2026-10-29 | One open payment per profile. Repeating the same choice returns it. Before sending a receipt the member can cancel it; it stays on record with its reference, so a transfer made anyway can still be matched. | Proposed — confirm |
+| 2026-10-29 | Approval re-checks the plan rules. If the change is no longer allowed at that moment (for example a downgrade, after another plan was granted), approval is refused and the owner rejects or refunds instead (spec 9.4). | Proposed — confirm |
+| 2026-10-29 | Plan terms are whole calendar months on the Sri Lanka clock: 31 January plus one month is 28 February, or 29 in a leap year (spec M09). | Proposed — confirm |
+| 2026-10-29 | Refunds: the owner chooses whether the plan that payment bought ends now or stays. A duplicate that was never approved is refunded against its statement line. Disputes (for example PayPal) and suspensions use a manual revoke with a reason; the terms must say this (§9). | Proposed — confirm |
+| 2026-10-29 | After a takeover, the former manager's payments that never got a receipt are cancelled. Receipts already sent stay with the owner, and an approval still goes to the profile. The candidate never sees the manager's payments (spec 6.3). | Proposed — confirm |
+| 2026-10-29 | Expiry emails go to everyone running the profile, 7 days before the end (when renewal opens), on the last day, and once it has ended. Payment decisions are emailed to the payer. | Proposed — confirm |
+| 2026-10-29 | Turnstile is checked by our own server code (Cloudflare siteverify) on every endpoint that sends a code or checks a password. It is off while no secret is set, required in production, and fails closed if Cloudflare cannot be reached. | Engineering |
 
 ## Step 5 evidence
 
@@ -520,11 +534,34 @@ Open:
 
 **Stage 4: Plans, payments and email**
 
-- [ ] Versioned Starter / Premium 3 months / Premium 6 months catalogue in LKR and USD minor units (P01).
-- [ ] A unique reference per member, statement matching, and owner-only idempotent approval (P09, P10).
-- [ ] USD SWIFT and Wise/PayPal-style instructions, with real bank details from the owner (P11).
-- [ ] Upgrade, renewal and expiry rules with warnings (P12).
-- [ ] Refund statement and confirmation at the payment step (P13).
+Server (4a):
+
+- [x] Versioned Starter / Premium 3 months / Premium 6 months catalogue in LKR and USD minor units, managed by the
+  owner (P01).
+- [x] A unique reference per payment, statement matching, and owner-only idempotent approval (P09, P10).
+- [x] LKR bank transfer, USD SWIFT and Wise/PayPal channels, with details only the owner enters (P11). Nothing is
+  pre-filled.
+- [x] Upgrade, renewal, downgrade and expiry rules, the 3-day renewal grace, and expiry warning emails (P12).
+- [x] The member must confirm the refund terms (`refund-v1`) and any lost days before a payment starts (P13).
+- [x] Takeover carry-over test with a paid plan; refund exceptions and the audit trail recorded.
+- [x] Turnstile server-side check; tested against Cloudflare with its published test keys.
+
+Screens (4b):
+
+- [ ] Member: plan choice with what each change does, the payment page (reference, details, refund terms), receipts,
+  and the expiry warning in the app.
+- [ ] Owner: plans and prices, payment details, the payment queue with the residence flag, decisions and plan history.
+- [ ] Turnstile widget on sign-in and code requests.
+
+Open:
+
+- [ ] **BLOCKED, owner action:** enter the real bank, SWIFT, Wise and PayPal details (owner screen in 4b).
+- [ ] **BLOCKED, owner action:** Turnstile keys from the owner's Cloudflare account. Production refuses to start
+  without the secret.
+- [ ] **BLOCKED, owner action:** email to members needs the domain verified in Resend. Until then Resend delivers only
+  to the account owner's inbox.
+- [ ] The refund wording on the pricing page and in the terms (Stage 5, lawyer review).
+- [ ] Apply migrations 0008–0009 to the Neon dev database (on request).
 
 **Stage 5: Content, safety and quality**
 
@@ -1349,3 +1386,225 @@ The main chunk is still over Vite's 500 kB warning; splitting it is in Stage 6.
 - The walkthrough's API process predates the ISO-date fix, so its dates were the old format. The tests cover the fix.
 - No database changes in 3b, so there is nothing to apply to Neon.
 - The owner's own sandbox, started before Stage 3, runs the old API. Restart it to try these screens.
+
+## Stage 4a evidence (29 Oct 2026): server for plans, payments and email
+
+Scope (Part 3 "Stage 4", server half; the owner chose to split the stage again):
+- the three plans and their LKR/USD prices as configurable, versioned values, now managed by the owner;
+- manual payment: a unique payment reference, receipt upload, owner-only approval, and activation that cannot happen
+  twice;
+- the replace, renew and upgrade rules, expiry warnings, takeover carry-over, refund exceptions and an audit trail;
+- payment details only from the owner, email through Resend, a Turnstile check on the server, and the residence
+  (pricing-band) mismatch flag for the reviewer.
+
+The screens come in 4b.
+
+### Owner decisions taken at the start
+
+- The owner fully controls plans and payments (add, edit, delete plans, and every payment decision).
+- Plan changes follow an owner-set level; Premium 3 → 6 months is an upgrade.
+- Up to 3 days of renewal grace while a receipt sent in time waits; a rejection ends it.
+- Receipts are photos or screenshots only.
+
+The decisions table lists these and the engineering choices marked "Proposed — confirm".
+
+### What was built
+
+- **Migrations.**
+  - `0008_plans_and_payments.sql` (generated, plus a hand-added step that names and ranks the three seeded plans
+    before the new columns become required):
+    - plan name, description, level and position;
+    - each payment keeps its quote (plan name, level, length and limits), the change it makes, the lost days the
+      member confirmed, the refund terms version, the first receipt time and the owner's own note;
+    - `payment_proof` keeps every receipt; `payment_channel_setting` holds the owner's payment details per method;
+    - one open payment per profile, a `cancelled` status, and a claim time on the email outbox.
+  - `0009_payment_rules.sql` (hand-written):
+    - plan access with the 3-day renewal grace; `plan_change` (what buying a plan would do now) and Sri Lanka
+      calendar months;
+    - one function per action, each checking its actor: `start_payment`, `attach_payment_proof` and
+      `cancel_payment` for members; `approve_payment`, `hold_payment`, `reject_payment`, `refund_payment`,
+      `delete_payment`, `set_payment_note`, `correct_settlement`, `grant_plan`, `revoke_plan`, `set_price` and
+      `delete_plan` for the owner only;
+    - `owner_payments`, the owner's queue with the residence flags;
+    - takeover now cancels the former manager's payments that never got a receipt.
+
+    Direct writes to payments and plan history are closed, even for the owner. The new tables have row-level
+    security, the backup reviewer cannot read payment entries in the audit trail, and the internal helpers cannot be
+    called by the API role.
+- **API routes.**
+  - Public: `GET /api/v1/plans`.
+  - Members: `GET /api/v1/profiles/:id/billing`, `POST /api/v1/profiles/:id/payments`, `GET /api/v1/payments/:id`,
+    `POST /api/v1/payments/:id/proof` and `POST /api/v1/payments/:id/cancel`. `GET /api/v1/profiles/:id/plan` now
+    reports the grace.
+  - Owner only, under `/api/v1/owner`: plans (list, add, edit, delete, prices), payment details, the payment queue
+    (search by reference or statement line), each payment with its receipts, the decisions above, and a profile's
+    plan history with manual grant and revoke.
+- **Jobs.** `plans.expiry_warnings` runs daily at 09:00 Sri Lanka time. `notifications.send` runs every 2 minutes:
+  it sends queued emails through Resend with the event key as the idempotency key, retries up to 5 times, and skips
+  phone-only accounts.
+- **Turnstile.** A server-side check (`src/middleware/turnstile.ts`) on every endpoint that sends a code or checks a
+  password. It is on once `TURNSTILE_SECRET_KEY` is set, and production refuses to start without it.
+- **Shared contract.** `packages/shared/src/billing.ts` holds the input schemas and rule constants; `api-types.ts`
+  holds the plan, payment and owner views.
+- **Docs.** `docs/ARCHITECTURE.md`, "Plans and payments (Stage 4)"; `.env.example` (Turnstile).
+
+### `npm test`: 106 tests, all passing
+
+The 33 new HTTP flow tests (`test/payments.test.ts`) run as separate signed-in members, the owner and the backup
+reviewer, each with two-step login:
+
+```text
+▶ the plan catalogue (section 2)
+  ✔ anyone can read the three plans with their LKR and USD prices
+▶ payments are the owner’s alone (sections 9, 10)
+  ✔ the backup reviewer, members and visitors are refused on every owner route
+▶ payment details come only from the owner (section 9: never invented)
+  ✔ nothing is pre-filled, so members cannot pay until the owner enters real details
+  ✔ the owner enters the details and switches a channel on; every change is audited
+▶ the owner manages plans (owner decision, 29 Oct 2026: full control)
+  ✔ adds, renames, re-prices, retires and deletes a plan nobody bought
+  ✔ a new price never changes a payment already started (spec M01); a used plan is retired, not deleted
+▶ starting a payment (sections 2, 3, 9)
+  ✔ the price follows the declared residence, and the channel must carry that currency
+  ✔ only someone running a published profile can pay for it, and only they see the payment
+▶ receipts (owner decision, 29 Oct 2026: photos and screenshots only)
+  ✔ a PDF, a fake image or an oversize file is refused; images are re-encoded and kept privately
+  ✔ screenshots are accepted too, and every receipt is kept, up to five
+▶ the owner’s queue (sections 2, 9)
+  ✔ waiting payments come first, with signs that the declared residence may not match
+  ✔ each receipt opens through a short-lived link, and every look is audited
+▶ approval (section 9): matched in the statement, used once, never twice
+  ✔ the owner records the statement line; the plan starts now for whole months on the Sri Lanka clock
+  ✔ simultaneous or repeated approvals give one plan term (spec M05)
+  ✔ one statement line pays for one payment only
+▶ plan levels (owner decision, 29 Oct 2026)
+  ✔ an upgrade replaces the plan on approval, after the member confirms the days lost (M07)
+  ✔ Premium 3 months to 6 months is an upgrade; a lower level is blocked while a plan is active (M08)
+  ✔ the same plan renews only in its last 7 days, and the new term counts from approval (M08)
+  ✔ a plan approved after the old one ended starts from the approval
+  ✔ terms are whole months on the Sri Lanka clock: short months and leap years clamp (M09)
+▶ renewal grace (owner decision, 29 Oct 2026: up to 3 days)
+  ✔ access continues while a receipt sent before the end waits; a rejection ends it at once
+  ✔ no grace for a receipt sent after the end, or more than 3 days after it
+▶ hold, correction and rejection (spec 9.3, M06)
+  ✔ the owner can ask for a clearer receipt; the next one puts the payment back in review
+  ✔ a rejection is final and tells the member why; they can start again
+▶ refunds (section 9: duplicate, mistaken or our failure only)
+  ✔ refunding an approved payment can end its plan, with the reason on record
+  ✔ a duplicate payment that was never approved is refunded against its statement line; the plan stays
+▶ manual grant and revoke (compensation, disputes, suspension)
+  ✔ the owner can grant a plan without a payment and end one, always with a reason
+▶ owner record keeping
+  ✔ notes and statement-line corrections are audited; a payment with a receipt cannot be deleted
+▶ takeover keeps the paid plan (section 5)
+  ✔ the candidate keeps the paid time; the manager loses access and their unsent payment stops
+▶ expiry warnings and email (section 3, spec 12.3)
+  ✔ warnings are queued once per stage, for everyone running the profile
+  ✔ queued emails are sent once, with the event key for idempotency; accounts without email are skipped
+  ✔ a failed send is retried, and given up after five attempts
+▶ Turnstile bot check on the server (D7)
+  ✔ once a secret is set, code and password endpoints need a valid token
+ℹ tests 33
+ℹ suites 17
+ℹ pass 33
+ℹ fail 0
+```
+
+Whole suite: `ℹ tests 106`, `ℹ pass 106`, `ℹ fail 0` (38 access rules, 19 accounts, 16 requests, 33 payments).
+
+Five access-rule tests now go through the new functions instead of writing rows directly. They also check that
+direct writes are refused and that every payment function refuses the backup reviewer, a member who claims to be the
+owner, and an owner without two-step login:
+
+```text
+  ✔ the backup reviewer cannot approve a payment or grant a plan
+  ✔ the owner approves a payment exactly once
+  ✔ claiming a staff role is not enough
+  ✔ members see only their own payments, and a payment always takes the current price
+  ✔ the payer can attach proof but not approve
+```
+
+A few tests place a plan's end in the past or near future by writing the plan event directly, because the clock
+cannot be moved. One grace test also backdates a receipt time for the same reason.
+
+**Mutation checks.** Each rule was broken on purpose, the tests were rerun, and the file was restored. Every break was
+caught:
+
+| Rule broken | Result (first failing test) |
+| --- | --- |
+| repeat approval adds a second term | 1 failing (simultaneous or repeated approvals give one plan term (spec M05)) |
+| statement lines compared with case | 4 failing (simultaneous or repeated approvals give one plan term (spec M05)) |
+| any staff member may approve | 1 failing (the backup reviewer cannot approve a payment or grant a plan) |
+| downgrade allowed while active | 1 failing (Premium 3 months to 6 months is an upgrade; a lower level is blocked while a plan is active (M08)) |
+| renewal window 8 days | 1 failing (the same plan renews only in its last 7 days, and the new term counts from approval (M08)) |
+| grace 5 days | 1 failing (no grace for a receipt sent after the end, or more than 3 days after it) |
+| grace without paying on time | 1 failing (no grace for a receipt sent after the end, or more than 3 days after it) |
+| rejection keeps the grace | 1 failing (access continues while a receipt sent before the end waits; a rejection ends it at once) |
+| lost days not confirmed | 3 failing (an upgrade replaces the plan on approval, after the member confirms the days lost (M07)) |
+| takeover leaves the manager payment open | 1 failing (the candidate keeps the paid time; the manager loses access and their unsent payment stops) |
+| refund keeps the plan when asked to end it | 2 failing (refunding an approved payment can end its plan, with the reason on record) |
+| no residence phone flag | 1 failing (waiting payments come first, with signs that the declared residence may not match) |
+| receipt stored without re-encoding | 1 failing (a PDF, a fake image or an oversize file is refused; images are re-encoded and kept privately) |
+| Turnstile lets a missing token through | 1 failing (once a secret is set, code and password endpoints need a valid token) |
+| expiry warnings repeat | 1 failing (warnings are queued once per stage, for everyone running the profile) |
+| sender retries forever | 1 failing (a failed send is retried, and given up after five attempts) |
+
+**Concurrency.** Two approvals of the same payment are sent at once: one approves, the other answers
+`already_approved`, and there is one plan term. The database also refuses a second grant for a payment from its owner
+role. As in Stage 3, PGlite runs one connection, so this proves the logic and the idempotency; lock contention under
+load is for Stage 6.
+
+### Turnstile against Cloudflare (published test keys)
+
+`createTurnstile(secret).verify(token)` called Cloudflare's real siteverify endpoint. Cloudflare publishes these
+secrets for testing; no real keys exist yet:
+
+```text
+test secret that always passes       -> verify() = true
+{"time":"2026-10-29T17:04:43.571Z","level":"warn","event":"turnstile.rejected","codes":"invalid-input-response"}
+test secret that always fails        -> verify() = false
+{"time":"2026-10-29T17:04:43.628Z","level":"warn","event":"turnstile.rejected","codes":"timeout-or-duplicate"}
+test secret: token already spent     -> verify() = false
+```
+
+### Neon dry run (dev database, rolled back)
+
+`0008` and `0009` were applied inside one transaction on the Neon dev database, checked, then rolled back. This also
+shows that the new `cancelled` status works within the same migration run on real Postgres:
+
+```text
+server: 18.6 (4e5fd08)
+recorded migrations before: 8
+rows that 0008/0009 touch: {"plans":3,"payments":0,"plan_events":0,"outbox":0}
+applied 0008_plans_and_payments.sql: 29 statements
+applied 0009_payment_rules.sql: 42 statements
+plans: [{"id":"starter_1m","name":"Starter","level":1,"sort_order":1,"active":true},{"id":"premium_3m","name":"Premium 3 months","level":2,"sort_order":2,"active":true},{"id":"premium_6m","name":"Premium 6 months","level":3,"sort_order":3,"active":true}]
+payment details: [{"channel":"lkr_bank_transfer","enabled":false,"instructions":null},{"channel":"usd_swift","enabled":false,"instructions":null},{"channel":"wise","enabled":false,"instructions":null},{"channel":"paypal","enabled":false,"instructions":null}]
+payment_status values: awaiting_proof,pending_review,approved,rejected,held,refunded,cancelled
+checks: {"app_functions":88,"policies":60,"direct_write_policies":0,"proof_rls":true,"settings_rls":true,"fh_app_calls_approve":true,"fh_app_calls_notify":false,"fh_app_calls_active_entitlement":false,"fh_app_calls_lock_profiles":false,"public_calls_start_payment":false}
+Sri Lanka months: {"jan31":"2027-02-28 10:15","leap":"2028-02-29 10:15","mar1":"2027-04-01 02:00"}
+statement line normalised: BOC 2026-10-29 FT1001
+reference sample: FH······
+owner_payments as a fake owner: refused, payment_owner_only
+rolled back; recorded migrations now: 8 | payment_channel_setting exists: false
+```
+
+Policies went from 62 to 60: five direct-write policies were removed and three were added for the new tables.
+
+### `npm run typecheck` and `npm run build`
+
+Both passed (exit 0): `astro check` gave 0 errors and 0 warnings; the API bundle `dist/index.js` is 182.9kb; the member
+app built (main chunk 539.91 kB, over Vite's 500 kB warning, noted for Stage 6); the website built 22 pages.
+
+The sandbox (`scripts/sandbox.ts`, run on spare ports 8799/5185) started on the new migrations. `GET /api/v1/plans`
+returned the three plans with their prices, and `GET /api/v1/owner/payments` without a session answered 401.
+
+### Not done in 4a
+
+- The screens (4b): plan choice, payment page, receipts, expiry warning in the app, the owner's plan, payment-detail
+  and payment screens, and the Turnstile widget.
+- **BLOCKED (owner):** real payment details; Turnstile keys; email to members until the domain is verified in Resend.
+  No email was sent to a real address in 4a; delivery is tested with a fake messenger.
+- Payment disputes have no automatic rule: the owner revokes the plan with a reason (§9 asks the terms to say what
+  happens). The refund wording itself is Stage 5 with the lawyer.
+- Migrations 0008–0009 are not applied to Neon dev yet (on request).

@@ -47,25 +47,40 @@ export async function processPhoto(input: Buffer): Promise<ProcessedPhoto> {
 
 export type ProcessedDocument = { image: Buffer; width: number; height: number };
 
-/**
- * Identity document photos (NIC, passport, driving licence). Decoding is the real file check, and
- * re-encoding drops EXIF/GPS metadata. Kept large enough to stay legible for the reviewer.
- */
-export async function processDocument(input: Buffer): Promise<ProcessedDocument> {
-  if (input.byteLength > MAX_UPLOAD_BYTES) throw new InvalidImageError('Documents must be 5 MB or smaller.');
+type Wording = { tooLarge: string; unreadable: string; wrongType: string };
+
+/** Decoding is the real file check, and re-encoding drops EXIF/GPS metadata. Large enough to stay legible. */
+async function reencodeLegible(input: Buffer, wording: Wording): Promise<ProcessedDocument> {
+  if (input.byteLength > MAX_UPLOAD_BYTES) throw new InvalidImageError(wording.tooLarge);
   let meta: Metadata;
   try {
     meta = await sharp(input, { limitInputPixels: 40_000_000 }).metadata();
   } catch {
-    throw new InvalidImageError('This file is not a supported image. Please upload a photo of the document.');
+    throw new InvalidImageError(wording.unreadable);
   }
-  if (!meta.format || !ALLOWED_FORMATS.has(meta.format)) {
-    throw new InvalidImageError('Please upload a JPEG, PNG or WebP photo of the document.');
-  }
+  if (!meta.format || !ALLOWED_FORMATS.has(meta.format)) throw new InvalidImageError(wording.wrongType);
   const { data, info } = await sharp(input, { limitInputPixels: 40_000_000 })
     .rotate()
     .resize({ width: 2400, height: 2400, fit: 'inside', withoutEnlargement: true })
     .jpeg({ quality: 90, mozjpeg: true })
     .toBuffer({ resolveWithObject: true });
   return { image: data, width: info.width, height: info.height };
+}
+
+/** Identity document photos (NIC, passport, driving licence), kept legible for the reviewer. */
+export function processDocument(input: Buffer): Promise<ProcessedDocument> {
+  return reencodeLegible(input, {
+    tooLarge: 'Documents must be 5 MB or smaller.',
+    unreadable: 'This file is not a supported image. Please upload a photo of the document.',
+    wrongType: 'Please upload a JPEG, PNG or WebP photo of the document.',
+  });
+}
+
+/** Payment receipts (owner decision, 29 Oct 2026): photos or screenshots only, no PDF. */
+export function processReceipt(input: Buffer): Promise<ProcessedDocument> {
+  return reencodeLegible(input, {
+    tooLarge: 'Receipts must be 5 MB or smaller.',
+    unreadable: 'This file is not a supported image. Please upload a photo or screenshot of the receipt.',
+    wrongType: 'Please upload a JPEG, PNG or WebP photo or screenshot of the receipt (PDF is not accepted).',
+  });
 }

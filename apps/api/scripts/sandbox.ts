@@ -10,8 +10,9 @@
  * on every start). Staff set up two-step login on first sign-in, as on a real environment.
  *
  * Four synthetic test members are seeded (verified, published, "Sandbox test member" in their bio),
- * so discovery and requests can be tried at once. Plans cannot be bought until Stage 4, so a
- * sandbox-only route grants a test plan: POST http://127.0.0.1:8788/sandbox/plans.
+ * so discovery and requests can be tried at once. Buying a plan needs the owner to enter payment details
+ * first (nothing is pre-filled), so a sandbox-only route also grants a test plan directly:
+ * POST http://127.0.0.1:8788/sandbox/plans.
  */
 import { randomBytes, randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -76,7 +77,7 @@ const config: Config = {
   signedUrlTtlSeconds: 120,
 };
 const auth = createAuth({ db, config, messenger });
-const deps: Deps = { config, db, auth, storage, messenger };
+const deps: Deps = { config, db, auth, storage, messenger, turnstile: null };
 
 const staffPassword = randomBytes(12).toString('base64url');
 await addStaff(deps, { email: 'owner@sandbox.test', name: 'Sandbox Owner', role: 'owner', password: staffPassword });
@@ -158,7 +159,10 @@ for (const [index, member] of SEED.entries()) {
 
 const PLAN_IDS = ['starter_1m', 'premium_3m', 'premium_6m'];
 const sandboxApp = new Hono();
-/** Plans are bought in Stage 4; here a test plan is granted directly. Not reachable through the member app. */
+/**
+ * A shortcut for testing: grants a plan directly. The real path is a payment the owner approves in the owner
+ * workspace (the owner first enters the payment details; none are pre-filled). Not reachable through the member app.
+ */
 sandboxApp.post('/sandbox/plans', async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as { profileId?: string; planId?: string };
   const planId = body.planId ?? 'starter_1m';

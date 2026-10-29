@@ -42,8 +42,9 @@ To try the member and staff screens without Neon, Resend, SMS or R2, run `npm ru
 invitation links and the staff password print in that terminal; nothing is sent, and everything is gone when it
 stops. It can run beside `npm run dev`. Four synthetic test members (verified and published, `@sandbox.test`) are
 ready to sign in, and a test plan can be granted to any profile with
-`curl -X POST http://127.0.0.1:8788/sandbox/plans -H 'content-type: application/json' -d '{"profileId":"…"}'`
-(plans are bought in Stage 4). The API is not reloaded on code changes: restart the sandbox after pulling.
+`curl -X POST http://127.0.0.1:8788/sandbox/plans -H 'content-type: application/json' -d '{"profileId":"…"}'`.
+That is a shortcut: buying a plan for real needs the owner (`owner@sandbox.test`) to enter payment details first, as
+nothing is pre-filled. The API is not reloaded on code changes: restart the sandbox after pulling.
 
 One deployable folder for static hosting: `npm run build:site` → `dist/site/`
 (website at `/`, member app at `/app/`); preview it with `npm run preview:site` (http://localhost:8080).
@@ -53,5 +54,6 @@ Checks: `npm run typecheck`, `npm test` and `npm run build`.
 ## Secrets
 
 Never commit real keys; only `*.example` files are tracked. Browser-visible values start with
-`VITE_` and must be public. Database, auth, Resend, SMS and R2 secrets live only in `apps/api/.env`
-locally and in the API host's secret store (Fly.io / Railway) when deployed.
+`VITE_` and must be public. Database, auth, Resend, SMS, R2 and Turnstile secrets live only in `apps/api/.env`
+locally and in the API host's secret store (Fly.io / Railway) when deployed. The Turnstile bot check stays off while
+`TURNSTILE_SECRET_KEY` is empty; production refuses to start without it.

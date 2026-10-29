@@ -10,18 +10,25 @@
  * Every run must log a run id, counts and failures, never document contents (spec 10.2).
  */
 import PgBoss from 'pg-boss';
+import type { Config } from '../config.ts';
 import type { Db } from '../db/types.ts';
 import { log } from '../lib/log.ts';
+import type { Messenger } from '../messaging/messenger.ts';
 import type { Storage } from '../storage/storage.ts';
+import { sendNotifications } from './notifications.ts';
+import { queueExpiryWarnings } from './plan-expiry.ts';
 import { purgeDocuments } from './purge-documents.ts';
 
 export const QUEUES = {
   documentsPurge: 'documents.purge',
   retentionSweep: 'retention.sweep',
   notificationsSend: 'notifications.send',
+  planExpiry: 'plans.expiry_warnings',
 } as const;
 
-export async function startJobs(deps: { db: Db; storage: Storage }, connectionString: string): Promise<PgBoss> {
+type JobDeps = { db: Db; storage: Storage; messenger: Messenger; config: Config };
+
+export async function startJobs(deps: JobDeps, connectionString: string): Promise<PgBoss> {
   const boss = new PgBoss({ connectionString, schema: 'pgboss' });
   boss.on('error', (err) => log.error('jobs.error', { message: err.message }));
   await boss.start();
@@ -30,6 +37,9 @@ export async function startJobs(deps: { db: Db; storage: Storage }, connectionSt
   // Times are UTC. 20:30 UTC = 02:00 Sri Lanka time.
   await boss.schedule(QUEUES.documentsPurge, '30 20 * * *');
   await boss.schedule(QUEUES.retentionSweep, '45 20 * * *');
+  // 03:30 UTC = 09:00 Sri Lanka time, so warnings arrive in the morning.
+  await boss.schedule(QUEUES.planExpiry, '30 3 * * *');
+  await boss.schedule(QUEUES.notificationsSend, '*/2 * * * *');
 
   await boss.work(QUEUES.documentsPurge, async () => {
     const result = await purgeDocuments(deps);
@@ -39,8 +49,11 @@ export async function startJobs(deps: { db: Db; storage: Storage }, connectionSt
   await boss.work(QUEUES.retentionSweep, async ([job]) => {
     log.info('jobs.retention_sweep.noop', { jobId: job?.id, note: 'implemented in Stage 5' });
   });
-  await boss.work(QUEUES.notificationsSend, async ([job]) => {
-    log.info('jobs.notifications_send.noop', { jobId: job?.id, note: 'implemented in Stage 3' });
+  await boss.work(QUEUES.planExpiry, async () => {
+    await queueExpiryWarnings(deps);
+  });
+  await boss.work(QUEUES.notificationsSend, async () => {
+    await sendNotifications(deps);
   });
 
   log.info('jobs.started', { queues: Object.values(QUEUES).join(',') });

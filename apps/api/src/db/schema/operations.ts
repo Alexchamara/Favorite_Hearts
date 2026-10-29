@@ -50,6 +50,8 @@ export const notificationOutbox = pgTable(
       .default(sql`'{}'::jsonb`),
     status: notificationStatus('status').notNull().default('queued'),
     attempts: smallint('attempts').notNull().default(0),
+    /** When a sender took it; a send that died is retried after a while (jobs/notifications.ts). */
+    claimedAt: at('claimed_at'),
     lastError: text('last_error'),
     createdAt: createdAt(),
     sentAt: at('sent_at'),

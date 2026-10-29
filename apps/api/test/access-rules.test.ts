@@ -9,7 +9,7 @@ import { randomUUID } from 'node:crypto';
 import { before, describe, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { PGlite } from '@electric-sql/pglite';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, sql, type SQL } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/pglite';
 import { migrate } from 'drizzle-orm/pglite/migrator';
 import { runAsActor, setActor, type Actor } from '../src/db/actor.ts';
@@ -246,6 +246,16 @@ const sorted = (rows: { id: string }[]) => rows.map((r) => r.id).sort();
 const profileIds = (tx: Tx) => tx.select({ id: s.profile.id }).from(s.profile).then(sorted);
 const contactsOf = (tx: Tx, profileId: string) =>
   tx.select().from(s.privateContact).where(eq(s.privateContact.profileId, profileId));
+/** One row's `result` column from a raw query. */
+const call = async <T>(tx: Tx, query: SQL): Promise<T> => ((await tx.execute(query)).rows[0] as { result: T }).result;
+/** Test-only account details (clearly not real ones), so members can start a payment. */
+const enableBankTransfer = (as: As) =>
+  as(olga, (tx) =>
+    tx
+      .update(s.paymentChannelSetting)
+      .set({ enabled: true, instructions: 'TEST ONLY - not a real account', updatedByUserId: u.olga })
+      .where(eq(s.paymentChannelSetting.channel, 'lkr_bank_transfer')),
+  );
 const newPayment = (overrides: Partial<typeof s.paymentSubmission.$inferInsert> = {}) => ({
   profileId: P.A,
   payerUserId: u.alice,
@@ -350,9 +360,7 @@ describe('private details: contacts and gallery (OWNER-DECISIONS sections 3, 4, 
 
   test("the member's own plan ending hides them (section 3)", () =>
     scenario(async (as) => {
-      await as(alice, (tx) =>
-        tx.insert(s.entitlementEvent).values({ profileId: P.A, kind: 'forfeit', actorUserId: u.alice, reason: 'engaged' }),
-      );
+      await as(olga, (tx) => tx.execute(sql`select app.revoke_plan(${P.A}, 'Plan ended for this test')`));
       assert.equal((await as(alice, (tx) => contactsOf(tx, P.B))).length, 0);
     }));
 
@@ -381,7 +389,7 @@ describe('interests and the sender blur (sections 1, 4)', () => {
 
   test('once the receiver has a plan, the sender is visible', () =>
     scenario(async (as) => {
-      await as(olga, (tx) => tx.insert(s.entitlementEvent).values({ ...grant(P.C), actorUserId: u.olga }));
+      await as(olga, (tx) => tx.execute(sql`select app.grant_plan(${P.C}, 'starter_1m', null, 'Granted for this test')`));
       const seen = await as(carol, (tx) => tx.select().from(s.interest));
       assert.deepEqual(seen.map((i) => i.senderProfileId), [P.A]);
     }));
@@ -524,34 +532,48 @@ describe('staff (sections 9, 10)', () => {
       );
       assert.equal(approved.length, 0);
       await denied(as(vic, (tx) => tx.insert(s.entitlementEvent).values({ ...grant(P.C), actorUserId: u.vic })), RLS);
+      // Section 9, enforced in the database: every payment function refuses anyone but the owner.
+      for (const attempt of [
+        sql`select app.approve_payment(${payA}, 'BOC-1', null)`,
+        sql`select app.reject_payment(${payA}, 'Not found in the statement', null)`,
+        sql`select app.grant_plan(${P.C}, 'starter_1m', null, 'Trying as the reviewer')`,
+        sql`select app.owner_payments(null, null)`,
+        sql`select app.set_price('starter_1m', 'LKR', 1)`,
+      ]) {
+        await denied(as(vic, (tx) => tx.execute(attempt)), /payment_owner_only/);
+      }
+      const settings = await as(vic, (tx) => tx.update(s.paymentChannelSetting).set({ enabled: true, instructions: 'TEST ONLY reviewer' }).returning());
+      assert.equal(settings.length, 0, 'the reviewer cannot change where members pay');
     }));
 
   test('the owner approves a payment exactly once', () =>
     scenario(async (as) => {
-      const [approved] = await as(olga, (tx) =>
-        tx
-          .update(s.paymentSubmission)
-          .set({ status: 'approved', settlementRef: 'BOC-2026-10-28-001' })
-          .where(eq(s.paymentSubmission.id, payA))
-          .returning(),
-      );
+      const approve = (id: string, settlement: string) =>
+        as(olga, (tx) => call<{ status: string }>(tx, sql`select app.approve_payment(${id}, ${settlement}, null) as result`));
+      // Approval checks the plan rules again: Alice still has 29 days of Starter, too early to renew it.
+      await denied(approve(payA, 'BOC 2026-10-28 001'), /plan_change_too_early/);
+      await as(olga, (tx) => tx.execute(sql`select app.revoke_plan(${P.A}, 'Ended for this test')`));
+      assert.equal((await approve(payA, 'BOC 2026-10-28 001')).status, 'approved');
+      // A repeat (double click, retry) changes nothing; the statement line is compared without case or spaces.
+      assert.equal((await approve(payA, ' boc 2026-10-28   001 ')).status, 'already_approved');
+      const [approved] = await as(olga, (tx) => tx.select().from(s.paymentSubmission).where(eq(s.paymentSubmission.id, payA)));
       assert.equal(approved?.reviewedByUserId, u.olga);
-      const activate = () =>
-        as(olga, (tx) => tx.insert(s.entitlementEvent).values({ ...grant(P.A), paymentSubmissionId: payA, actorUserId: u.olga }));
-      await activate();
-      await denied(activate(), /entitlement_event_one_grant_per_payment_idx/);
-
-      const second = randomUUID();
-      await as(alice, (tx) => tx.insert(s.paymentSubmission).values(newPayment({ id: second })));
+      const grants = await as(olga, (tx) => tx.select().from(s.entitlementEvent).where(eq(s.entitlementEvent.paymentSubmissionId, payA)));
+      assert.equal(grants.length, 1);
+      // Plan history and payments are written only by the functions, not directly, even by the owner.
       await denied(
-        as(olga, (tx) =>
-          tx
-            .update(s.paymentSubmission)
-            .set({ status: 'approved', settlementRef: 'BOC-2026-10-28-001' })
-            .where(eq(s.paymentSubmission.id, second)),
-        ),
-        /settlement_ref_unique/,
+        as(olga, (tx) => tx.insert(s.entitlementEvent).values({ ...grant(P.A), paymentSubmissionId: payA, actorUserId: u.olga })),
+        RLS,
       );
+      assert.equal((await as(olga, (tx) => tx.update(s.paymentSubmission).set({ status: 'pending_review' }).returning())).length, 0);
+
+      // The same statement line cannot pay for a second payment.
+      await enableBankTransfer(as);
+      const second = await as(bob, (tx) =>
+        call<string>(tx, sql`select app.start_payment(${P.B}, 'premium_3m', 'LK', 'lkr_bank_transfer', 'refund-v1', true) as result`),
+      );
+      await as(bob, (tx) => tx.execute(sql`select app.attach_payment_proof(${second}, 'payment-proofs/test/b1')`));
+      await denied(approve(second, 'boc 2026-10-28 001'), /payment_settlement_used/);
     }));
 
   test('claiming a staff role is not enough', () =>
@@ -559,26 +581,46 @@ describe('staff (sections 9, 10)', () => {
       assert.equal((await as(mallory, (tx) => tx.select().from(s.paymentSubmission))).length, 0);
       assert.equal((await as(otto, (tx) => tx.select().from(s.paymentSubmission))).length, 0, 'owner without two-step login');
       assert.equal((await as(olga, (tx) => tx.select().from(s.paymentSubmission))).length, 1);
+      await denied(as(mallory, (tx) => tx.execute(sql`select app.approve_payment(${payA}, 'BOC-1', null)`)), /payment_owner_only/);
+      await denied(as(otto, (tx) => tx.execute(sql`select app.approve_payment(${payA}, 'BOC-1', null)`)), /payment_owner_only/);
     }));
 
-  test('members see only their own payments and must use the current price', () =>
+  test('members see only their own payments, and a payment always takes the current price', () =>
     scenario(async (as) => {
       assert.equal((await as(bob, (tx) => tx.select().from(s.paymentSubmission))).length, 0);
       assert.equal((await as(alice, (tx) => tx.select().from(s.paymentSubmission))).length, 1);
       await denied(as(alice, (tx) => tx.insert(s.paymentSubmission).values(newPayment({ amountMinor: 100 }))), RLS);
-      await denied(as(alice, (tx) => tx.insert(s.paymentSubmission).values(newPayment({ profileId: P.B }))), RLS);
+      await enableBankTransfer(as);
+      const id = await as(carol, (tx) =>
+        call<string>(tx, sql`select app.start_payment(${P.C}, 'starter_1m', 'LK', 'lkr_bank_transfer', 'refund-v1', false) as result`),
+      );
+      const [row] = await as(carol, (tx) => tx.select().from(s.paymentSubmission).where(eq(s.paymentSubmission.id, id)));
+      assert.equal(row?.priceVersionId, starterLocal.id);
+      assert.equal(row?.amountMinor, 300000);
+      assert.match(row?.reference ?? '', /^FH[2-9A-HJKMNP-Z]{6}$/);
+      assert.equal((await as(bob, (tx) => tx.select().from(s.paymentSubmission).where(eq(s.paymentSubmission.id, id)))).length, 0);
+      await denied(
+        as(carol, (tx) => tx.execute(sql`select app.start_payment(${P.B}, 'starter_1m', 'LK', 'lkr_bank_transfer', 'refund-v1', false)`)),
+        /payment_not_allowed/,
+      );
     }));
 
   test('the payer can attach proof but not approve', () =>
     scenario(async (as) => {
-      const id = randomUUID();
-      await as(alice, (tx) => tx.insert(s.paymentSubmission).values(newPayment({ id })));
-      const update = (status: 'pending_review' | 'approved') =>
-        as(alice, (tx) =>
-          tx.update(s.paymentSubmission).set({ status, proofKey: 'payment-proofs/a2' }).where(eq(s.paymentSubmission.id, id)).returning(),
-        );
-      await denied(update('approved'), /only the owner reviews payments/);
-      assert.equal((await update('pending_review')).length, 1);
+      await enableBankTransfer(as);
+      const id = await as(carol, (tx) =>
+        call<string>(tx, sql`select app.start_payment(${P.C}, 'starter_1m', 'LK', 'lkr_bank_transfer', 'refund-v1', false) as result`),
+      );
+      const direct = await as(carol, (tx) =>
+        tx.update(s.paymentSubmission).set({ status: 'pending_review', proofKey: 'payment-proofs/c1' }).where(eq(s.paymentSubmission.id, id)).returning(),
+      );
+      assert.equal(direct.length, 0, 'no direct updates');
+      await denied(as(bob, (tx) => tx.execute(sql`select app.attach_payment_proof(${id}, 'payment-proofs/b')`)), /payment_not_found/);
+      await as(carol, (tx) => tx.execute(sql`select app.attach_payment_proof(${id}, 'payment-proofs/c1')`));
+      const [row] = await as(carol, (tx) => tx.select().from(s.paymentSubmission).where(eq(s.paymentSubmission.id, id)));
+      assert.equal(row?.status, 'pending_review');
+      await denied(as(carol, (tx) => tx.execute(sql`select app.approve_payment(${id}, 'BOC-9', null)`)), /payment_owner_only/);
+      assert.equal((await as(carol, (tx) => tx.select().from(s.entitlementEvent).where(eq(s.entitlementEvent.profileId, P.C)))).length, 0);
     }));
 });
 

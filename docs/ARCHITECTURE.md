@@ -233,6 +233,52 @@ Server side (3a). The rules live in `drizzle/0007_requests_and_privacy.sql`; the
   forfeited and open requests close; connections stay on record. The profile may be published again later, without
   the forfeited plan.
 
+## Plans and payments (Stage 4)
+
+Server side (4a). The rules live in `drizzle/0009_payment_rules.sql`; the routes are `src/routes/billing.ts`
+(members and the public catalogue) and `src/routes/owner.ts` (owner only).
+
+- **Plans the owner manages.** Each plan has a name, a level, a length in months and request limits. Prices are
+  versioned rows in minor units: a new price closes the current version, so a payment already started keeps its quote.
+  A plan anyone ever bought or was granted is retired, never deleted. `GET /api/v1/plans` is public.
+- **Which price (section 2).** The payer declares their country of residence. Sri Lanka pays the local LKR price,
+  anywhere else the diaspora USD price. LKR arrives by local bank transfer; USD by SWIFT, Wise or PayPal.
+- **Payment details (section 9).** Only the owner enters them, per method, in `payment_channel_setting`. Every method
+  starts off and empty. Members see a method's details only once the owner has switched it on. Each change is audited
+  with the details before and after.
+- **A payment's life.**
+  1. The member starts it (`start_payment`). They confirm the refund terms (`refund-v1`) and, for an upgrade or a
+     renewal, the days they lose. They get a unique reference: `FH` and 6 characters, without 0/O or 1/I/L.
+  2. They add receipt images (`attach_payment_proof`). These are re-encoded by sharp into the private bucket, at most
+     5, and every one is kept.
+  3. The owner finds the transfer in the real statement and approves it with that statement line
+     (`approve_payment`). One payment per profile can be open at a time; before a receipt the member can cancel.
+  - The owner can also hold a payment for more (the member's next receipt puts it back in review), reject it (the
+    reason is shown to the member), or refund it.
+- **Approval, exactly once.** In one transaction it locks the payment and the profile, re-checks the plan rules (time
+  may have passed), adds one grant or replacement that starts now, and queues the payer's email. A repeat with the
+  same statement line returns the first result. A statement line (compared without case or extra spaces) can be used
+  by one payment only, and a unique index allows one grant per payment.
+- **Plan changes (owner decision, 29 Oct 2026).** A higher level is an upgrade and replaces the plan on approval; the
+  unused days are lost. The same level renews only in the last 7 days. A lower level is blocked while a plan is active.
+  Every new term starts at approval and lasts whole calendar months on the Sri Lanka clock.
+- **Renewal grace (owner decision).** After the end, access continues for up to 3 days while a receipt sent before the
+  end waits for review (in review or held). A rejection ends it at once.
+- **Refunds and disputes (section 9).** Only for a duplicate payment, a mistaken payment or a failure on our side. The
+  owner decides whether the plan that payment bought ends now. Disputes and suspensions use a manual revoke with a
+  reason; the owner can also grant a plan without a payment, with a reason.
+- **The owner's queue.** `app.owner_payments` lists waiting payments first, oldest receipt first, with residence
+  flags for review: the profile's country differs, or the phone country does not match the declared residence. It
+  finds a payment by its reference or statement line. Each look at a receipt is audited.
+- **Takeover (section 5).** The plan belongs to the profile, so the candidate keeps the paid time. The former
+  manager's payments that never got a receipt are cancelled, and the candidate never sees the manager's payments.
+- **Owner only, twice over.** The `/api/v1/owner` routes need the owner role with two-step login. Every payment
+  function checks `app.is_owner()` again, and the backup reviewer sees no payments, receipts, plan history or their
+  audit entries.
+- **Emails.** Payment decisions go to the payer. Expiry warnings go to everyone running the profile: 7 days before the
+  end, on the last day, and once it has ended. They state the date and what will be hidden. They are queued in
+  `notification_outbox` in the same transaction as the event, so each is sent once.
+
 ## Database access
 
 Tables (`apps/api/src/db/schema/`) follow spec 12.1. Discoverable profile fields live in `profile`. Private data has
@@ -304,4 +350,15 @@ returns a signed URL valid for `SIGNED_URL_TTL_SECONDS` (default 120 s). No publ
 
 pg-boss runs in the API process on one instance (`RUN_JOBS=true`), using the direct Neon
 connection. Scheduled daily at 02:00 / 02:15 Sri Lanka time: `documents.purge` (D8, 90 days),
-`retention.sweep` (6-month records). `notifications.send` drains the notification outbox.
+`retention.sweep` (6-month records). `plans.expiry_warnings` runs daily at 09:00 Sri Lanka time and queues the expiry
+emails. `notifications.send` runs every 2 minutes and drains the notification outbox through Resend. It claims each
+row first and passes the event key as Resend's idempotency key, so a retry never sends twice. It gives up after 5
+attempts and skips phone-only accounts until SMS exists.
+
+## Bot check (Turnstile)
+
+Every endpoint that sends a code or checks a password needs a Cloudflare Turnstile token in the
+`X-Captcha-Response` header. The API verifies it with Cloudflare (`src/middleware/turnstile.ts`) before anything is
+sent. The check is off while `TURNSTILE_SECRET_KEY` is empty (local development) and required in production. If
+Cloudflare cannot be reached, it fails closed. The browser widget arrives with the 4b screens; the site key and the
+secret come from the owner's Cloudflare account.

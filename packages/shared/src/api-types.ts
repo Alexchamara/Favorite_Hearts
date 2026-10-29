@@ -2,16 +2,23 @@
  * Response shapes of the API (/api/v1). The API annotates its responses with these types and the
  * member app reads them, so both sides compile against one contract. Dates arrive as ISO strings.
  */
+import type { PLAN_BLOCK_REASONS, PLAN_CHANGE_KINDS } from './billing.ts';
 import type {
   CONTACT_KINDS,
   CONTACT_PERSONS,
+  CURRENCIES,
   DOCUMENT_TYPES,
+  ENTITLEMENT_KINDS,
   INTEREST_STATUSES,
   INVITATION_CHANNELS,
   LOCALES,
   MANAGER_RELATIONSHIPS,
+  PAYMENT_CHANNELS,
+  PAYMENT_STATUSES,
+  PLAN_TIERS,
   PROFILE_MANAGEMENT,
   PROFILE_STATUSES,
+  REFUND_REASONS,
   REPORT_CATEGORIES,
   REPORT_STATUSES,
   SOCIAL_PLATFORMS,
@@ -245,7 +252,11 @@ export type BlockView = { id: string; profileId: string | null; displayName: str
 export type PlanUsage = {
   active: boolean;
   planId: string | null;
+  planName: string | null;
   endsAt: ApiDate | null;
+  /** The plan has ended but a renewal receipt sent in time is waiting for review (up to 3 days). */
+  inGrace: boolean;
+  graceEndsAt: ApiDate | null;
   daily: { used: number; cap: number } | null;
   monthly: { used: number; cap: number } | null;
 };
@@ -264,4 +275,175 @@ export type StaffReportItem = {
 export type StaffReportContent = {
   profile: Omit<MemberProfileView, 'relation' | 'contactsHidden'>;
   reportedPhotoId: string | null;
+};
+
+// --- Plans and payments (Stage 4) ---------------------------------------------------------------------------
+
+type Currency = (typeof CURRENCIES)[number];
+type PaymentChannel = (typeof PAYMENT_CHANNELS)[number];
+type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
+
+export type PlanPrice = { currency: Currency; amountMinor: number; priceVersionId: string };
+
+/** A plan as members see it: the owner's current name, limits and prices. */
+export type PlanView = {
+  id: string;
+  name: string;
+  description: string | null;
+  tier: (typeof PLAN_TIERS)[number];
+  level: number;
+  termMonths: number;
+  dailyRequestCap: number;
+  monthlyRequestCap: number | null;
+  prices: PlanPrice[];
+};
+
+/** What buying the plan would do now: upgrades and renewals start on approval, so remaining days are lost. */
+export type PlanChange = {
+  kind: (typeof PLAN_CHANGE_KINDS)[number];
+  reason: (typeof PLAN_BLOCK_REASONS)[number] | null;
+  lostDays: number;
+  renewalOpensAt: ApiDate | null;
+};
+
+export type PlanOption = PlanView & { change: PlanChange };
+
+export type CurrentPlan = {
+  planId: string | null;
+  planName: string | null;
+  level: number | null;
+  startsAt: ApiDate;
+  endsAt: ApiDate;
+  inGrace: boolean;
+  graceEndsAt: ApiDate | null;
+};
+
+/** A member's own payment. `instructions` (the owner's account details) only while it is still open. */
+export type PaymentView = {
+  id: string;
+  profileId: string | null;
+  reference: string;
+  status: PaymentStatus;
+  planId: string;
+  planName: string | null;
+  termMonths: number | null;
+  currency: Currency;
+  amountMinor: number;
+  channel: PaymentChannel;
+  residenceCountry: string | null;
+  changeKind: string | null;
+  lostDays: number | null;
+  /** The owner's message: why it was rejected, or what is needed. */
+  message: string | null;
+  refundReason: (typeof REFUND_REASONS)[number] | null;
+  proofCount: number;
+  createdAt: ApiDate;
+  proofSubmittedAt: ApiDate | null;
+  reviewedAt: ApiDate | null;
+  instructions: string | null;
+};
+
+export type ChannelAvailability = { channel: PaymentChannel; currency: Currency; available: boolean };
+
+export type BillingOverview = {
+  profileId: string;
+  current: CurrentPlan | null;
+  openPayment: PaymentView | null;
+  options: PlanOption[];
+  channels: ChannelAvailability[];
+  /** The payer's own payments for this profile (never another payer's, e.g. a former manager's). */
+  history: PaymentView[];
+  residenceCountry: string | null;
+  refundTermsVersion: string;
+};
+
+// --- Owner ---------------------------------------------------------------------------------------------------
+
+export type PriceHistoryItem = {
+  id: string;
+  currency: Currency;
+  amountMinor: number;
+  effectiveFrom: ApiDate;
+  effectiveTo: ApiDate | null;
+};
+
+export type OwnerPlanView = PlanView & {
+  active: boolean;
+  sortOrder: number;
+  createdAt: ApiDate;
+  priceHistory: PriceHistoryItem[];
+  /** A plan that was ever bought or granted cannot be deleted, only retired. */
+  usage: { payments: number; grants: number };
+};
+
+export type PaymentSettingView = {
+  channel: PaymentChannel;
+  currency: Currency;
+  enabled: boolean;
+  instructions: string | null;
+  updatedAt: ApiDate | null;
+};
+
+/** §2: signs that the declared residence (and so the price band) may not match; for review, never automatic. */
+export type ResidenceFlag = 'profile_country_differs' | 'phone_country_differs' | 'no_country_declared';
+
+export type OwnerPaymentItem = {
+  id: string;
+  reference: string;
+  status: PaymentStatus;
+  createdAt: ApiDate;
+  proofSubmittedAt: ApiDate | null;
+  reviewedAt: ApiDate | null;
+  profile: { id: string | null; displayName: string | null; countryCode: string | null };
+  payer: { userId: string | null; name: string | null; email: string | null; phone: string | null };
+  plan: { id: string; name: string | null; level: number | null; termMonths: number | null };
+  currency: Currency;
+  amountMinor: number;
+  channel: PaymentChannel;
+  residenceCountry: string | null;
+  residenceFlags: ResidenceFlag[];
+  changeKind: string | null;
+  lostDays: number | null;
+  proofCount: number;
+  settlementRef: string | null;
+  message: string | null;
+  ownerNote: string | null;
+  refundReason: (typeof REFUND_REASONS)[number] | null;
+};
+
+export type EntitlementView = {
+  id: string;
+  kind: (typeof ENTITLEMENT_KINDS)[number];
+  planId: string | null;
+  paymentId: string | null;
+  startsAt: ApiDate | null;
+  endsAt: ApiDate | null;
+  reason: string | null;
+  createdAt: ApiDate;
+};
+
+export type AuditView = { action: string; actorRole: string | null; reason: string | null; createdAt: ApiDate };
+
+export type OwnerPaymentDetail = OwnerPaymentItem & {
+  proofs: { id: string; uploadedAt: ApiDate }[];
+  /** Recomputed now: approval re-checks the plan rules because time may have passed. */
+  changeNow: PlanChange | null;
+  entitlements: EntitlementView[];
+  history: AuditView[];
+};
+
+export type ApprovalResult = {
+  status: 'approved' | 'already_approved';
+  entitlementId: string;
+  kind: 'grant' | 'replace';
+  startsAt: ApiDate;
+  endsAt: ApiDate;
+  lostDays: number;
+};
+
+export type OwnerProfilePlan = {
+  profileId: string;
+  current: CurrentPlan | null;
+  entitlements: EntitlementView[];
+  payments: OwnerPaymentItem[];
 };
