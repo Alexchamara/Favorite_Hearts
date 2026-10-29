@@ -501,6 +501,7 @@ Server (3a):
 - [x] Server-side blurred photos, the cover toggle, and up to 5 photos (P07).
 - [x] Owner decided unverified browsing and family-detail visibility (N04, N06).
 - [x] Concurrent requests: one database function per action, with locks on the profile or the pair.
+- [x] Apply migrations 0006–0007 to the Neon dev database (29 Oct 2026; output in the Stage 3a evidence).
 
 Screens (3b):
 
@@ -1185,9 +1186,32 @@ advisory lock: { advisory_lock_calls: 1 }
 after rollback: { moderation_column: false, send_interest_exists: false, app_functions: 48 }
 ```
 
-Policies went from 68 to 62 because the six direct-insert policies were removed. Migrations 0006 and 0007 are **not
-applied** to Neon dev. Until they are, the new routes fail on the regular dev stack (`npm run dev`); the sandbox
-applies every migration on start.
+Policies went from 68 to 62 because the six direct-insert policies were removed.
+
+### Applied to the Neon dev database
+
+`npm run db:migrate` (owner's go-ahead, 29 Oct 2026): `[✓] migrations applied successfully!`
+
+Read-only check afterwards. The `fh_app` part ran in a transaction that was rolled back:
+
+```text
+migrations: { recorded: 8 }
+schema: { app_functions: 67, policies: 62, insert_policies_on_closed_tables: 0, moderation_column: true,
+  disclosure_trigger: true,
+  action_functions: 'accept_interest, block_profile, end_connection, file_report, mark_engaged, member_cards,
+    review_report, send_interest',
+  internal_helpers_callable_by_fh_app: 0 }
+as fh_app (anonymous, rolled back): { role: 'fh_app', verified: false, profiles_visible: 0 }
+direct interest insert: denied: new row violates row-level security policy for table "interest"
+send_interest without a member: refused: interest_not_allowed
+```
+
+The running dev API serves the new routes against Neon. Without a session they answer `401 UNAUTHENTICATED`:
+`/api/v1/discover`, `/api/v1/discover/:id`, `/api/v1/profiles/:id/interests`, `/api/v1/reports`,
+`/api/v1/interests/:id/accept` and `/api/v1/staff/reports`. An unknown route answers `404 NOT_FOUND`, and
+`GET /health` returned `{"ok":true,"database":true,"email":true,"sms":false,"storage":true}`. Signed-in flows were
+not run against Neon: sign-in codes reach only the Resend account owner's inbox. They are covered by the PGlite tests
+above.
 
 ### `npm run typecheck` and `npm run build`
 
@@ -1197,7 +1221,6 @@ and the website built 22 pages.
 ### Not done in 3a
 
 - The screens (3b).
-- Applying 0006–0007 to Neon dev, on the owner's go-ahead.
 - Boosts, featured profiles and shortlist limits (N01–N03): not built until the owner decides.
 - The 2-re-sends-per-pair cap: recommended only, not built (O04).
 - Lock contention under real load: Stage 6.
