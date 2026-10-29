@@ -28,6 +28,7 @@ const rejected = (res: Res, status: number, code: string) => {
   assert.equal(res.body.code, code);
 };
 const days = (n: number) => new Date(Date.now() + n * 86_400_000);
+const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 
 let phoneSeq = 100;
 const nextPhone = () => `+9477123${String(phoneSeq++).padStart(4, '0')}`;
@@ -204,6 +205,7 @@ describe('requests: plan, limits and the 7-day wait (sections 1, 2, 4)', () => {
     const withdrawn = sent.find((i: { id: string }) => i.id === first.id);
     assert.equal(withdrawn.status, 'withdrawn');
     assert.ok(new Date(withdrawn.cooldownUntil).getTime() > Date.now() + 6 * 86_400_000);
+    assert.match(withdrawn.cooldownUntil, ISO);
 
     await t.db.update(interest).set({ respondedAt: days(-8) }).where(eq(interest.id, first.id));
     const resent = ok(await send(amal, esha), 201);
@@ -243,6 +245,7 @@ describe('the sender blur and connections (sections 1, 3, 4)', () => {
     assert.equal(received.identified, false);
     assert.equal(received.previews.length, 1);
     assert.equal(received.previews[0].senderAge, 33);
+    assert.match(received.previews[0].receivedAt, ISO, 'dates are ISO 8601 whatever the database driver');
     const text = JSON.stringify(received);
     assert.equal(text.includes(amal.profileId) || text.includes('Amal'), false, 'no sender identity in the response');
     rejected(await chathu.client.post(`/api/v1/interests/${received.previews[0].id}/accept`), 403, 'PLAN_REQUIRED');
@@ -425,6 +428,17 @@ describe('reports and moderation (section 7)', () => {
     assert.equal(seen.id, bina.profileId, 'the profile itself stays visible');
     const own = ok(await bina.client.get(`/api/v1/profiles/${bina.profileId}/photos`)).photos;
     assert.equal(own[0].hidden, true, 'the owner sees it marked hidden');
+
+    // Staff see the reported content, hidden photo included, and every look is audited.
+    const item = ok(await reviewer.get('/api/v1/staff/reports')).reports.find((r: { target: { photoId: string | null } }) => r.target.photoId === photoId);
+    const content = ok(await reviewer.get(`/api/v1/staff/reports/${item.id}/content`));
+    assert.equal(content.reportedPhotoId, photoId);
+    const reported = content.profile.photos.find((p: { id: string }) => p.id === photoId);
+    assert.equal(reported.hidden, true);
+    assert.match(reported.url, /\/private\/photos\//);
+    const [looked] = await t.db.select().from(auditEvent).where(and(eq(auditEvent.entityId, item.id), eq(auditEvent.action, 'report.content_viewed')));
+    assert.ok(looked);
+    rejected(await amal.client.get(`/api/v1/staff/reports/${item.id}/content`), 403, 'FORBIDDEN');
   });
 });
 

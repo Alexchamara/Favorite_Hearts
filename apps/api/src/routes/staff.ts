@@ -12,11 +12,15 @@ import {
   VERIFICATION_STATUSES,
   verificationDecisionSchema,
   type StaffQueueItem,
+  type StaffReportContent,
   type StaffReportItem,
 } from '@fh/shared';
+import { report } from '../db/schema/connections.ts';
+import { profile } from '../db/schema/members.ts';
 import { verificationCase } from '../db/schema/trust.ts';
-import { fail, parse, readJson, withActor, type AppEnv } from '../http.ts';
+import { fail, isoDate, parse, readJson, withActor, type AppEnv } from '../http.ts';
 import { audit } from '../lib/audit.ts';
+import { memberProfileView, visiblePhotos } from '../lib/member-view.ts';
 import { rows } from '../lib/profile-view.ts';
 import { requireStaff } from '../middleware/session.ts';
 
@@ -109,7 +113,7 @@ staff.get('/reports', async (c) => {
       category: r.category,
       detail: r.detail,
       status: r.status,
-      createdAt: r.created_at,
+      createdAt: isoDate(r.created_at),
       target: { profileId: r.target_profile_id, displayName: r.target_name, photoId: r.target_photo_id, hidden: Boolean(r.hidden) },
       reporter: { profileId: r.reporter_profile_id, displayName: r.reporter_name, dismissedBefore: r.dismissed_before },
     }));
@@ -135,4 +139,23 @@ staff.post('/reports/:id/decision', async (c) => {
     return row!.hidden;
   });
   return c.json({ id, status: input.decision, contentHidden: hidden });
+});
+
+/**
+ * The reported content as members see it, with every photo (hidden ones too), so staff can decide.
+ * Every look is audited, like opening a document.
+ */
+staff.get('/reports/:id/content', async (c) => {
+  const id = parse(z.uuid(), c.req.param('id'));
+  const content = await withActor(c, async (tx): Promise<StaffReportContent> => {
+    const [found] = await tx.select({ profileId: report.targetProfileId, photoId: report.targetPhotoId }).from(report).where(eq(report.id, id));
+    if (!found) fail(404, 'NOT_FOUND', 'Report not found.');
+    const [row] = found.profileId ? await tx.select().from(profile).where(eq(profile.id, found.profileId)) : [];
+    if (!row) fail(410, 'CONTENT_DELETED', 'The reported profile no longer exists.');
+    const view = await memberProfileView(c, tx, row);
+    const photos = (await visiblePhotos(c, tx, [row.id])).get(row.id) ?? [];
+    await audit(c, tx, { action: 'report.content_viewed', entityType: 'report', entityId: id });
+    return { profile: { ...view, photos }, reportedPhotoId: found.photoId };
+  });
+  return c.json(content);
 });

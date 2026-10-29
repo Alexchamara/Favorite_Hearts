@@ -79,3 +79,13 @@ export function pgError(err: unknown): PgError | null {
   }
   return null;
 }
+
+/**
+ * Timestamps read through raw SQL arrive as driver-specific values (a Date from node-postgres, Postgres text
+ * from PGlite). Responses always carry ISO 8601, so every browser parses them the same way.
+ */
+export function isoDate(value: string | Date): string;
+export function isoDate(value: string | Date | null): string | null;
+export function isoDate(value: string | Date | null): string | null {
+  return value === null ? null : new Date(value).toISOString();
+}

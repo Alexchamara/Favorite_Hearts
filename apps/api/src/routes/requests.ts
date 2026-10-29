@@ -19,7 +19,7 @@ import {
 } from '@fh/shared';
 import { block, connection, interest } from '../db/schema/connections.ts';
 import { profile } from '../db/schema/members.ts';
-import { fail, parse, readJson, withActor, type AppEnv, type Tx } from '../http.ts';
+import { fail, isoDate, parse, readJson, withActor, type AppEnv, type Tx } from '../http.ts';
 import { cardsById, scalar, sharedContacts } from '../lib/member-view.ts';
 import { operatedProfile, ownProfileView, rows } from '../lib/profile-view.ts';
 import { requireMember } from '../middleware/session.ts';
@@ -60,7 +60,7 @@ profileRequests.get('/:id/interests', async (c) => {
       );
       return {
         identified: false,
-        previews: previews.map((p) => ({ id: p.interest_id, receivedAt: p.received_at, senderAge: p.sender_age, senderOccupation: p.sender_occupation })),
+        previews: previews.map((p) => ({ id: p.interest_id, receivedAt: isoDate(p.received_at), senderAge: p.sender_age, senderOccupation: p.sender_occupation })),
       };
     }
     const pending = await tx
@@ -98,7 +98,7 @@ async function sentInterests(c: Parameters<typeof cardsById>[0], tx: Tx, id: str
       connectionId: connectionOf.get(i.id) ?? null,
       cooldownUntil:
         i.status === 'declined' || i.status === 'withdrawn'
-          ? await scalar<string | null>(tx, sql`app.pair_cooldown_until(${id}, ${i.receiverProfileId})`)
+          ? isoDate(await scalar<string | null>(tx, sql`app.pair_cooldown_until(${id}, ${i.receiverProfileId})`))
           : null,
     })),
   );
@@ -147,7 +147,7 @@ profileRequests.get('/:id/blocks', async (c) => {
     const found = rows<{ block_id: string; profile_id: string | null; display_name: string | null; blocked_at: string }>(
       await tx.execute(sql`select * from app.blocked_profiles(${id})`),
     );
-    return found.map((b) => ({ id: b.block_id, profileId: b.profile_id, displayName: b.display_name, blockedAt: b.blocked_at }));
+    return found.map((b) => ({ id: b.block_id, profileId: b.profile_id, displayName: b.display_name, blockedAt: isoDate(b.blocked_at) }));
   });
   return c.json({ blocks: list });
 });
@@ -208,7 +208,7 @@ profileRequests.get('/:id/plan', async (c) => {
     return {
       active: true,
       planId: row.plan_id,
-      endsAt: row.ends_at,
+      endsAt: isoDate(row.ends_at),
       daily: row.daily_cap === null ? null : { used: row.daily_used, cap: row.daily_cap },
       monthly: row.monthly_cap === null ? null : { used: row.monthly_used, cap: row.monthly_cap },
     };

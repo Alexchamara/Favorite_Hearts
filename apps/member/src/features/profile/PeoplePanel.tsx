@@ -2,23 +2,13 @@
  * Guardian-managed profiles (OWNER-DECISIONS section 5). The manager invites the candidate; the
  * candidate confirms, sets what the manager may do, withdraws consent, or takes the profile over.
  */
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { INVITATION_TTL_HOURS, type InvitationSent, type ProfileView } from '@fh/shared';
 import { SelectField, TextField } from '@/components/form/fields';
 import { Card, Notice } from '@/components/layout';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
+import { Confirm } from '@/components/confirm';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { ApiError, errorMessage, patch, post } from '@/lib/api';
@@ -144,28 +134,6 @@ function InviteForm({ profile }: { profile: ProfileView }) {
         </div>
       </form>
     </Card>
-  );
-}
-
-function Confirm({ trigger, title, children, action, onConfirm, destructive }: { trigger: ReactNode; title: string; children: ReactNode; action: string; onConfirm: () => void; destructive?: boolean }) {
-  return (
-    <AlertDialog>
-      <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{title}</AlertDialogTitle>
-          <AlertDialogDescription asChild>
-            <div className="flex flex-col gap-2 text-sm">{children}</div>
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction variant={destructive ? 'destructive' : 'default'} onClick={onConfirm}>
-            {action}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
   );
 }
 

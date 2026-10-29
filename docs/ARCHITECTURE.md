@@ -134,7 +134,7 @@ member data only through `withActor(c, tx => …)` (`src/http.ts`).
 - **`documents.purge`.** It runs daily and deletes each due file before clearing its key, so a failed delete is retried
   the next night. Each run is logged and audited with counts only.
 
-## Member app screens (Stage 2b)
+## Member app screens (Stages 2b and 3b)
 
 One single-page app at `/app` (`apps/member`, react-router with base `/app`). Members and staff use the same app; the
 staff area is `/app/staff`.
@@ -142,10 +142,15 @@ staff area is `/app/staff`.
 | Route | Screen |
 | --- | --- |
 | `/` | Sign-in with an email code, the account holder's name on first sign-in, then the dashboard: own and managed profiles, creating one, and the verification summary |
-| `/profiles/:id` | Overview (badges, publish and pause), Details in four steps, Contacts, and for guardian-managed profiles the candidate's or manager's panel |
+| `/profiles/:id` | Overview (badges, publishing, the plan's remaining requests, "engaged or married"), Details in four steps, Photos, Contacts, Requests (received, sent), Connections (with blocked profiles), and for guardian-managed profiles the candidate's or manager's panel |
+| `/browse` | Discovery with filters, for verified members |
+| `/members/:id` | Another member's profile: photos (blurred unless allowed), where the acting profile stands, sending a request after seeing what will be shared, blocking and reporting |
 | `/verify` | Phone check by SMS code and the identity-document upload |
 | `/invite#…` | The candidate's invitation: code, then accept (signing in on the spot) or decline (no account) |
-| `/staff` | Staff sign-in with password and two-step login, enrolment, and the document review queue |
+| `/staff` | Staff sign-in with password and two-step login, enrolment, the document review queue and the report queue |
+
+- **Acting profile.** A manager may run several profiles, so `/browse` and `/members/:id` act for the profile in
+  `?as=`. The server checks that the account really operates it.
 
 - **One contract.** The API's response shapes are in `packages/shared/src/api-types.ts`; the API annotates its
   responses with them and the app reads them, so both sides compile against the same types. Forms validate with the
@@ -168,8 +173,13 @@ trying the screens without any service:
 - Files stay in memory; staff see documents as `data:` URLs instead of signed links.
 - Two staff accounts (`owner@sandbox.test`, `reviewer@sandbox.test`) get a random password, printed at start and new
   on every run. Two-step login is set up on first sign-in, as anywhere else.
+- Four synthetic test members are seeded: verified, published, "Sandbox test member" in their bio, two with generated
+  placeholder photos, one on Starter and one on Premium. They sign in with the email code printed in the console.
+- Plans are bought in Stage 4, so the sandbox alone has `POST /sandbox/plans` on its API port to grant a test plan.
+  The member app's proxy does not reach it, and it is not part of the real API.
 - It never reads `apps/api/.env`, listens on 127.0.0.1 only, and uses ports 8788 (API) and 5174 (member app), so it
-  can run beside `npm run dev`. Nothing in it is deployed.
+  can run beside `npm run dev`. `SANDBOX_API_PORT` and `SANDBOX_MEMBER_ORIGIN` move it, e.g. for a second sandbox.
+  Nothing in it is deployed.
 
 ## Requests, connections and privacy (Stage 3)
 

@@ -66,6 +66,8 @@ export type ProfileView = {
   status: (typeof PROFILE_STATUSES)[number];
   version: number;
   firstPublishedAt: ApiDate | null;
+  /** Section 7: whether other members see the cover photo unblurred. */
+  coverPublic: boolean;
   fields: ProfileFields;
   me: { role: 'candidate' | 'manager'; canEdit: boolean; canManageInterests: boolean };
   candidate: { joined: boolean; confirmedAt: ApiDate | null; objectedAt: ApiDate | null };
@@ -256,4 +258,10 @@ export type StaffReportItem = {
   createdAt: ApiDate;
   target: { profileId: string | null; displayName: string | null; photoId: string | null; hidden: boolean };
   reporter: { profileId: string | null; displayName: string | null; dismissedBefore: number };
+};
+
+/** What staff see when deciding a report: the profile as members see it, with every photo (hidden ones too). */
+export type StaffReportContent = {
+  profile: Omit<MemberProfileView, 'relation' | 'contactsHidden'>;
+  reportedPhotoId: string | null;
 };

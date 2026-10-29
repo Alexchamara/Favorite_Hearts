@@ -40,7 +40,10 @@ Open **http://localhost:4321** — the website forwards `/app/` to the member ap
 To try the member and staff screens without Neon, Resend, SMS or R2, run `npm run dev:sandbox` and open
 **http://localhost:5174/app/** (staff: `/app/staff`). It runs the real API on an in-memory database. Sign-in codes,
 invitation links and the staff password print in that terminal; nothing is sent, and everything is gone when it
-stops. It can run beside `npm run dev`.
+stops. It can run beside `npm run dev`. Four synthetic test members (verified and published, `@sandbox.test`) are
+ready to sign in, and a test plan can be granted to any profile with
+`curl -X POST http://127.0.0.1:8788/sandbox/plans -H 'content-type: application/json' -d '{"profileId":"…"}'`
+(plans are bought in Stage 4). The API is not reloaded on code changes: restart the sandbox after pulling.
 
 One deployable folder for static hosting: `npm run build:site` → `dist/site/`
 (website at `/`, member app at `/app/`); preview it with `npm run preview:site` (http://localhost:8080).

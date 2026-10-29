@@ -219,14 +219,17 @@ function Family({ profile }: { profile: ProfileView }) {
 function Lifestyle({ profile }: { profile: ProfileView }) {
   const f = useStep(profile, ['diet', 'smoking', 'drinking', 'childrenPlan', 'communityOpenness']);
   const savedCaste = profile.fields.caste?.value ?? '';
+  // Section 6: "prefer not to say" is an explicit choice, and the default.
+  const [share, setShare] = useState<'prefer_not' | 'share'>(savedCaste ? 'share' : 'prefer_not');
   const [caste, setCaste] = useState(savedCaste);
   const [consent, setConsent] = useState(Boolean(savedCaste));
-  const casteChanged = caste.trim() !== savedCaste;
+  const wanted = share === 'share' ? caste.trim() : '';
+  const casteChanged = wanted !== savedCaste;
   return (
     <Step
       title="Lifestyle and community"
       intro="All optional."
-      onSave={() => f.submit(casteChanged ? { caste: caste.trim() ? { value: caste.trim(), consent } : null } : {})}
+      onSave={() => f.submit(casteChanged ? { caste: wanted ? { value: wanted, consent } : null } : {})}
       saving={f.saving}
       failed={f.failed}
       canEdit={profile.me.canEdit}
@@ -236,24 +239,44 @@ function Lifestyle({ profile }: { profile: ProfileView }) {
       <SelectField label="Smoking" value={f.text('smoking')} onChange={f.set('smoking')} options={options(habitLabels)} placeholder="Not shared" />
       <SelectField label="Drinking" value={f.text('drinking')} onChange={f.set('drinking')} options={options(habitLabels)} placeholder="Not shared" />
       <SelectField className={full} label="Community" value={f.text('communityOpenness')} onChange={f.set('communityOpenness')} options={options(communityLabels)} placeholder="Not shared" />
-      <div className={`${full} flex flex-col gap-3 rounded-[12px] border border-dashed p-4`}>
-        <TextField
-          label="Caste or community (optional)"
-          hint="Shown to signed-in members only, never to visitors, and members can filter by it. Leave empty to not share; you can remove it at any time."
-          maxLength={80}
-          value={caste}
-          onChange={setCaste}
-          error={f.errors.caste ?? f.errors['caste.value']}
-        />
-        {caste.trim() && (
-          <CheckboxField
-            checked={consent}
-            onChange={setConsent}
-            error={f.errors['caste.consent']}
-            label="I agree that this is shown on the profile to signed-in members and can be used in their filters."
-          />
+      <fieldset className={`${full} flex flex-col gap-3 rounded-[12px] border border-dashed p-4`}>
+        <legend className="px-1 text-[13px] font-semibold">Caste or community</legend>
+        {(
+          [
+            ['prefer_not', 'Prefer not to say'],
+            ['share', 'Share it on the profile'],
+          ] as const
+        ).map(([value, text]) => (
+          <label key={value} className="flex items-center gap-3 text-sm">
+            <input
+              type="radio"
+              name={`caste-choice-${profile.id}`}
+              checked={share === value}
+              onChange={() => setShare(value)}
+              className="size-4 accent-[var(--ui-purple)]"
+            />
+            {text}
+          </label>
+        ))}
+        {share === 'share' && (
+          <>
+            <TextField
+              label="Your caste or community"
+              hint="Shown to signed-in members only, never to visitors, and members can filter by it. You can remove it at any time."
+              maxLength={80}
+              value={caste}
+              onChange={setCaste}
+              error={f.errors.caste ?? f.errors['caste.value']}
+            />
+            <CheckboxField
+              checked={consent}
+              onChange={setConsent}
+              error={f.errors['caste.consent']}
+              label="I agree that this is shown on the profile to signed-in members and can be used in their filters."
+            />
+          </>
         )}
-      </div>
+      </fieldset>
     </Step>
   );
 }

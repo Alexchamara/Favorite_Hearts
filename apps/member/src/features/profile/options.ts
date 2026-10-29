@@ -5,6 +5,10 @@
 import type {
   CHILDREN_PLANS,
   COMMUNITY_OPENNESS,
+  CONTACT_KINDS,
+  CONTACT_PERSONS,
+  INTEREST_STATUSES,
+  REPORT_CATEGORIES,
   DIETS,
   DOCUMENT_TYPES,
   FAMILY_INVOLVEMENT,
@@ -131,6 +135,25 @@ export const caseStatusLabels: Labels<typeof VERIFICATION_STATUSES> = {
   pending: 'Waiting for review',
   approved: 'Reviewed and accepted',
   rejected: 'Not accepted',
+};
+export const contactKindLabels: Labels<typeof CONTACT_KINDS> = { phone: 'Phone', email: 'Email', social: 'Social link' };
+export const contactPersonLabels: Labels<typeof CONTACT_PERSONS> = { candidate: 'Candidate', manager: 'Manager' };
+export const interestStatusLabels: Labels<typeof INTEREST_STATUSES> = {
+  pending: 'Waiting for an answer',
+  accepted: 'Accepted',
+  declined: 'Declined',
+  withdrawn: 'Withdrawn',
+};
+/** Section 7: the first four hide the content after one report. */
+export const reportCategoryLabels: Labels<typeof REPORT_CATEGORIES> = {
+  explicit_content: 'Explicit content',
+  minor_safety: 'Involves someone under 18',
+  threat: 'Threats or violence',
+  scam: 'Scam or asking for money',
+  harassment: 'Harassment',
+  false_identity: 'Not who they say they are',
+  consent_concern: 'Listed without their consent',
+  other: 'Something else',
 };
 export const platformLabels: Labels<typeof SOCIAL_PLATFORMS> = {
   instagram: 'Instagram',

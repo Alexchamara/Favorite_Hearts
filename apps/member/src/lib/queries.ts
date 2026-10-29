@@ -2,8 +2,20 @@
  * Server state through TanStack Query: one key per resource, invalidated after every change.
  * The API is the source of truth; screens never keep their own copy of it.
  */
-import { useQuery } from '@tanstack/react-query';
-import type { MeView, ProfileView, VerificationCaseView } from '@fh/shared';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import type {
+  BlockView,
+  ConnectionView,
+  DiscoverPage,
+  MemberProfileView,
+  MeView,
+  PhotoView,
+  PlanUsage,
+  ProfileView,
+  ReceivedInterests,
+  SentInterestView,
+  VerificationCaseView,
+} from '@fh/shared';
 import { api, ApiError } from './api';
 import { env } from './env';
 import { queryClient } from './query-client';
@@ -15,7 +27,23 @@ export const keys = {
   profile: (id: string) => ['profiles', id] as const,
   cases: ['verification'] as const,
   staffQueue: (status: string) => ['staff', 'verification', status] as const,
+  staffReports: (status: string) => ['staff', 'reports', status] as const,
+  discover: (filters: string) => ['discover', filters] as const,
+  member: (id: string, as: string | null) => ['member', id, as] as const,
+  received: (profileId: string) => ['requests', profileId, 'received'] as const,
+  sent: (profileId: string) => ['requests', profileId, 'sent'] as const,
+  connections: (profileId: string) => ['connections', profileId] as const,
+  blocks: (profileId: string) => ['blocks', profileId] as const,
+  plan: (profileId: string) => ['plan', profileId] as const,
+  photos: (profileId: string) => ['photos', profileId] as const,
 };
+
+/** After a request, connection or block changes: everything that shows relations is refreshed. */
+export function refreshRelations() {
+  return Promise.all(
+    ['requests', 'connections', 'blocks', 'member', 'discover', 'plan'].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
+  );
+}
 
 export type Health = { ok: boolean; database: boolean; email: boolean; sms: boolean; storage: boolean };
 
@@ -74,4 +102,67 @@ export function storeProfile(profile: ProfileView) {
  */
 export function resetSession() {
   return queryClient.resetQueries();
+}
+
+// --- Discovery, requests and connections (Stage 3) --------------------------------------------------------
+
+/** Discovery pages for a filter query string (e.g. "gender=woman&ageMax=30"), 20 at a time. */
+export function useDiscover(filters: string) {
+  return useInfiniteQuery({
+    queryKey: keys.discover(filters),
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam }) => {
+      const params = new URLSearchParams(filters);
+      if (pageParam) params.set('cursor', pageParam);
+      return api<DiscoverPage>(`/discover?${params}`);
+    },
+    getNextPageParam: (last) => last.nextCursor,
+    retry: false,
+  });
+}
+
+/** Another member's profile, seen from the acting profile `as` (where the two stand). */
+export function useMember(id: string, as: string | null, enabled = true) {
+  return useQuery({
+    queryKey: keys.member(id, as),
+    queryFn: () => api<MemberProfileView>(`/discover/${id}${as ? `?as=${as}` : ''}`),
+    retry: false,
+    enabled,
+  });
+}
+
+export function useReceived(profileId: string) {
+  return useQuery({ queryKey: keys.received(profileId), queryFn: () => api<ReceivedInterests>(`/profiles/${profileId}/interests?box=received`) });
+}
+
+export function useSent(profileId: string) {
+  return useQuery({
+    queryKey: keys.sent(profileId),
+    queryFn: async () => (await api<{ interests: SentInterestView[] }>(`/profiles/${profileId}/interests?box=sent`)).interests,
+  });
+}
+
+export function useConnections(profileId: string) {
+  return useQuery({
+    queryKey: keys.connections(profileId),
+    queryFn: async () => (await api<{ connections: ConnectionView[] }>(`/profiles/${profileId}/connections`)).connections,
+  });
+}
+
+export function useBlocks(profileId: string) {
+  return useQuery({
+    queryKey: keys.blocks(profileId),
+    queryFn: async () => (await api<{ blocks: BlockView[] }>(`/profiles/${profileId}/blocks`)).blocks,
+  });
+}
+
+export function usePlan(profileId: string) {
+  return useQuery({ queryKey: keys.plan(profileId), queryFn: () => api<PlanUsage>(`/profiles/${profileId}/plan`) });
+}
+
+export function usePhotos(profileId: string) {
+  return useQuery({
+    queryKey: keys.photos(profileId),
+    queryFn: async () => (await api<{ photos: PhotoView[] }>(`/profiles/${profileId}/photos`)).photos,
+  });
 }

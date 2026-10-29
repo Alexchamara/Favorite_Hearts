@@ -17,6 +17,7 @@ import { authClient } from '@/lib/auth-client';
 import { keys, resetSession, useMe } from '@/lib/queries';
 import { queryClient } from '@/lib/query-client';
 import { documentLabels } from '@/features/profile/options';
+import { ReportsQueue } from './ReportsQueue';
 
 export default function StaffApp() {
   const me = useMe();
@@ -34,9 +35,29 @@ export default function StaffApp() {
       ) : !me.data.twoFactorEnabled ? (
         <SetUpTwoStep />
       ) : (
-        <ReviewQueue role={me.data.staffRole} />
+        <StaffWorkspace role={me.data.staffRole} />
       )}
     </AppShell>
+  );
+}
+
+/** Identity documents and reports: both roles review both (section 10); payments arrive in Stage 4, owner only. */
+function StaffWorkspace({ role }: { role: 'owner' | 'backup_reviewer' }) {
+  const [area, setArea] = useState<'documents' | 'reports'>('documents');
+  return (
+    <>
+      <Tabs value={area} onValueChange={(value) => setArea(value as typeof area)}>
+        <TabsList className="mb-6 h-auto bg-[var(--ui-soft)] p-1">
+          <TabsTrigger value="documents" className="min-h-10 px-4">
+            Identity documents
+          </TabsTrigger>
+          <TabsTrigger value="reports" className="min-h-10 px-4">
+            Reports
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+      {area === 'documents' ? <ReviewQueue role={role} /> : <ReportsQueue role={role} />}
+    </>
   );
 }
 

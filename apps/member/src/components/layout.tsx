@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Heart, LogOut, Moon, Sun } from 'lucide-react';
-import { Link, useNavigate } from 'react-router';
+import { Link, NavLink, useNavigate } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { authClient } from '@/lib/auth-client';
 import { resetSession, useMe } from '@/lib/queries';
@@ -11,6 +11,7 @@ export function AppShell({ children, home = '/' }: { children: ReactNode; home?:
   const { theme, toggleTheme } = useTheme();
   const me = useMe();
   const navigate = useNavigate();
+  const showNav = Boolean(me.data && !me.data.staffRole && me.data.name);
   const signOut = async () => {
     await authClient.signOut();
     await resetSession();
@@ -21,15 +22,26 @@ export function AppShell({ children, home = '/' }: { children: ReactNode; home?:
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:rounded focus:bg-card focus:px-3 focus:py-2">
         Skip to content
       </a>
-      <header className="flex items-center justify-between gap-3 border-b px-4 py-3 sm:px-6">
-        <Link to={home} className="inline-flex items-center gap-2 text-sm font-semibold">
+      {/* On phones the navigation wraps to its own row under the brand and account buttons. */}
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-3 sm:px-6">
+        <Link to={home} className="inline-flex items-center gap-2 text-sm font-semibold whitespace-nowrap">
           <Heart className="size-4 fill-current text-brand" aria-hidden="true" />
           Favorite Hearts
         </Link>
-        <div className="flex items-center gap-2">
+        {showNav && (
+          <nav aria-label="Main" className="order-last flex w-full items-center gap-1 text-sm sm:order-none sm:ml-auto sm:w-auto">
+            <NavLink to="/" end className={navClass}>
+              Profiles
+            </NavLink>
+            <NavLink to="/browse" className={navClass}>
+              Browse
+            </NavLink>
+          </nav>
+        )}
+        <div className={cn('ml-auto flex items-center gap-2', showNav && 'sm:ml-0')}>
           {me.data && (
             <>
-              <span className="hidden max-w-[16ch] truncate text-sm text-muted-foreground sm:inline">{me.data.name || me.data.email}</span>
+              <span className="hidden max-w-[16ch] truncate text-sm text-muted-foreground md:inline">{me.data.name || me.data.email}</span>
               <Button variant="ghost" size="sm" onClick={signOut}>
                 <LogOut aria-hidden="true" />
                 Sign out
@@ -53,6 +65,9 @@ export function AppShell({ children, home = '/' }: { children: ReactNode; home?:
     </div>
   );
 }
+
+const navClass = ({ isActive }: { isActive: boolean }) =>
+  cn('rounded-[8px] px-2.5 py-1.5 font-semibold', isActive ? 'bg-[var(--ui-soft)] text-foreground' : 'text-muted-foreground hover:text-foreground');
 
 export function Card({ children, className }: { children: ReactNode; className?: string }) {
   return (

@@ -7,6 +7,8 @@ import { useMe } from '@/lib/queries';
 import Home from '@/features/home/Home';
 
 const ProfilePage = lazy(() => import('@/features/profile/ProfilePage'));
+const BrowsePage = lazy(() => import('@/features/browse/BrowsePage'));
+const MemberPage = lazy(() => import('@/features/browse/MemberPage'));
 const VerifyPage = lazy(() => import('@/features/trust/VerifyPage'));
 const InvitePage = lazy(() => import('@/features/invite/InvitePage'));
 const StaffApp = lazy(() => import('@/features/staff/StaffApp'));
@@ -31,6 +33,8 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/profiles/:id" element={<MemberOnly><ProfilePage /></MemberOnly>} />
             <Route path="/verify" element={<MemberOnly><VerifyPage /></MemberOnly>} />
+            <Route path="/browse" element={<MemberOnly><BrowsePage /></MemberOnly>} />
+            <Route path="/members/:id" element={<MemberOnly><MemberPage /></MemberOnly>} />
             <Route path="/invite" element={<InvitePage />} />
             <Route path="/staff" element={<StaffApp />} />
             <Route

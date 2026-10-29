@@ -118,6 +118,7 @@ export async function ownProfileView(tx: Tx, id: string, userId: string): Promis
     status: row.status,
     version: row.version,
     firstPublishedAt: row.firstPublishedAt,
+    coverPublic: row.coverPublic,
     fields: {
       displayName: row.displayName,
       gender: row.gender,

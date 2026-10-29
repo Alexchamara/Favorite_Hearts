@@ -18,7 +18,7 @@ without output.
 | 0 Baseline and rule audit (`docs/RULE-AUDIT.md`) | **done, awaiting owner review.** Rollback tag `stage-0-baseline`; evidence below. |
 | 1 Foundation: member app migration, Drizzle schema + RLS, Neon staging/production | **done, awaiting owner review.** Staging/production projects **BLOCKED** until the owner creates them; evidence below. |
 | 2 Accounts and verification (codes, invites, takeover, badges, staff 2FA, documents) | **done (2a server, 2b screens), awaiting owner review.** SMS **BLOCKED** until a provider is chosen; evidence below. |
-| 3 Requests, connections and privacy | **3a (server) done, awaiting owner review**; 3b (screens) next. Evidence below. |
+| 3 Requests, connections and privacy | **done (3a server, 3b screens), awaiting owner review.** Evidence below. |
 | 4 Plans, payments, email, Turnstile | not started |
 | 5 Content, safety and quality | not started |
 | 6 Test, harden and hand over | not started |
@@ -65,6 +65,7 @@ without output.
 | 2026-10-29 | "Engaged or married" closes open requests (sent ones withdrawn, received ones declined); connections stay; the profile may be published again without the forfeited plan (spec O12). | Proposed — confirm |
 | 2026-10-29 | A profile hidden by reports is frozen until staff decide: out of discovery, and it neither shows nor sees private details. Only verified members report; the 3 reporters are counted by account (spec O11). | Proposed — confirm |
 | 2026-10-29 | Original photos for a connection follow the contact rule: the viewer's own plan must be active (spec O03, photo expiry). | Proposed — confirm |
+| 2026-10-29 | The sandbox seeds four synthetic test members and, as plans are bought in Stage 4, has a sandbox-only route to grant a test plan. Neither exists outside the sandbox. | Engineering |
 
 ## Step 5 evidence
 
@@ -505,11 +506,11 @@ Server (3a):
 
 Screens (3b):
 
-- [ ] Discovery with filters, the member profile view, and sending a request with the "what will be shared" confirmation.
-- [ ] Received (blurred without a plan) and sent requests; connections with shared details; blocks.
-- [ ] Photo manager with the cover toggle; reporting; the staff report queue.
-- [ ] "Engaged or married" with the forfeit warning; the plan's remaining requests.
-- [ ] "Prefer not to say" for caste and the "self-declared" label for income on the member view (P22, P23).
+- [x] Discovery with filters, the member profile view, and sending a request with the "what will be shared" confirmation.
+- [x] Received (blurred without a plan) and sent requests; connections with shared details; blocks.
+- [x] Photo manager with the cover toggle; reporting; the staff report queue.
+- [x] "Engaged or married" with the forfeit warning; the plan's remaining requests.
+- [x] "Prefer not to say" for caste and the "self-declared" label for income on the member view (P22, P23).
 
 Open:
 
@@ -1224,3 +1225,127 @@ and the website built 22 pages.
 - Boosts, featured profiles and shortlist limits (N01–N03): not built until the owner decides.
 - The 2-re-sends-per-pair cap: recommended only, not built (O04).
 - Lock contention under real load: Stage 6.
+
+## Stage 3b evidence (29 Oct 2026): screens for requests, connections and privacy
+
+Scope: the Stage 3 screens on top of the 3a server, for members and staff.
+
+### What was built
+
+- **Member app.**
+  - `/browse`: filters applied by the server and kept in the address, an "acting for" picker for accounts that run
+    several profiles, and "Show more".
+  - `/members/:id`:
+    - photos, blurred unless allowed, and where the acting profile stands with this member;
+    - sending a request after a dialog lists exactly what would be shared;
+    - withdrawing, accepting and declining a request, and ending a connection;
+    - blocking, and reporting a profile or one photo.
+  - New profile tabs:
+    - Photos: upload, cover, delete, and "show my cover photo to members".
+    - Requests: received ones as previews without a plan, or with a plan who sent them plus Accept and Decline; sent
+      ones with their status, Withdraw, and the 7-day date.
+    - Connections: shared contacts, End connection, and the blocked list with Unblock.
+  - Overview adds the plan card (requests left today and this month) and "Found a match?" ("engaged or married",
+    with the forfeit warning and the plan's end date).
+  - Caste is an explicit choice, "Prefer not to say" (the default) or "Share it on the profile" (P22). Income shows
+    as "self-declared" on the member view (P23).
+  - Header links "Profiles" and "Browse".
+- **Staff.** A "Reports" area beside identity documents. The queue lists hidden content first and shows each
+  reporter's earlier dismissed reports. "Show the reported content (logged)" opens the content, and staff Uphold or
+  Dismiss with an optional note.
+- **API.**
+  - `GET /api/v1/staff/reports/:id/content`: the reported profile as members see it, every photo included, audited.
+  - `coverPublic` on the owner's own profile view.
+  - ISO 8601 for every timestamp read through raw SQL.
+- **Sandbox.** Four synthetic test members, `POST /sandbox/plans` for test plans, and ports that can be moved.
+
+### Browser walkthrough
+
+The owner's own sandbox was running, so the walkthrough used a second one on ports 8798 and 5184 with the seeded
+test members.
+
+1. **Browse.** Amal (Starter) saw Bina, Chathu and Dinesh but not himself. Bina's cover was the blurred copy, labelled.
+   Filtering women aged up to 32 left only Bina, and the address kept the filters.
+2. **Request.** Amal opened Bina's profile and sent a request. The dialog listed "Your phone" and "Your photos,
+   unblurred". The panel then showed "waiting for Bina to answer" with Withdraw. The plan card counted it: today 1 of
+   5, this month 1 of 30.
+3. **Accept.** Bina (Premium) saw Amal, 33, under Received, with his cover still the blurred copy (`blurred: true`).
+   She accepted ("You are now connected"). Her Connections tab showed Amal's shared phone and his unblurred photo.
+4. **Sender blur.** Bina's dialog listed her phone, photos and parents' names, and she sent Chathu (no plan) a
+   request. Chathu saw "Someone, 30, Teacher, sent a request on 29/10/2026" and "A plan shows who sent them". The raw
+   response held neither Bina's name nor her profile id. After a test plan was granted, Chathu saw Bina with Accept and
+   Decline, and declined. Bina's Sent list then showed "Declined, new request possible from 05/11/2026".
+5. **Report and review.** Chathu reported Dinesh as a scam, and Dinesh left her browse list at once. The staff owner
+   set up two-step login and opened Reports. The queue showed Dinesh as "Hidden now" with Chathu's note; staff viewed
+   the content (logged) and dismissed the report: "The content is visible again".
+6. **Photos and caste.** Chathu uploaded a photo, which became the cover, and turned on "show my cover photo"; Bina then
+   saw it unblurred. Chathu chose "Prefer not to say" for caste and saved; the server cleared it.
+7. **Block.** Chathu blocked Dinesh after the confirmation, and he left her browse list. She unblocked him from
+   Connections.
+8. **Engaged or married.** Bina marked herself engaged or married. The confirmation said the plan's remaining time
+   until 27/11/2026 is lost and not refunded. Afterwards the status read "Engaged or married", the plan card showed no
+   active plan, and "Publish again" was offered.
+9. **Phone width (375 px).** Browse and a member page had no sideways scroll after the header fix below. On desktop
+   the header stays one row.
+
+### Problems the walkthrough found, all fixed
+
+1. The label "Own profile" on another member's page could be read as the viewer's own. It is now "Manages their own
+   profile".
+2. "The other photos stay blurred" appeared when there was only one photo. It is now "Photos stay blurred until you
+   both accept".
+3. The send dialog said "Candidate phone" on a self-managed profile. It is now "Your phone", and "The manager's
+   phone" and so on for managed profiles.
+4. The blur label was crammed into list thumbnails. Thumbnails now skip it.
+5. The unblock message promised a 7-day wait that does not always apply. It is now "Unblocked. You can see each
+   other again."
+6. Timestamps read through raw SQL arrived in the driver's own text format, e.g. `2026-10-29 16:33:16.146+05`, which
+   some browsers do not parse. They are now ISO 8601. The tests assert it and fail without the fix:
+
+   ```text
+   ℹ pass 15
+   ℹ fail 1
+     AssertionError [ERR_ASSERTION]: dates are ISO 8601 whatever the database driver
+   ```
+7. At 375 px the new header links made the page 400 px wide. The links now wrap onto their own row on phones. Measured
+   afterwards: `scrollWidth` 375, no element past the edge, on browse and on a member page.
+
+### `npm test`: 73 tests, all passing
+
+The Stage 3 flow tests now also check two things:
+- staff see the reported photo (hidden) as the original, with the view audited, and members are refused;
+- dates are ISO 8601.
+
+```text
+ℹ tests 73
+ℹ suites 22
+ℹ pass 73
+ℹ fail 0
+```
+
+### `npm run typecheck` and `npm run build`
+
+Both passed (exit 0): `astro check` gave 0 errors, the API bundle `dist/index.js` is 136.4kb, and the website built
+22 pages. The new screens load on demand:
+
+```text
+dist/assets/MemberCard-….js      3.13 kB │ gzip:   1.25 kB
+dist/assets/BrowsePage-….js      3.84 kB │ gzip:   1.70 kB
+dist/assets/MemberPage-….js     12.09 kB │ gzip:   4.41 kB
+dist/assets/StaffApp-….js       25.60 kB │ gzip:   8.48 kB
+dist/assets/ProfilePage-….js    40.26 kB │ gzip:  11.52 kB
+dist/assets/index-….js         536.70 kB │ gzip: 168.96 kB
+```
+
+The main chunk is still over Vite's 500 kB warning; splitting it is in Stage 6.
+
+### Not done in 3b
+
+- Not clicked through in the browser, but covered on the server by the API tests:
+  - staff "Uphold", and reporting a photo;
+  - ending a connection and withdrawing a request from the screens;
+  - the "verify first" notice on Browse;
+  - the "acting for" picker, which needs an account running two profiles.
+- The walkthrough's API process predates the ISO-date fix, so its dates were the old format. The tests cover the fix.
+- No database changes in 3b, so there is nothing to apply to Neon.
+- The owner's own sandbox, started before Stage 3, runs the old API. Restart it to try these screens.

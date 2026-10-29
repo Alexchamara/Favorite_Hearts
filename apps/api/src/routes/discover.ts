@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { actingProfileSchema, DISCOVER_PAGE_SIZE, discoverQuerySchema, type DiscoverPage, type MemberProfileView, type RelationView } from '@fh/shared';
 import { connection, interest } from '../db/schema/connections.ts';
 import { profile } from '../db/schema/members.ts';
-import { fail, parse, withActor, type AppEnv, type Tx } from '../http.ts';
+import { fail, isoDate, parse, withActor, type AppEnv, type Tx } from '../http.ts';
 import { cardColumns, memberCards, memberProfileView, scalar } from '../lib/member-view.ts';
 import { operatedProfile } from '../lib/profile-view.ts';
 import { requireMember } from '../middleware/session.ts';
@@ -89,7 +89,7 @@ async function relation(tx: Tx, acting: string, target: string): Promise<Relatio
     .where(and(eq(interest.pairLow, low), eq(interest.pairHigh, high)))
     .orderBy(desc(interest.createdAt))
     .limit(1);
-  const cooldownUntil = await scalar<string | null>(tx, sql`app.pair_cooldown_until(${acting}, ${target})`);
+  const cooldownUntil = isoDate(await scalar<string | null>(tx, sql`app.pair_cooldown_until(${acting}, ${target})`));
   const published = await scalar<boolean>(tx, sql`exists (select 1 from profile where id = ${acting} and status = 'published' and moderation_hidden_at is null)`);
   const reason: RelationView['reason'] = !published
     ? 'not_published'

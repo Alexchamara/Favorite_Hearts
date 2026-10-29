@@ -13,10 +13,14 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ApiError, errorMessage, post } from '@/lib/api';
 import { storeProfile, useProfile } from '@/lib/queries';
+import { ConnectionsPanel } from '@/features/requests/ConnectionsPanel';
+import { RequestsPanel } from '@/features/requests/RequestsPanel';
 import { ContactsPanel } from './ContactsPanel';
 import { DetailsForm } from './DetailsForm';
 import { caseStatusLabels, fieldLabels, relationshipLabels, statusLabels } from './options';
 import { PeoplePanel } from './PeoplePanel';
+import { PhotosPanel } from './PhotosPanel';
+import { EngagedCard, PlanCard } from './StandingCards';
 
 export default function ProfilePage() {
   const { id = '' } = useParams();
@@ -65,8 +69,17 @@ function ProfileScreen({ profile }: { profile: ProfileView }) {
           <TabsTrigger value="details" className="min-h-10 flex-none px-4">
             Details
           </TabsTrigger>
+          <TabsTrigger value="photos" className="min-h-10 flex-none px-4">
+            Photos
+          </TabsTrigger>
           <TabsTrigger value="contacts" className="min-h-10 flex-none px-4">
             Contacts
+          </TabsTrigger>
+          <TabsTrigger value="requests" className="min-h-10 flex-none px-4">
+            Requests
+          </TabsTrigger>
+          <TabsTrigger value="connections" className="min-h-10 flex-none px-4">
+            Connections
           </TabsTrigger>
           {showPeople && (
             <TabsTrigger value="people" className="min-h-10 flex-none px-4">
@@ -80,8 +93,17 @@ function ProfileScreen({ profile }: { profile: ProfileView }) {
         <TabsContent value="details">
           <DetailsForm profile={profile} />
         </TabsContent>
+        <TabsContent value="photos">
+          <PhotosPanel profile={profile} />
+        </TabsContent>
         <TabsContent value="contacts">
           <ContactsPanel profile={profile} />
+        </TabsContent>
+        <TabsContent value="requests">
+          <RequestsPanel profile={profile} />
+        </TabsContent>
+        <TabsContent value="connections">
+          <ConnectionsPanel profile={profile} />
         </TabsContent>
         {showPeople && (
           <TabsContent value="people">
@@ -177,12 +199,15 @@ function Overview({ profile }: { profile: ProfileView }) {
               </Button>
             ) : (
               <Button className="h-11" disabled={publish.isPending || Boolean(profile.candidate.objectedAt)} onClick={() => publish.mutate()}>
-                {profile.status === 'paused' ? 'Publish again' : 'Publish'}
+                {profile.status === 'draft' ? 'Publish' : 'Publish again'}
               </Button>
             )}
           </div>
         )}
       </Card>
+
+      <PlanCard profile={profile} />
+      <EngagedCard profile={profile} />
     </div>
   );
 }
