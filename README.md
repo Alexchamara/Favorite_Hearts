@@ -50,7 +50,10 @@ nothing is pre-filled. To try the Turnstile widget too, start it with Cloudflare
 restart the sandbox after pulling.
 
 One deployable folder for static hosting: `npm run build:site` → `dist/site/`
-(website at `/`, member app at `/app/`); preview it with `npm run preview:site` (http://localhost:8080).
+(website at `/`, member app at `/app/`). Preview it with `npm run preview:site` (http://localhost:8080): it applies
+`_headers` and `_redirects` the way Cloudflare Pages does, so the security headers and the app's routing can be checked
+before a deploy. With `API_ORIGIN=http://127.0.0.1:8788` it also passes `/api` to a running sandbox; that sandbox must
+allow the preview's origin (`SANDBOX_MEMBER_ORIGIN=http://localhost:8080`).
 
 Checks: `npm run typecheck`, `npm test` and `npm run build`.
 
@@ -59,4 +62,6 @@ Checks: `npm run typecheck`, `npm test` and `npm run build`.
 Never commit real keys; only `*.example` files are tracked. Browser-visible values start with
 `VITE_` and must be public. Database, auth, Resend, SMS, R2 and Turnstile secrets live only in `apps/api/.env`
 locally and in the API host's secret store (Fly.io / Railway) when deployed. The Turnstile bot check stays off while
-`TURNSTILE_SECRET_KEY` is empty; production refuses to start without it.
+`TURNSTILE_SECRET_KEY` is empty; production refuses to start without it. Production also needs `CLIENT_IP_HEADER`
+(not a secret): the header the host sets to the visitor's address, for rate limits (`cf-connecting-ip` behind
+Cloudflare, `fly-client-ip` on Fly.io).

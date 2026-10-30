@@ -13,6 +13,8 @@ export type Bucket = 'private' | 'derived';
 export interface Storage {
   readonly configured: boolean;
   put(bucket: Bucket, key: string, body: Buffer, contentType: string): Promise<void>;
+  /** The object's bytes, or null when it does not exist (the member's data export reads their own photos). */
+  get(bucket: Bucket, key: string): Promise<Buffer | null>;
   /** Deleting a missing object is not an error. */
   delete(bucket: Bucket, key: string): Promise<void>;
   /** Call ONLY after the API has authorised this viewer for this object. Never cache publicly. */

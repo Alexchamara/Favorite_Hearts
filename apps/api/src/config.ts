@@ -9,9 +9,14 @@ export type Config = {
   /** Member app base URL, used in invitation links, e.g. https://example.lk/app */
   memberAppUrl: string;
   allowedOrigins: string[];
-  /** Better-Auth secret; also keys the HMAC of invitation codes. */
+  /** Better-Auth secret; also keys the HMACs of invitation codes and of retained sign-in details (lib/identity-hash.ts). */
   authSecret: string;
-  /** Better-Auth request rate limits (off only in automated tests). */
+  /** Rate limits: Better-Auth's and our own (off only in automated tests). */
   rateLimit: boolean;
+  /**
+   * The request header the host sets to the visitor's IP address (e.g. cf-connecting-ip, fly-client-ip). Null = the
+   * connection's own address (local development). Never X-Forwarded-For as sent by the browser: anyone can type it.
+   */
+  clientIpHeader: string | null;
   signedUrlTtlSeconds: number;
 };

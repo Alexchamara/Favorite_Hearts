@@ -7,4 +7,5 @@ export * from './domain.ts';
 export * from './login-channels.ts';
 export * from './profile.ts';
 export * from './requests.ts';
+export * from './safety.ts';
 export * from './schemas.ts';

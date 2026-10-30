@@ -25,6 +25,12 @@ const schema = z.object({
   /** Cloudflare Turnstile secret key. Empty = no bot check (development); required in production. */
   TURNSTILE_SECRET_KEY: z.string().optional().transform((v) => v || undefined),
 
+  /** Header the host sets to the visitor's IP address, for rate limits (e.g. cf-connecting-ip, fly-client-ip). */
+  CLIENT_IP_HEADER: z
+    .string()
+    .optional()
+    .transform((v) => v?.trim().toLowerCase() || undefined),
+
   SMS_PROVIDER: z.enum(SMS_PROVIDERS).default('none'),
   SMS_SENDER_ID: z.string().default('FavHearts'),
 
@@ -58,6 +64,12 @@ if (isProduction && !env.TURNSTILE_SECRET_KEY) {
   process.exit(1);
 }
 
+// Rate limits count per visitor address; behind a proxy only the header that proxy sets is trustworthy.
+if (isProduction && !env.CLIENT_IP_HEADER) {
+  console.error('CLIENT_IP_HEADER is required in production, e.g. cf-connecting-ip (Cloudflare) or fly-client-ip (Fly.io).');
+  process.exit(1);
+}
+
 // Better-Auth refuses requests from untrusted origins, so without this every sign-in and invitation
 // from the member app fails with "Invalid origin".
 const memberOrigin = new URL(env.MEMBER_APP_URL).origin;
@@ -74,6 +86,7 @@ export function configFromEnv(): Config {
     allowedOrigins: env.ALLOWED_ORIGINS,
     authSecret: env.BETTER_AUTH_SECRET,
     rateLimit: true,
+    clientIpHeader: env.CLIENT_IP_HEADER ?? null,
     signedUrlTtlSeconds: env.SIGNED_URL_TTL_SECONDS,
   };
 }

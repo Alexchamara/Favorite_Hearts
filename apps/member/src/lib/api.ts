@@ -44,6 +44,24 @@ export const patch = <T>(path: string, body: unknown) => api<T>(path, { method: 
 export const put = <T>(path: string, body: unknown) => api<T>(path, { method: 'PUT', body: JSON.stringify(body) });
 export const del = (path: string) => api<void>(path, { method: 'DELETE' });
 
+/** Downloads a file from our API (e.g. the data export) and hands it to the browser to save. */
+export async function download(path: string, fallbackName: string): Promise<void> {
+  const res = await fetch(`${env.apiUrl}/api/v1${path}`, { credentials: 'include' });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as ApiErrorBody | null;
+    throw new ApiError(res.status, body?.code ?? 'UNKNOWN', body?.message ?? 'Something went wrong. Please try again.');
+  }
+  const name = /filename="([^"]+)"/.exec(res.headers.get('content-disposition') ?? '')?.[1] ?? fallbackName;
+  const url = URL.createObjectURL(await res.blob());
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = name;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30_000);
+}
+
 /** A readable message for any error thrown by api() or a Better-Auth client call. */
 export function errorMessage(error: unknown): string {
   if (error instanceof Error && error.message) return error.message;

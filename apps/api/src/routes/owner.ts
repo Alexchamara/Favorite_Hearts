@@ -3,7 +3,8 @@
  * payment access, which the database enforces again (every function checks app.is_owner(); payment rows, receipts,
  * plan history and their audit entries are invisible to other staff). The owner adds, edits, re-prices, retires and
  * deletes plans, enters the real account details members pay into, matches each payment against the real statement
- * before approving it, and can hold, reject, refund, grant or revoke. Every change is written to the audit trail.
+ * before approving it, and can hold, reject, refund, grant or revoke. The owner also pauses new sign-ups or document
+ * submissions when the review queue is overwhelmed (section 10). Every change is written to the audit trail.
  */
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
@@ -13,6 +14,8 @@ import {
   CHANNEL_CURRENCY,
   grantPlanSchema,
   holdPaymentSchema,
+  operationsFlagKeySchema,
+  operationsFlagSchema,
   ownerNoteSchema,
   PAYMENT_CHANNELS,
   PAYMENT_STATUSES,
@@ -25,6 +28,7 @@ import {
   revokePlanSchema,
   settlementCorrectionSchema,
   type ApprovalResult,
+  type OperationsFlagView,
   type OwnerPaymentDetail,
   type OwnerPaymentItem,
   type OwnerPlanView,
@@ -33,7 +37,7 @@ import {
   type PlanChange,
 } from '@fh/shared';
 import { entitlementEvent, paymentChannelSetting, paymentProof, plan } from '../db/schema/billing.ts';
-import { auditEvent } from '../db/schema/operations.ts';
+import { auditEvent, operationsFlag } from '../db/schema/operations.ts';
 import { fail, isoDate, parse, readJson, withActor, type AppEnv, type Tx } from '../http.ts';
 import { audit } from '../lib/audit.ts';
 import { currentPlan, entitlementHistory, planRows, planView } from '../lib/billing-view.ts';
@@ -181,6 +185,44 @@ owner.put('/payment-settings/:channel', async (c) => {
       },
     });
     return settingView(row);
+  });
+  return c.json(saved);
+});
+
+// --- Service switches (section 10) ------------------------------------------------------------------------
+
+const flagView = (row: typeof operationsFlag.$inferSelect): OperationsFlagView => ({
+  key: row.key,
+  enabled: row.enabled,
+  reason: row.reason,
+  updatedAt: row.updatedAt,
+});
+
+owner.get('/operations', async (c) => {
+  const flags = await withActor(c, (tx) => tx.select().from(operationsFlag).orderBy(operationsFlag.key));
+  return c.json({ flags: flags.map(flagView) });
+});
+
+/** Pauses or resumes new sign-ups or document submissions; members already signed up keep using the app. */
+owner.put('/operations/:key', async (c) => {
+  const key = parse(operationsFlagKeySchema, c.req.param('key'));
+  const input = parse(operationsFlagSchema, await readJson(c));
+  const saved = await withActor(c, async (tx) => {
+    const [before] = await tx.select().from(operationsFlag).where(eq(operationsFlag.key, key));
+    const [row] = await tx
+      .update(operationsFlag)
+      .set({ enabled: input.enabled, reason: input.reason || null, updatedByUserId: c.var.user!.id, updatedAt: new Date() })
+      .where(eq(operationsFlag.key, key))
+      .returning();
+    if (!row) fail(404, 'NOT_FOUND', 'Switch not found.');
+    await audit(c, tx, {
+      action: row.enabled ? 'operations.paused' : 'operations.resumed',
+      entityType: 'operations_flag',
+      entityId: key,
+      reason: row.reason ?? undefined,
+      metadata: { before: before?.enabled ?? null, after: row.enabled },
+    });
+    return flagView(row);
   });
   return c.json(saved);
 });

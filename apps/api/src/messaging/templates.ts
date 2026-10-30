@@ -69,7 +69,7 @@ export function invitationSms({ managerName, link, hours }: InvitationWording): 
   return `${managerName} started a Favorite Hearts matrimony profile for you. Review, accept or decline within ${hours}h: ${link}`;
 }
 
-// --- Plan and payment notifications (OWNER-DECISIONS sections 3 and 9; queued in notification_outbox) ---
+// --- Plan, payment and profile notifications (OWNER-DECISIONS sections 3, 5, 8 and 9; queued in notification_outbox) ---
 
 const sriLankaTime = new Intl.DateTimeFormat('en-GB', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Asia/Colombo' });
 const when = (value: unknown) => `${sriLankaTime.format(new Date(String(value)))} (Sri Lanka time)`;
@@ -130,6 +130,21 @@ export function notificationEmail(template: string, payload: Record<string, unkn
         payload.renewalPending === true
           ? renewalPending
           : 'Contact details and social handles are now hidden, including those of your connections. Your connections stay, and their details come back when you renew.',
+      ], appUrl);
+    case 'profile_handed_over':
+      return notice('You now run your profile yourself', [
+        payload.managerDeleted === true
+          ? `The family member who managed ${profile} deleted their account, so the profile is now yours to run.`
+          : `The family member who managed ${profile} handed it over to you. You run it yourself from now on.`,
+        'Its plan, requests and connections stay with the profile. Their contact details were removed from it.',
+        payload.paused === true
+          ? 'It is paused until your own identity document is reviewed and your phone is verified. Then you can publish it again.'
+          : 'Check the profile details and your privacy settings when you next sign in.',
+      ], appUrl);
+    case 'profile_deleted':
+      return notice('A profile you managed was deleted', [
+        `The candidate deleted ${profile}, the profile you managed for them. It is no longer shown to anyone, and you no longer have access to it.`,
+        'Some records, such as payments, are kept for a limited time, as our privacy policy explains.',
       ], appUrl);
     default:
       return null;

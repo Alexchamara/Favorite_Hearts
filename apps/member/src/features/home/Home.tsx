@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { errorMessage, post } from '@/lib/api';
 import { storeProfile, useMe, useMyCases, useProfiles } from '@/lib/queries';
+import { AccountCard } from '@/features/account/AccountCard';
 import { NameStep, SignIn } from '@/features/auth/SignIn';
 import { caseStatusLabels, documentLabels, options, relationshipLabels, statusLabels } from '@/features/profile/options';
 
@@ -118,6 +119,8 @@ function Dashboard() {
           <Link to="/verify">Verification</Link>
         </Button>
       </Card>
+
+      <AccountCard />
 
       <CreateProfileDialog kind={creating} onClose={() => setCreating(null)} />
     </>

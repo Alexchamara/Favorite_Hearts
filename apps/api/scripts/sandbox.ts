@@ -62,6 +62,9 @@ const storage: Storage = {
   async put(bucket, key, body) {
     files.set(`${bucket}/${key}`, body);
   },
+  async get(bucket, key) {
+    return files.get(`${bucket}/${key}`) ?? null;
+  },
   async delete(bucket, key) {
     files.delete(`${bucket}/${key}`);
   },
@@ -78,6 +81,7 @@ const config: Config = {
   allowedOrigins: [MEMBER_ORIGIN],
   authSecret: randomBytes(32).toString('base64'),
   rateLimit: true,
+  clientIpHeader: null,
   signedUrlTtlSeconds: 120,
 };
 const auth = createAuth({ db, config, messenger });

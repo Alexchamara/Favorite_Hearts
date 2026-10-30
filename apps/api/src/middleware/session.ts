@@ -1,6 +1,7 @@
 import { and, eq, isNull } from 'drizzle-orm';
+import type { Context } from 'hono';
 import { createMiddleware } from 'hono/factory';
-import type { StaffRole } from '@fh/shared';
+import { RECENT_SIGN_IN_MINUTES, type StaffRole } from '@fh/shared';
 import { memberAccount } from '../db/schema/members.ts';
 import { operationsFlag } from '../db/schema/operations.ts';
 import { staffMember } from '../db/schema/staff.ts';
@@ -69,4 +70,19 @@ export function requireStaff(...roles: StaffRole[]) {
     if (!user.twoFactorEnabled) fail(403, 'TWO_FACTOR_REQUIRED', 'Two-step login is required for staff.');
     await next();
   });
+}
+
+/**
+ * Deleting an account or a profile needs a sign-in within the last RECENT_SIGN_IN_MINUTES, so a phone left signed in
+ * (or a borrowed one) cannot do it.
+ */
+export function recentSignIn(c: Context<AppEnv>): boolean {
+  const createdAt = c.var.session?.createdAt;
+  return Boolean(createdAt) && Date.now() - new Date(createdAt!).getTime() <= RECENT_SIGN_IN_MINUTES * 60_000;
+}
+
+export function requireRecentSignIn(c: Context<AppEnv>): void {
+  if (!recentSignIn(c)) {
+    fail(403, 'RECENT_SIGN_IN_REQUIRED', `For your safety, please sign in again first. Then you have ${RECENT_SIGN_IN_MINUTES} minutes to delete.`);
+  }
 }

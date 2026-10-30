@@ -6,7 +6,7 @@
  * Users and sessions live in our own Postgres (auth_* tables).
  */
 import { betterAuth } from 'better-auth';
-import { APIError } from 'better-auth/api';
+import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { emailOTP, phoneNumber, twoFactor } from 'better-auth/plugins';
 import { drizzleAdapter } from '@better-auth/drizzle-adapter';
 import { eq } from 'drizzle-orm';
@@ -15,12 +15,24 @@ import type { Config } from './config.ts';
 import { account, session, twoFactor as twoFactorTable, user, verification } from './db/schema/auth.ts';
 import { operationsFlag } from './db/schema/operations.ts';
 import type { Db } from './db/types.ts';
+import { hasherFor, isBannedAddress } from './lib/identity-hash.ts';
+import { authRateLimitStorage, consume } from './lib/rate-limit.ts';
 import { PHONE_ONLY_EMAIL_DOMAIN, type Messenger } from './messaging/messenger.ts';
 import { codeEmail, codeSms } from './messaging/templates.ts';
 
 const minutes = Math.round(CODE_TTL_SECONDS / 60);
 
+/** The endpoints that send a code, and where the address is in their body. */
+const CODE_SENDS: Record<string, 'email' | 'phoneNumber'> = {
+  '/email-otp/send-verification-otp': 'email',
+  '/phone-number/send-otp': 'phoneNumber',
+};
+/** Codes sent to one address (proposed): a person sending to many addresses still meets the per-IP limit below. */
+const CODES_PER_ADDRESS = { window: 60 * 60, max: 5 };
+const BANNED_MESSAGE = 'This email or phone number cannot be used for a new account. Contact us if you think this is a mistake.';
+
 export function createAuth({ db, config, messenger }: { db: Db; config: Config; messenger: Messenger }) {
+  const hash = hasherFor(config.authSecret);
   return betterAuth({
     appName: 'Favorite Hearts',
     baseURL: config.apiUrl,
@@ -37,28 +49,59 @@ export function createAuth({ db, config, messenger }: { db: Db; config: Config; 
 
     session: { expiresIn: 60 * 60 * 24 * 30, updateAge: 60 * 60 * 24 },
 
-    // Code requests are the most abusable endpoints (D Part 2: rate limits on sign-in and codes).
-    // In-memory store is fine for one instance; switch to `storage: 'database'` before scaling out.
+    // Code requests are the most abusable endpoints (D Part 2: rate limits on sign-in and codes). Counted per IP
+    // address in Postgres (lib/rate-limit.ts), so the limits hold across restarts and API instances.
     rateLimit: {
       enabled: config.rateLimit,
       window: 60,
       max: 60,
+      customStorage: authRateLimitStorage(db),
       customRules: {
         '/email-otp/send-verification-otp': { window: 60, max: 3 },
         '/phone-number/send-otp': { window: 60, max: 3 },
         '/sign-in/email': { window: 60, max: 5 },
+        '/sign-in/email-otp': { window: 60, max: 10 },
+        '/phone-number/verify': { window: 60, max: 10 },
+        '/two-factor/verify-totp': { window: 60, max: 5 },
       },
     },
 
-    advanced: { cookiePrefix: 'fh' },
+    // Behind a proxy only the header the host sets can be trusted for the visitor's address (CLIENT_IP_HEADER).
+    advanced: {
+      cookiePrefix: 'fh',
+      ...(config.clientIpHeader ? { ipAddress: { ipAddressHeaders: [config.clientIpHeader] } } : {}),
+    },
+
+    hooks: {
+      // Before a code is sent: a banned address (kept hashed after its account was deleted, section 8) gets none, and
+      // one address gets at most CODES_PER_ADDRESS, whichever IP addresses ask.
+      before: createAuthMiddleware(async (ctx) => {
+        const field = CODE_SENDS[ctx.path];
+        const address = field ? (ctx.body as Record<string, unknown> | undefined)?.[field] : undefined;
+        if (typeof address !== 'string' || !address.trim()) return;
+        if (await isBannedAddress(db, hash, address)) throw new APIError('FORBIDDEN', { message: BANNED_MESSAGE });
+        if (!config.rateLimit) return;
+        const result = await consume(db, `code-to:${hash(address)}`, CODES_PER_ADDRESS);
+        if (!result.allowed) {
+          throw new APIError('TOO_MANY_REQUESTS', {
+            message: 'Too many codes were sent to this address. Please wait an hour and try again.',
+          });
+        }
+      }),
+    },
 
     databaseHooks: {
       user: {
         create: {
           // OWNER-DECISIONS section 10: the owner can pause new sign-ups. Staff provisioning runs
           // outside a request (no ctx) and is not affected.
-          before: async (_user, ctx) => {
+          before: async (newUser, ctx) => {
             if (!ctx) return;
+            const phone = (newUser as { phoneNumber?: string | null }).phoneNumber;
+            const addresses = [newUser.email.endsWith(`@${PHONE_ONLY_EMAIL_DOMAIN}`) ? null : newUser.email, phone ?? null];
+            for (const address of addresses) {
+              if (address && (await isBannedAddress(db, hash, address))) throw new APIError('FORBIDDEN', { message: BANNED_MESSAGE });
+            }
             const [flag] = await db
               .select({ enabled: operationsFlag.enabled })
               .from(operationsFlag)

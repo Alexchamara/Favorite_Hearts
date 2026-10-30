@@ -20,7 +20,7 @@ without output.
 | 2 Accounts and verification (codes, invites, takeover, badges, staff 2FA, documents) | **done (2a server, 2b screens), awaiting owner review.** SMS **BLOCKED** until a provider is chosen; evidence below. |
 | 3 Requests, connections and privacy | **done (3a server, 3b screens), awaiting owner review.** Evidence below. |
 | 4 Plans, payments, email, Turnstile | **done (4a server, 4b screens), awaiting owner review.** Real payment details, Turnstile keys and email to members are **BLOCKED** on the owner; evidence below. |
-| 5 Content, safety and quality | not started |
+| 5 Content, safety and quality | **5a (safety) done, awaiting owner review.** 5b (website text and SEO) and 5c (Sinhala and accessibility) not started. Evidence below. |
 | 6 Test, harden and hand over | not started |
 
 ## Decisions recorded during setup
@@ -82,6 +82,19 @@ without output.
 | 2026-10-29 | Turnstile is checked by our own server code (Cloudflare siteverify) on every endpoint that sends a code or checks a password. It is off while no secret is set, required in production, and fails closed if Cloudflare cannot be reached. | Engineering |
 | 2026-10-30 | The payment step shows four draft refund points from §9 that the member must tick. The final wording comes with the lawyer's review of the terms (Stage 5). | Proposed — confirm |
 | 2026-10-30 | The owner's Approve button stays off until the statement line is typed and the owner ticks that the transfer was found in the real statement (spec 9.3: a receipt alone is not enough). | Engineering |
+| 2026-10-30 | Stage 5 is split in three: 5a safety (rate limits, security headers, pause switches, deletion with the retention list, data export), 5b website text and SEO, 5c Sinhala and accessibility. | Owner |
+| 2026-10-30 | Sinhala: the developer writes a first draft of every member screen and website page, marked draft; the owner's native-speaker reviewer corrects it in the spreadsheet. Nothing in Sinhala is final until reviewed (5c). | Owner |
+| 2026-10-30 | Deleting, "the candidate decides": a candidate who deletes their account deletes their own profile; a manager who deletes theirs passes each profile whose candidate has joined to that candidate (like a takeover; paid time carries over) and deletes the rest. A manager cannot delete a joined candidate's profile alone. | Owner |
+| 2026-10-30 | The website keeps hello@favoritehearts.com, and +94 76 676 9894 for both WhatsApp and calls, as the support contacts (5b). | Owner |
+| 2026-10-30 | A manager can also hand a profile over to its joined candidate without deleting their account. Whenever a profile moves to its candidate (takeover, hand-over, the manager's deletion), the manager's own contact details leave it. | Proposed — confirm |
+| 2026-10-30 | Deleting an account or a profile needs a tick ("cannot be undone") and a sign-in within the last 15 minutes. Staff accounts are removed by the owner, not deleted by themselves. | Proposed — confirm |
+| 2026-10-30 | What a deletion removes at once and keeps (§8): profile text, photos, contacts, social handles, requests, connections, shortlists, the sharing log and identity-document files go at once; payment records with their receipts, plan history, reports, blocks, document decisions, the staff audit trail and a keyed hash of the sign-in email and phone stay 6 months, then the retention sweep removes them. §8 also says deleted members' documents "follow the same limit" (90 days); deleting the files at once keeps within it. Lawyer and accountant to confirm. | Proposed — confirm |
+| 2026-10-30 | "Banned" for the kept hashes: the account or one of its profiles was suspended, or a serious report (explicit content, minors, threats, scam) against one of its profiles was upheld, before or after the deletion. A banned address gets no code and no new account for the 6 months. | Proposed — confirm |
+| 2026-10-30 | Requests to a profile that is deleted are removed with it, so they no longer count towards the sender's limits. | Proposed — confirm |
+| 2026-10-30 | Only the owner switches the sign-up and document pauses (the backup reviewer asks the owner). Each change is audited with its reason. | Proposed — confirm |
+| 2026-10-30 | Rate limits (numbers in ARCHITECTURE.md, "Safety"), counted in Postgres. Production requires `CLIENT_IP_HEADER`, the header the host sets to the visitor's address. | Proposed — confirm |
+| 2026-10-30 | The data export is one ZIP: `data.json` (everything the account and its profiles hold, as the app shows it) and the original photos. Identity documents are not included. 5 exports a day. | Proposed — confirm |
+| 2026-10-30 | The member app carries its own Content-Security-Policy in its page; the static host removes the website's policy under `/app/`. `/app/assets/*` is passed through before the SPA rewrite, because Cloudflare Pages applies `_redirects` even when a file exists. | Engineering |
 
 ## Step 5 evidence
 
@@ -563,16 +576,36 @@ Open:
 - [ ] **BLOCKED, owner action:** email to members needs the domain verified in Resend. Until then Resend delivers only
   to the account owner's inbox.
 - [ ] The refund wording on the pricing page and in the terms (Stage 5, lawyer review).
-- [ ] Apply migrations 0008–0009 to the Neon dev database (on request).
+- [ ] Apply migrations 0008–0011 to the Neon dev database (on request; 0010–0011 are Stage 5a's).
 
 **Stage 5: Content, safety and quality**
 
-- [ ] Rewrite pricing, help/FAQ, terms and privacy (W01–W12, W16, X01, X02, X04). The lawyer reviews W08–W11.
+5a, safety (done):
+
+- [x] Admin pause for signups and document submissions (P29), owner only, audited, shown to members in advance.
+- [x] Deletion of a profile or an account with the 6-month retention list and the retention sweep (P25); the
+  candidate decides; banned addresses kept only as keyed hashes.
+- [x] Data export (ZIP with `data.json` and the original photos), read through row-level security.
+- [x] Rate limits on sign-in, codes, requests, invitations, reports and uploads (Part 2), counted in Postgres.
+- [x] Security headers on the API, the website and the member app; the member app's policy allows Turnstile.
+- [x] Fixed: `_redirects` would have answered every member-app script with the page on Cloudflare Pages.
+
+5b, website text and SEO:
+
+- [ ] Rewrite pricing, help/FAQ, terms and privacy (W01–W12, W16, X01, X02, X04), listing every page changed. The
+  lawyer reviews W08–W11. The privacy policy lists exactly what is kept and for how long (5a's list).
 - [ ] Remove the sample testimonials and the unproven research claims (W13, X03).
-- [ ] English and Sinhala with Tamil hidden (W14, P27).
-- [ ] Support channels and a "staff never ask for passwords or codes" statement. The owner confirms the dedicated SIM (W15, X06).
-- [ ] Admin pause for signups and submissions (P29). Deletion with the 6-month retention list (P25).
+- [ ] Support channels and a "staff never ask for passwords or codes" statement (W15, X06): hello@favoritehearts.com
+  and +94 76 676 9894 for WhatsApp and calls (owner, 30 Oct 2026).
+- [ ] SEO basics: unique titles and descriptions, canonical links, social preview tags, sitemap check.
 - [ ] Set the real `siteUrl` once the domain is bought (X05).
+- [ ] Astro upgrade (deferred from Stage 1).
+
+5c, Sinhala and accessibility:
+
+- [ ] English and Sinhala with Tamil hidden (W14, P27); a spreadsheet of all text (English and Sinhala columns) for the
+  owner's reviewer, read back into the app and website.
+- [ ] Accessibility fixes on the website and the member app.
 
 **Stage 6: Harden and hand over.** Unchanged from spec 17.1.
 
@@ -1704,3 +1737,251 @@ synthetic ones.
   - the refund wording's legal review (Stage 5).
 - When security headers come in Stage 5, they must allow `challenges.cloudflare.com` for scripts and frames.
 - No database changes in 4b; migrations 0008–0009 are still waiting to be applied to Neon dev (on request).
+
+## Stage 5a evidence (30 Oct 2026): safety
+
+Scope (Part 3 "Stage 5", split in three at the owner's choice): rate limits, security headers, the admin control to
+pause sign-ups, deletion with the 6-month retention list, and data export. 5b (website text and SEO) and 5c (Sinhala
+and accessibility) follow.
+
+### Owner decisions taken at the start
+
+- Stage 5 in three parts: 5a safety, 5b website text and SEO, 5c Sinhala and accessibility.
+- Sinhala: I write the first draft, the owner's native-speaker reviewer corrects it in the spreadsheet (5c).
+- Deleting: the candidate decides (decisions table, 30 Oct 2026).
+- Support contacts stay hello@favoritehearts.com and +94 76 676 9894 for WhatsApp and calls (5b).
+
+### What was built
+
+- **Database** (`drizzle/0010_safety_tables.sql`, generated; `drizzle/0011_safety_rules.sql`, hand-written):
+  - tables `retained_identity` (keyed hashes of deleted accounts' sign-in email and phone), `storage_deletion` (files
+    to delete) and `rate_limit_counter`, all closed to `fh_app`; `deleted_at` on accounts and profiles, with checks;
+  - `app.erase_profile`, `app.delete_profile`, `app.hand_over_profile`, `app.delete_account`, `app.deletion_outcomes`
+    and the system-only `app.retention_purge`; takeover, hand-over and a manager's deletion share
+    `app.move_to_candidate`, which now also removes the manager's own contact details from the profile;
+  - a serious report upheld after an account was deleted bans its kept hashes (`app.review_report`); the owner's
+    payment list and the document queue say when a profile or account was deleted and hide placeholder addresses;
+  - append-only history (plan events, audit, sharing log) may lose a link to a deleted record outside the app role,
+    never change otherwise.
+- **API**:
+  - rate limits (`src/lib/rate-limit.ts`, `src/auth.ts`): counted in Postgres for Better-Auth and our routes; a
+    per-address code limit; `CLIENT_IP_HEADER`, required in production;
+  - security headers on every answer (`src/app.ts`): a policy that allows nothing, `no-store`, `noindex`;
+  - `GET /api/v1/service-status`; the owner's `GET/PUT /api/v1/owner/operations` (audited);
+  - `GET /api/v1/account/deletion`, `POST /api/v1/account/delete`, `GET /api/v1/account/export`,
+    `POST /api/v1/profiles/:id/delete` and `/hand-over`; deleting needs a sign-in in the last 15 minutes;
+  - banned addresses get no code and no new account; the export ZIP (`src/lib/data-export.ts`, `src/lib/zip.ts`);
+  - jobs: `retention.sweep` implemented, `storage.cleanup` added; two new emails (profile handed over, profile
+    deleted by the candidate); `Storage.get` for the export.
+- **Member app**: the "Your account" card (download, delete with what happens to each profile), "Delete this
+  profile" on the overview, "Hand the profile over" for managers, pause notices on sign-in and document upload, the
+  owner's Service tab, "Deleted account" labels for staff, and the app's own Content-Security-Policy in its built page.
+- **Static host**: `_headers` (the website keeps its policy, `/app/` brings its own; HSTS, COOP, Permissions-Policy,
+  `noindex` for the app, immutable app files), `_redirects` (the `/app/assets/*` fix below), and
+  `scripts/serve-site.mjs` behind `npm run preview:site`.
+
+### `npm test`: 131 tests, all passing
+
+The 25 new ones (`test/safety.test.ts`):
+
+```text
+▶ security headers on every API answer
+  ✔ nothing the API sends can run, be framed, be indexed or be cached
+✔ security headers on every API answer
+▶ rate limits (Part 2: sign-in, codes, requests, invitations, reports, uploads)
+  ✔ a burst past one of our limits gets 429 with Retry-After; another address is not affected
+  ✔ simultaneous requests cannot slip past a limit together
+  ✔ per account: the data export, 5 a day
+  ✔ codes: 3 a minute per IP address (Better-Auth), counted in the same Postgres table
+  ✔ codes: at most 5 an hour to one address, whatever IP addresses ask; no address is stored
+✔ rate limits (Part 2: sign-in, codes, requests, invitations, reports, uploads)
+▶ the owner pauses sign-ups and document submissions (section 10)
+  ✔ only the owner switches them, each change is audited with its reason, and the app can read them
+  ✔ while sign-ups are paused, members already signed up sign in, but no new account is made
+  ✔ while document submissions are paused, an upload is refused before anything is stored
+✔ the owner pauses sign-ups and document submissions (section 10)
+▶ deleting a profile (section 8)
+  ✔ it disappears at once for everyone; payments, reports and blocks stay for the retention period
+  ✔ deleting needs a confirmation and a sign-in within the last 15 minutes
+  ✔ the candidate decides: a manager hands a joined candidate’s profile over, and deletes only one nobody joined
+  ✔ a candidate can delete the profile their manager runs, and the manager is told
+✔ deleting a profile (section 8)
+▶ deleting an account (section 8)
+  ✔ everything personal goes at once; payment records, reports and blocks stay, and the person may join again
+  ✔ a manager’s account: a profile its candidate joined passes to them with its plan, the others are deleted
+  ✔ a candidate’s account: the profile their manager ran is deleted and the manager is told
+  ✔ staff accounts are not deleted here
+✔ deleting an account (section 8)
+▶ banned addresses cannot sign up again (section 8)
+  ✔ a serious report upheld before deletion bans the hashed email and phone until the retention period ends
+  ✔ a serious report upheld after the account was deleted still bans it
+  ✔ a profile handed to its candidate is theirs: a report upheld later does not ban the former manager
+✔ banned addresses cannot sign up again (section 8)
+▶ the retention sweep (section 8)
+  ✔ six months after a deletion everything kept for it goes; younger deletions stay
+  ✔ a file deletion that fails stays queued, the member’s request still succeeds, and the retry deletes it
+✔ the retention sweep (section 8)
+▶ the data export
+  ✔ one ZIP with the account, profiles, contacts and original photos, exactly as the app shows them
+  ✔ another member’s export holds none of the first member’s private details
+  ✔ the ZIP writer round-trips stored and deflated entries with UTF-8 names
+✔ the data export
+```
+
+Whole run (`npm test`):
+
+```text
+ℹ tests 131
+ℹ suites 47
+ℹ pass 131
+ℹ fail 0
+ℹ cancelled 0
+```
+
+### Mutation check: every deliberate break caught
+
+Each line breaks one rule on purpose, runs the tests, and puts the code back (script in the session scratchpad, as in
+4a). The export's own row-level-security read cannot be broken that way in the tests: PGlite has one connection, so
+reading outside the request's transaction deadlocks. That break was replaced by one that drops hidden senders.
+
+```text
+manager may delete a joined candidate profile  | caught: 1 failing, first "the candidate decides: a manager hands a joined candidate’s profile over, and deletes only one nobody joined"
+photo files not queued for deletion            | caught: 3 failing, first "it disappears at once for everyone; payments, reports and blocks stay for the retention period"
+contact details survive deletion               | caught: 1 failing, first "it disappears at once for everyone; payments, reports and blocks stay for the retention period"
+plan not ended on deletion                     | caught: 1 failing, first "it disappears at once for everyone; payments, reports and blocks stay for the retention period"
+manager deletion deletes joined profiles       | caught: 2 failing, first "a manager’s account: a profile its candidate joined passes to them with its plan, the others are deleted"
+sign-in email kept on the empty identity       | caught: 1 failing, first "everything personal goes at once; payment records, reports and blocks stay, and the person may join again"
+banned never recorded at deletion              | caught: 1 failing, first "a serious report upheld before deletion bans the hashed email and phone until the retention period ends"
+handed-over profiles remembered for bans       | caught: 1 failing, first "a profile handed to its candidate is theirs: a report upheld later does not ban the former manager"
+report upheld later does not ban               | caught: 1 failing, first "a serious report upheld after the account was deleted still bans it"
+sweep keeps payment records                    | caught: 1 failing, first "six months after a deletion everything kept for it goes; younger deletions stay"
+sweep runs before 6 months                     | caught: 1 failing, first "six months after a deletion everything kept for it goes; younger deletions stay"
+manager contacts stay after hand-over          | caught: 1 failing, first "the candidate decides: a manager hands a joined candidate’s profile over, and deletes only one nobody joined"
+takeover leaves the manager payment open       | caught: 1 failing, first "the candidate keeps the paid time; the manager loses access and their unsent payment stops"
+deleting without a recent sign-in              | caught: 1 failing, first "deleting needs a confirmation and a sign-in within the last 15 minutes"
+rate limit never refuses                       | caught: 5 failing, first "a burst past one of our limits gets 429 with Retry-After; another address is not affected"
+codes per address unlimited                    | caught: 1 failing, first "codes: at most 5 an hour to one address, whatever IP addresses ask; no address is stored"
+banned address still gets a code               | caught: 2 failing, first "a serious report upheld before deletion bans the hashed email and phone until the retention period ends"
+export drops requests whose sender is hidden   | caught: 1 failing, first "one ZIP with the account, profiles, contacts and original photos, exactly as the app shows them"
+API answers may be cached                      | caught: 2 failing, first "nothing the API sends can run, be framed, be indexed or be cached"
+failed file deletion forgotten                 | caught: 1 failing, first "a file deletion that fails stays queued, the member’s request still succeeds, and the retry deletes it"
+signups pause ignored at account creation      | caught: 16 failing, first "while sign-ups are paused, members already signed up sign in, but no new account is made"
+```
+
+### Neon dry run (dev database, rolled back)
+
+Migrations 0008–0011 applied in one transaction on Neon dev, a made-up member deleted and swept, then ROLLBACK.
+Postgres refuses an enum value in the transaction that adds it (`cancelled`, from 0008), so for this run only the three
+"cancel unsent payments" statements were made no-ops; a real deploy commits the migrations first, and the tests cover
+those statements.
+
+```text
+server: 18.6 (4e5fd08)
+recorded migrations before: 8
+applied 0008_plans_and_payments.sql: 29 statements
+applied 0009_payment_rules.sql: 42 statements
+applied 0010_safety_tables.sql: 11 statements
+dry run only: 3 "cancel unsent payments" statements in 0011 neutralised (enum value not committed yet)
+applied 0011_safety_rules.sql: 20 statements
+checks: {"app_functions":96,"new_tables_rls":true,"fh_app_grants_on_new_tables":0,"member_delete_account":true,"member_delete_profile":true,"member_hand_over":true,"member_erase":false,"member_move":false,"member_outcomes_of_anyone":false,"member_purge":false}
+delete_account as the member: {"banned":false,"profilesDeleted":1,"profilesHandedOver":0}
+after deletion: {"profile_status":"deleted","profile_name":null,"contacts":0,"photos":0,"files_queued":2,"identity_emptied":true,"phone":null,"banned":false,"kept_days":"182"}
+retention_purge(6): {"reports":0,"accounts":1,"payments":0,"profiles":1,"receipts":0,"auditEvents":0}
+after the sweep: {"identity_rows":0,"hashes":0,"profile_rows":0,"plan_event_link_cleared":true,"plan_events_of_b":1}
+editing a plan event as the system: refused, entitlement_event rows are append-only
+rate-limit counter hits: 1,2,3,4
+rolled back; recorded migrations now: 8 | retained_identity exists: false | dry-run users left: 0
+```
+
+### Security headers on the built site
+
+`npm run build:site` with Cloudflare's test site key, served by `npm run preview:site` (port 8099) with the sandbox API
+behind it (port 8799):
+
+```text
+=== GET /pricing/
+HTTP/1.1 200 OK
+x-frame-options: DENY
+strict-transport-security: max-age=31536000; includeSubDomains
+content-security-policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://images.pexels.com; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'
+=== GET /app/profiles/123
+HTTP/1.1 200 OK
+x-frame-options: DENY
+x-robots-tag: noindex, nofollow
+body: <!doctype html> <html lang="en">   <head>     <meta http-equiv="Content-Security-Policy" content="de
+=== GET /app/assets/index-CM_11ges.js
+HTTP/1.1 200 OK
+cache-control: public, max-age=31536000, immutable
+Content-Type: text/javascript; charset=utf-8
+body: const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/ProfilePage-Bqspm3ye.js","assets/la
+=== GET /api/v1/service-status
+HTTP/1.1 200 OK
+cache-control: no-store
+content-security-policy: default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'
+x-robots-tag: noindex
+body: {"signupsPaused":false,"documentSubmissionsPaused":false}
+```
+
+In the browser, the app's policy let Turnstile load and issue its test token, and blocked a script and an image from
+another host while allowing R2 photo links and `data:` images (the `securitypolicyviolation` events listed only the
+two foreign ones).
+
+### Export ZIP against independent tools
+
+```text
+Archive:  export.zip
+    testing: README.txt               OK
+    testing: data.json                OK
+    testing: photos/profile-1/photo-1-cover.jpg   OK
+No errors detected in compressed data of export.zip.
+python testzip: None
+[('README.txt', 8, 540), ('data.json', 8, 1759), ('photos/profile-1/photo-1-cover.jpg', 0, 619942)]
+data.json name: නිමාලි
+```
+
+### Browser walkthrough
+
+On the built site (production files, with their headers and policy), ports 8099/8799, Cloudflare's test keys, the
+sandbox's synthetic accounts. The owner's sandbox on 8788/5174 was not touched.
+
+| Checked | Result |
+| --- | --- |
+| Member app under its own policy | Loads; Turnstile shows "Success!" with Cloudflare's test banner; no policy errors in the console. |
+| Owner's Service tab | Both switches "Open". Paused sign-ups with a reason: "Paused", the reason and time shown. Paused document submissions. |
+| Sign-in while sign-ups are paused | Notice "New sign-ups are paused for now". A new email got a code but no account: "New sign-ups are paused for now. Please try again later." Chathu (existing) signed in. |
+| Download my data | `favorite-hearts-data-2026-10-30.zip`, 1,578 bytes, `application/zip`, ZIP signature `504b0304`; toast "Your data is downloading as a ZIP file." (caught before saving to disk). |
+| Delete my account | The dialog listed "Chathu is deleted now", what goes now and what is kept 6 months; the button stayed off until the tick. Deleted: "Your account has been deleted." and back at sign-in. |
+| Sign-ups open again, documents still paused | A new member signed up; the verification page showed "Document submissions are paused for now" with the upload button off. |
+| Delete this profile | A draft profile deleted after the dialog: "The profile was deleted.", "No profiles yet". |
+| Candidate joins, then hand-over | Invitation, code and the candidate's own sign-in; the candidate's delete dialog says the manager will be told. The manager's overview says only the candidate can delete; "Hand over to the candidate" worked and the manager lost the profile. |
+| Phones (375 px) | The account card and the delete dialog fit the screen (the dialog scrolls inside), no sideways scrolling. |
+
+### Problems found while building and walking through, all fixed
+
+- **Would have broken the member app in production:** Cloudflare Pages follows `_redirects` even when a file exists,
+  so the Stage 1 rule `/app/* /app/index.html 200` would have answered every app script and style with the page.
+  `/app/assets/*` now passes through first.
+- **Would have blocked Turnstile, the API and photos in production:** the website's policy on `/*` also applied to
+  `/app/`. It is now removed there, and the app brings its own.
+- A deleted manager's kept hashes remembered profiles handed to the candidate, so a serious report upheld later about
+  the candidate would have banned the former manager. Only profiles deleted with the account are remembered now; a
+  new test covers it.
+- After "Use a different email", the previous error stayed on the sign-in form. It is cleared now.
+- The delete card suggested pausing even for a draft, which cannot be paused. Shown only for published profiles now.
+- With no profile name yet, the hand-over said "the candidate is told by email" in lower case. Fixed.
+
+### `npm run typecheck` and `npm run build`
+
+- `npm run typecheck`: exit 0; `astro check` gave 0 errors.
+- `npm run build`: exit 0. The API bundle is 214.8kb. The member app's Profile chunk is 56.63 kB and Staff 58.18 kB;
+  the main chunk is 549.94 kB, over Vite's 500 kB warning (noted for Stage 6). The website built 22 pages.
+
+### Not done in 5a
+
+- Migrations 0010–0011 (with 0008–0009) are not applied to Neon dev: on request.
+- **BLOCKED (owner):** `CLIENT_IP_HEADER` and the other production settings wait for the hosting choice (Fly.io or
+  Railway, Cloudflare in front); Turnstile keys, the Resend domain and real payment details as before.
+- To confirm (decisions table): the rate-limit numbers, what "banned" means, the 15-minute sign-in rule, the
+  hand-over, and whether payment records and receipts may be kept 6 months (accountant) and documents of deleted
+  members deleted at once (lawyer).
+- The privacy policy must list what is kept and for how long: 5b, with the lawyer's review.

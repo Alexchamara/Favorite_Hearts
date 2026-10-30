@@ -5,8 +5,10 @@ import { HTTPException } from 'hono/http-exception';
 import { secureHeaders } from 'hono/secure-headers';
 import { HttpError, pgError, type AppEnv, type Deps, type PgError } from './http.ts';
 import { log } from './lib/log.ts';
+import { rateLimits } from './lib/rate-limit.ts';
 import { loadSession } from './middleware/session.ts';
 import { turnstileGuard } from './middleware/turnstile.ts';
+import { account } from './routes/account.ts';
 import { payments, plans, profileBilling } from './routes/billing.ts';
 import { discover } from './routes/discover.ts';
 import { health } from './routes/health.ts';
@@ -17,6 +19,7 @@ import { profilePhotos } from './routes/photos.ts';
 import { profiles } from './routes/profiles.ts';
 import { reports } from './routes/reports.ts';
 import { connections, interests, profileRequests } from './routes/requests.ts';
+import { serviceStatus } from './routes/service-status.ts';
 import { staff } from './routes/staff.ts';
 import { verification } from './routes/verification.ts';
 
@@ -105,6 +108,11 @@ const RAISED: Record<string, Answer> = {
   plan_not_active: [409, 'PLAN_NOT_ACTIVE', 'This profile has no active plan.'],
   plan_in_use: [409, 'PLAN_IN_USE', 'This plan was bought or granted, so it stays on record. Retire it instead.'],
   price_invalid: [400, 'VALIDATION', 'Enter a price above 0.'],
+  // Deletion and hand-over (drizzle/0011_safety_rules.sql).
+  profile_delete_candidate_only: [403, 'CANDIDATE_DECIDES', 'The candidate has joined this profile, so only they can delete it. You can hand it over to them instead.'],
+  hand_over_needs_candidate: [409, 'NO_CANDIDATE', 'The candidate has not joined yet, so there is no one to hand the profile to.'],
+  account_not_found: [404, 'NOT_FOUND', 'Account not found.'],
+  account_is_staff: [403, 'STAFF_ACCOUNT', 'Staff accounts are removed by the owner, not deleted here.'],
 };
 
 function databaseAnswer(err: PgError): Answer | null {
@@ -120,7 +128,22 @@ function databaseAnswer(err: PgError): Answer | null {
 export function createApp(deps: Deps) {
   const app = new Hono<AppEnv>();
 
-  app.use('*', secureHeaders());
+  // The API only answers with JSON and files: nothing may run, embed or frame it, and nothing it sends is cached.
+  app.use(
+    '*',
+    secureHeaders({
+      contentSecurityPolicy: { defaultSrc: ["'none'"], frameAncestors: ["'none'"], baseUri: ["'none'"], formAction: ["'none'"] },
+      strictTransportSecurity: 'max-age=31536000; includeSubDomains',
+      referrerPolicy: 'no-referrer',
+      xFrameOptions: 'DENY',
+      permissionsPolicy: { camera: [], microphone: [], geolocation: [], payment: [] },
+    }),
+  );
+  app.use('/api/*', async (c, next) => {
+    await next();
+    if (!c.res.headers.has('Cache-Control')) c.header('Cache-Control', 'no-store');
+    c.header('X-Robots-Tag', 'noindex');
+  });
   app.use('*', async (c, next) => {
     c.set('deps', deps);
     await next();
@@ -161,7 +184,10 @@ export function createApp(deps: Deps) {
   // /profiles/*. /owner is the owner's alone (payments): the backup reviewer is refused there and in the database.
   const v1 = new Hono<AppEnv>()
     .use(loadSession)
+    .use(rateLimits)
+    .route('/service-status', serviceStatus)
     .route('/me', me)
+    .route('/account', account)
     .route('/plans', plans)
     .route('/profiles', profiles)
     .route('/profiles', profileRequests)

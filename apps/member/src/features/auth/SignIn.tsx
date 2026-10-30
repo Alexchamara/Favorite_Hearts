@@ -11,7 +11,7 @@ import { useBotCheck } from '@/components/turnstile';
 import { Button } from '@/components/ui/button';
 import { errorMessage } from '@/lib/api';
 import { authClient } from '@/lib/auth-client';
-import { keys, resetSession } from '@/lib/queries';
+import { keys, resetSession, useServiceStatus } from '@/lib/queries';
 import { queryClient } from '@/lib/query-client';
 import { enabledChannels, requestLoginCode, verifyLoginCode } from './login-code';
 
@@ -26,6 +26,7 @@ export function SignIn({ onSignedIn, intro }: { onSignedIn?: () => void; intro?:
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const bot = useBotCheck();
+  const status = useServiceStatus();
 
   const input = (target: LoginChannel, value: string) =>
     target === 'email' ? ({ channel: 'email', email: value } as const) : ({ channel: 'sms', phone: value } as const);
@@ -67,6 +68,11 @@ export function SignIn({ onSignedIn, intro }: { onSignedIn?: () => void; intro?:
   return (
     <div className="flex flex-col gap-5">
       {intro && <p className="text-muted-foreground">{intro}</p>}
+      {status.data?.signupsPaused && (
+        <Notice tone="warning" title="New sign-ups are paused for now">
+          We are catching up on reviews. If you already have an account, you can still sign in.
+        </Notice>
+      )}
       {error && <Notice tone="error">{error}</Notice>}
       {step.kind === 'contact' ? (
         <form onSubmit={sendCode} className="flex flex-col gap-4">
@@ -124,7 +130,14 @@ export function SignIn({ onSignedIn, intro }: { onSignedIn?: () => void; intro?:
             <button type="button" className="text-brand underline underline-offset-4 disabled:opacity-60" onClick={() => void sendCode()} disabled={busy || !bot.ready}>
               Send a new code
             </button>
-            <button type="button" className="text-brand underline underline-offset-4" onClick={() => setStep({ kind: 'contact' })}>
+            <button
+              type="button"
+              className="text-brand underline underline-offset-4"
+              onClick={() => {
+                setError(null);
+                setStep({ kind: 'contact' });
+              }}
+            >
               Use a different {step.channel === 'email' ? 'email' : 'number'}
             </button>
           </div>

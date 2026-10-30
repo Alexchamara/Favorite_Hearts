@@ -13,6 +13,7 @@ import type {
   INVITATION_CHANNELS,
   LOCALES,
   MANAGER_RELATIONSHIPS,
+  OPERATIONS_FLAGS,
   PAYMENT_CHANNELS,
   PAYMENT_STATUSES,
   PLAN_TIERS,
@@ -26,6 +27,7 @@ import type {
 } from './domain.ts';
 import type { StaffRole } from './login-channels.ts';
 import type { profileFieldsSchema } from './profile.ts';
+import type { DELETION_OUTCOMES } from './safety.ts';
 import type { z } from 'zod';
 
 type ApiDate = string | Date;
@@ -131,6 +133,8 @@ export type StaffQueueItem = VerificationCaseView & {
     email: string | null;
     phone: string | null;
     phoneVerified: boolean;
+    /** The member deleted the account: only the decision is kept, until the retention sweep. */
+    accountDeleted: boolean;
     profiles: { displayName: string | null; role: 'candidate' | 'manager' }[];
   };
 };
@@ -394,8 +398,9 @@ export type OwnerPaymentItem = {
   createdAt: ApiDate;
   proofSubmittedAt: ApiDate | null;
   reviewedAt: ApiDate | null;
-  profile: { id: string | null; displayName: string | null; countryCode: string | null };
-  payer: { userId: string | null; name: string | null; email: string | null; phone: string | null };
+  /** `deleted`: the profile or the payer's account was deleted; the payment stays on record for the retention period. */
+  profile: { id: string | null; displayName: string | null; countryCode: string | null; deleted: boolean };
+  payer: { userId: string | null; name: string | null; email: string | null; phone: string | null; deleted: boolean };
   plan: { id: string; name: string | null; level: number | null; termMonths: number | null };
   currency: Currency;
   amountMinor: number;
@@ -447,3 +452,37 @@ export type OwnerProfilePlan = {
   entitlements: EntitlementView[];
   payments: OwnerPaymentItem[];
 };
+
+// --- Safety: service switches, deletion and export (Stage 5a) -----------------------------------------------
+
+/** Public: whether the owner has paused new sign-ups or document submissions (section 10). */
+export type ServiceStatus = { signupsPaused: boolean; documentSubmissionsPaused: boolean };
+
+export type OperationsFlagView = {
+  key: (typeof OPERATIONS_FLAGS)[number];
+  enabled: boolean;
+  reason: string | null;
+  updatedAt: ApiDate;
+};
+
+/** What deleting the account does to one profile it runs. */
+export type DeletionOutcomeView = {
+  profileId: string;
+  displayName: string | null;
+  outcome: (typeof DELETION_OUTCOMES)[number];
+  /** The candidate who takes the profile over (outcome handed_over). */
+  candidateName: string | null;
+  planActive: boolean;
+  planEndsAt: ApiDate | null;
+};
+
+export type AccountDeletionPreview = {
+  profiles: DeletionOutcomeView[];
+  /** The member's own payments with a receipt the owner has not decided yet: they stay with the owner. */
+  paymentsUnderReview: number;
+  /** Deleting needs a recent sign-in; false means "sign in again first". */
+  recentSignIn: boolean;
+  retentionMonths: number;
+};
+
+export type AccountDeletionResult = { profilesDeleted: number; profilesHandedOver: number };

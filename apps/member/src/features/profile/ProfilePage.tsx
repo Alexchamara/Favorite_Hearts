@@ -22,7 +22,7 @@ import { DetailsForm } from './DetailsForm';
 import { caseStatusLabels, fieldLabels, relationshipLabels, statusLabels } from './options';
 import { PeoplePanel } from './PeoplePanel';
 import { PhotosPanel } from './PhotosPanel';
-import { EngagedCard, PlanCard } from './StandingCards';
+import { DeleteProfileCard, EngagedCard, PlanCard } from './StandingCards';
 
 export default function ProfilePage() {
   const { id = '' } = useParams();
@@ -216,6 +216,7 @@ function Overview({ profile, onOpenPlans }: { profile: ProfileView; onOpenPlans:
 
       <PlanCard profile={profile} onOpenPlans={onOpenPlans} />
       <EngagedCard profile={profile} />
+      <DeleteProfileCard profile={profile} />
     </div>
   );
 }

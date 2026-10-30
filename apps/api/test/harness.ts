@@ -26,8 +26,11 @@ export type Outbox = { emails: EmailMessage[]; sms: SmsMessage[] };
 export type Res = { status: number; body: any };
 type FetchApp = { request: (input: string, init?: RequestInit) => Response | Promise<Response> };
 
-/** `turnstile`: a fake bot check (the real one asks Cloudflare); none by default, as in development. */
-export async function createTestApp(options: { turnstile?: Turnstile } = {}) {
+/**
+ * `turnstile`: a fake bot check (the real one asks Cloudflare); none by default, as in development.
+ * `rateLimit`: on only in the tests of the limits themselves; the client's x-forwarded-for is the trusted address.
+ */
+export async function createTestApp(options: { turnstile?: Turnstile; rateLimit?: boolean } = {}) {
   const db = drizzle({ client: new PGlite(), schema });
   await migrate(db, { migrationsFolder: fileURLToPath(new URL('../drizzle', import.meta.url)) });
 
@@ -44,6 +47,9 @@ export async function createTestApp(options: { turnstile?: Turnstile } = {}) {
     async put(bucket, key, body) {
       files.set(`${bucket}/${key}`, body);
     },
+    async get(bucket, key) {
+      return files.get(`${bucket}/${key}`) ?? null;
+    },
     async delete(bucket, key) {
       if (this.failDeletes) throw new Error('storage unreachable');
       files.delete(`${bucket}/${key}`);
@@ -58,7 +64,8 @@ export async function createTestApp(options: { turnstile?: Turnstile } = {}) {
     memberAppUrl: 'http://localhost:4321/app',
     allowedOrigins: [ORIGIN],
     authSecret: 'test-only-secret-0123456789abcdefghijklmnop',
-    rateLimit: false,
+    rateLimit: options.rateLimit ?? false,
+    clientIpHeader: 'x-forwarded-for',
     signedUrlTtlSeconds: 120,
   };
   const auth = createAuth({ db, config, messenger });
@@ -116,7 +123,8 @@ export class Client {
     private outbox: Outbox,
   ) {}
 
-  async request(method: string, path: string, body?: unknown): Promise<Res> {
+  /** The raw response, with cookies kept as a browser would (see `request` for parsed JSON). */
+  async send(method: string, path: string, body?: unknown): Promise<Response> {
     const headers = new Headers({ origin: ORIGIN, 'x-forwarded-for': '127.0.0.1', ...this.headers });
     if (body !== undefined && !(body instanceof FormData)) headers.set('content-type', 'application/json');
     if (this.cookies.size) headers.set('cookie', [...this.cookies].map(([name, value]) => `${name}=${value}`).join('; '));
@@ -133,6 +141,11 @@ export class Client {
       if (!value || /max-age=0/i.test(cookie)) this.cookies.delete(name);
       else this.cookies.set(name, value);
     }
+    return res;
+  }
+
+  async request(method: string, path: string, body?: unknown): Promise<Res> {
+    const res = await this.send(method, path, body);
     const text = await res.text();
     let parsed: unknown = text;
     try {

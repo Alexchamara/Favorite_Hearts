@@ -35,6 +35,16 @@ export function createR2Storage(settings: R2Settings): Storage {
       ready();
       await client.send(new PutObjectCommand({ Bucket: buckets[bucket], Key: key, Body: body, ContentType: contentType }));
     },
+    async get(bucket, key) {
+      ready();
+      try {
+        const object = await client.send(new GetObjectCommand({ Bucket: buckets[bucket], Key: key }));
+        return object.Body ? Buffer.from(await object.Body.transformToByteArray()) : null;
+      } catch (err) {
+        if ((err as { name?: string }).name === 'NoSuchKey') return null;
+        throw err;
+      }
+    },
     async delete(bucket, key) {
       ready();
       // S3/R2 DeleteObject succeeds for keys that no longer exist.

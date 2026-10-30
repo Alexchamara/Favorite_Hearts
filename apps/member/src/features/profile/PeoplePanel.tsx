@@ -4,6 +4,7 @@
  */
 import { useState, type FormEvent } from 'react';
 import { useMutation } from '@tanstack/react-query';
+import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { INVITATION_TTL_HOURS, type InvitationSent, type ProfileView } from '@fh/shared';
 import { SelectField, TextField } from '@/components/form/fields';
@@ -77,7 +78,46 @@ function ManagerSide({ profile }: { profile: ProfileView }) {
         )}
       </Card>
       {!candidate.joined && !candidate.objectedAt && <InviteForm profile={profile} />}
+      {candidate.joined && <HandOverCard profile={profile} />}
     </div>
+  );
+}
+
+/** A manager steps away from a profile whose candidate joined: the candidate runs it alone, as after a takeover. */
+function HandOverCard({ profile }: { profile: ProfileView }) {
+  const navigate = useNavigate();
+  const name = profile.fields.displayName ?? 'the candidate';
+  const Name = profile.fields.displayName ?? 'The candidate';
+  const handOver = useMutation({
+    mutationFn: () => post<void>(`/profiles/${profile.id}/hand-over`),
+    onSuccess: async () => {
+      queryClient.removeQueries({ queryKey: keys.profile(profile.id) });
+      await queryClient.invalidateQueries({ queryKey: keys.profiles });
+      navigate('/', { replace: true });
+      toast.success(`${Name} now runs the profile.`);
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+  return (
+    <Card>
+      <h2 className="font-serif text-2xl">Hand the profile over</h2>
+      <p className="mt-2 text-sm text-muted-foreground">Stop managing this profile and let {name} run it alone.</p>
+      <Confirm
+        trigger={
+          <Button variant="outline" className="mt-5 h-11" disabled={handOver.isPending}>
+            Hand over to {name}
+          </Button>
+        }
+        title={`Hand the profile over to ${name}?`}
+        action="Hand over"
+        onConfirm={() => handOver.mutate()}
+      >
+        <p>You lose all access to this profile straight away, including its requests, connections and contact details.</p>
+        <p>Your own contact details are removed from it. Its plan stays with the profile until it ends.</p>
+        <p>If it is published, it pauses until {name}’s own identity document is reviewed and phone verified.</p>
+        <p>{Name} is told by email.</p>
+      </Confirm>
+    </Card>
   );
 }
 
@@ -236,7 +276,7 @@ function CandidateSide({ profile }: { profile: ProfileView }) {
             onConfirm={() => act.mutate('take-over')}
           >
             <p>{manager.name} loses all access to this profile immediately, including its interests and contact details.</p>
-            <p>Any paid plan stays with the profile until it ends.</p>
+            <p>{manager.name}’s own contact details are removed from it. Any paid plan stays with the profile until it ends.</p>
             <p>If the profile is published, it pauses until your own identity document is reviewed and your phone verified.</p>
           </Confirm>
         </Card>

@@ -4,12 +4,14 @@
  */
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import type {
+  AccountDeletionPreview,
   BillingOverview,
   BlockView,
   ConnectionView,
   DiscoverPage,
   MemberProfileView,
   MeView,
+  OperationsFlagView,
   OwnerPaymentDetail,
   OwnerPaymentItem,
   OwnerPlanView,
@@ -20,6 +22,7 @@ import type {
   ProfileView,
   ReceivedInterests,
   SentInterestView,
+  ServiceStatus,
   VerificationCaseView,
 } from '@fh/shared';
 import { api, ApiError } from './api';
@@ -48,6 +51,9 @@ export const keys = {
   ownerPayments: (status: string, query: string) => ['owner', 'payments', status, query] as const,
   ownerPayment: (id: string) => ['owner', 'payment', id] as const,
   ownerProfilePlan: (profileId: string) => ['owner', 'profile-plan', profileId] as const,
+  ownerOperations: ['owner', 'operations'] as const,
+  serviceStatus: ['service-status'] as const,
+  accountDeletion: ['account', 'deletion'] as const,
 };
 
 /** After a request, connection or block changes: everything that shows relations is refreshed. */
@@ -220,4 +226,20 @@ export function useOwnerPayment(id: string) {
 
 export function useOwnerProfilePlan(profileId: string) {
   return useQuery({ queryKey: keys.ownerProfilePlan(profileId), queryFn: () => api<OwnerProfilePlan>(`/owner/profiles/${profileId}/plan`) });
+}
+
+// --- Service switches, deletion and export (Stage 5a) ------------------------------------------------------
+
+/** Whether the owner has paused new sign-ups or document submissions (section 10). */
+export function useServiceStatus() {
+  return useQuery({ queryKey: keys.serviceStatus, queryFn: () => api<ServiceStatus>('/service-status'), staleTime: 60_000 });
+}
+
+export function useOwnerOperations() {
+  return useQuery({ queryKey: keys.ownerOperations, queryFn: async () => (await api<{ flags: OperationsFlagView[] }>('/owner/operations')).flags });
+}
+
+/** What deleting the account would do; fetched fresh each time the dialog opens. */
+export function useAccountDeletion(enabled: boolean) {
+  return useQuery({ queryKey: keys.accountDeletion, queryFn: () => api<AccountDeletionPreview>('/account/deletion'), enabled, staleTime: 0 });
 }

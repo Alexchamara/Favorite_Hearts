@@ -71,6 +71,20 @@
       "when": 1793291011627,
       "tag": "0009_payment_rules",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793332329115,
+      "tag": "0010_safety_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793332334392,
+      "tag": "0011_safety_rules",
+      "breakpoints": true
     }
   ]
 }

@@ -10,6 +10,7 @@ import { z } from 'zod';
 import {
   contactSchema,
   contactUpdateSchema,
+  deleteProfileSchema,
   INVITATION_TTL_HOURS,
   invitationCreateSchema,
   managerPermissionsSchema,
@@ -19,6 +20,7 @@ import {
 } from '@fh/shared';
 import { invitation, privateContact, profile, profileManager } from '../db/schema/members.ts';
 import { fail, parse, readJson, withActor, type AppEnv } from '../http.ts';
+import { audit } from '../lib/audit.ts';
 import { invitationLink, newInvitationToken, tokenDigest } from '../lib/invitation-tokens.ts';
 import {
   actorRights,
@@ -29,9 +31,10 @@ import {
   profilePeople,
   rows,
 } from '../lib/profile-view.ts';
+import { cleanUpSoon } from '../lib/storage-cleanup.ts';
 import { SmsUnavailableError } from '../messaging/messenger.ts';
 import { invitationEmail, invitationSms } from '../messaging/templates.ts';
-import { requireMember } from '../middleware/session.ts';
+import { requireMember, requireRecentSignIn } from '../middleware/session.ts';
 
 /** Invitations a manager may send per profile in 24 hours (§5: "with a limit on resends"). */
 export const MAX_INVITATIONS_PER_DAY = 3;
@@ -273,6 +276,36 @@ profiles.post('/:id/take-over', async (c) => c.json(await candidateAction('candi
 profiles.post('/:id/withdraw-consent', async (c) => c.json(await candidateAction('candidate_withdraw_consent', c)));
 /** Lifts the objection; publishing again is a separate, explicit step (spec I09). */
 profiles.post('/:id/restore-consent', async (c) => c.json(await candidateAction('candidate_restore_consent', c)));
+
+// --- Deleting a profile and handing it over (section 8; owner decision 30 Oct 2026: the candidate decides) -------
+
+/**
+ * Deletes one profile now: its candidate always may, its manager only while no candidate has joined. What stays for the
+ * retention period, and why, is in app.erase_profile (drizzle/0011_safety_rules.sql).
+ */
+profiles.post('/:id/delete', async (c) => {
+  const id = idParam(c.req.param('id'));
+  parse(deleteProfileSchema, await readJson(c));
+  requireRecentSignIn(c);
+  await withActor(c, async (tx) => {
+    await operatedProfile(tx, id);
+    const [row] = rows<{ removed: Record<string, unknown> }>(await tx.execute(sql`select app.delete_profile(${id}) as removed`));
+    await audit(c, tx, { action: 'profile.deleted', entityType: 'profile', entityId: id, metadata: row!.removed });
+  });
+  await cleanUpSoon(c.var.deps);
+  return c.body(null, 204);
+});
+
+/** The manager steps away; the candidate, who has joined, runs the profile alone from now on (as after a takeover). */
+profiles.post('/:id/hand-over', async (c) => {
+  const id = idParam(c.req.param('id'));
+  await withActor(c, async (tx) => {
+    await operatedProfile(tx, id);
+    const [row] = rows<{ result: { profileStatus: string } }>(await tx.execute(sql`select app.hand_over_profile(${id}) as result`));
+    await audit(c, tx, { action: 'profile.handed_over', entityType: 'profile', entityId: id, metadata: row!.result });
+  });
+  return c.body(null, 204);
+});
 
 // --- Invitations, manager side (§5) ---------------------------------------------------------------
 

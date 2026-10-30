@@ -91,12 +91,15 @@ export const memberAccount = pgTable(
     residenceCountry: countryCode('residence_country'),
     /** §5: 3 by default; only the owner may raise it. */
     maxManagedProfiles: smallint('max_managed_profiles').notNull().default(DEFAULT_MANAGER_CAPACITY),
+    /** §8: when the member deleted the account; the retention sweep removes what is left 6 months later. */
+    deletedAt: at('deleted_at'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (t) => [
     check('member_account_residence_country_iso', sql`${t.residenceCountry} ~ '^[A-Z]{2}$'`),
     check('member_account_max_managed_positive', sql`${t.maxManagedProfiles} >= 1`),
+    check('member_account_deleted_at', sql`(${t.status} = 'deleted') = (${t.deletedAt} is not null)`),
   ],
 );
 
@@ -163,6 +166,8 @@ export const profile = pgTable(
     candidateObjectionAt: at('candidate_objection_at'),
     /** Set once by a trigger on first publication; never bumped by later edits (spec 6.1). */
     firstPublishedAt: at('first_published_at'),
+    /** §8: a deleted profile is an empty shell nobody operates or sees, kept 6 months for the records that point to it. */
+    deletedAt: at('deleted_at'),
     version: integer('version').notNull().default(1),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -173,6 +178,7 @@ export const profile = pgTable(
       .on(t.candidateUserId)
       .where(sql`${t.candidateUserId} is not null and ${t.status} <> 'deleted'`),
     index('profile_status_idx').on(t.status),
+    check('profile_deleted_at', sql`(${t.status} = 'deleted') = (${t.deletedAt} is not null)`),
     check('profile_display_name_length', sql`char_length(${t.displayName}) between 2 and 60`),
     check('profile_country_code_iso', sql`${t.countryCode} ~ '^[A-Z]{2}$'`),
     check('profile_region_length', sql`char_length(${t.region}) <= 80`),

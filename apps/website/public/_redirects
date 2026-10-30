@@ -2,4 +2,7 @@
 /explore/ /labs/ 301
 /journal/* /newsroom/ 301
 /safety/ /trust-and-safety/ 301
+# The member app's own files first: Cloudflare Pages follows a rule even when a file exists, and only the first rule
+# that matches applies, so without this line every script and style under /app/ would be answered with the page.
+/app/assets/* /app/assets/:splat 200
 /app/* /app/index.html 200

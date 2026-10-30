@@ -182,7 +182,7 @@ function PaymentDetail({ id }: { id: string }) {
           </Row>
           <Row label="Paid by">{channelLabels[item.channel]}</Row>
           <Row label="Payer">
-            {item.payer.name || 'Unnamed account'}
+            {item.payer.deleted ? 'Deleted account (payment kept for the retention period)' : item.payer.name || 'Unnamed account'}
             {item.payer.email && ` · ${item.payer.email}`}
             {item.payer.phone && ` · ${item.payer.phone}`}
           </Row>

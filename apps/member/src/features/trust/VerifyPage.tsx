@@ -14,7 +14,7 @@ import { useBotCheck } from '@/components/turnstile';
 import { Button } from '@/components/ui/button';
 import { errorMessage, post } from '@/lib/api';
 import { authClient } from '@/lib/auth-client';
-import { keys, useHealth, useMe, useMyCases } from '@/lib/queries';
+import { keys, useHealth, useMe, useMyCases, useServiceStatus } from '@/lib/queries';
 import { queryClient } from '@/lib/query-client';
 import { caseStatusLabels, documentLabels, options } from '@/features/profile/options';
 
@@ -123,6 +123,7 @@ function PhoneCheck() {
 
 function DocumentCheck() {
   const cases = useMyCases();
+  const paused = Boolean(useServiceStatus().data?.documentSubmissionsPaused);
   const [type, setType] = useState<DocumentType | ''>('');
   const [file, setFile] = useState<File | null>(null);
   const upload = useMutation({
@@ -171,6 +172,11 @@ function DocumentCheck() {
             upload.mutate();
           }}
         >
+          {paused && (
+            <Notice tone="warning" title="Document submissions are paused for now">
+              We are catching up on reviews. Please come back in a day or two; nothing you have done so far is lost.
+            </Notice>
+          )}
           {upload.isError && <Notice tone="error">{errorMessage(upload.error)}</Notice>}
           <SelectField label="Document" value={type} onChange={setType} options={options(documentLabels)} />
           <div className="flex flex-col gap-1.5">
@@ -189,7 +195,7 @@ function DocumentCheck() {
               days after the review.
             </p>
           </div>
-          <Button type="submit" className="h-11 self-start" disabled={upload.isPending || !type || !file}>
+          <Button type="submit" className="h-11 self-start" disabled={paused || upload.isPending || !type || !file}>
             {upload.isPending ? 'Uploading…' : 'Send for review'}
           </Button>
         </form>

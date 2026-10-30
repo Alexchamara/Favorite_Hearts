@@ -23,6 +23,7 @@ import { PaymentDetailsAdmin } from './PaymentDetailsAdmin';
 import { PaymentsQueue } from './PaymentsQueue';
 import { PlansAdmin } from './PlansAdmin';
 import { ReportsQueue } from './ReportsQueue';
+import { ServiceAdmin } from './ServiceAdmin';
 
 export default function StaffApp() {
   const me = useMe();
@@ -46,7 +47,7 @@ export default function StaffApp() {
   );
 }
 
-type Area = 'documents' | 'reports' | 'payments' | 'plans' | 'details';
+type Area = 'documents' | 'reports' | 'payments' | 'plans' | 'details' | 'service';
 
 const areas: { value: Area; label: string; ownerOnly?: boolean }[] = [
   { value: 'documents', label: 'Identity documents' },
@@ -54,11 +55,12 @@ const areas: { value: Area; label: string; ownerOnly?: boolean }[] = [
   { value: 'payments', label: 'Payments', ownerOnly: true },
   { value: 'plans', label: 'Plans', ownerOnly: true },
   { value: 'details', label: 'Payment details', ownerOnly: true },
+  { value: 'service', label: 'Service', ownerOnly: true },
 ];
 
 /**
- * Identity documents and reports: both roles review both (section 10). Payments, plans and payment details are
- * the owner's alone; the backup reviewer never sees those tabs, and the server refuses them anyway.
+ * Identity documents and reports: both roles review both (section 10). Payments, plans, payment details and the
+ * service switches are the owner's alone; the backup reviewer never sees those tabs, and the server refuses them anyway.
  */
 function StaffWorkspace({ role }: { role: 'owner' | 'backup_reviewer' }) {
   const [area, setArea] = useState<Area>('documents');
@@ -79,6 +81,7 @@ function StaffWorkspace({ role }: { role: 'owner' | 'backup_reviewer' }) {
       {role === 'owner' && area === 'payments' && <PaymentsQueue />}
       {role === 'owner' && area === 'plans' && <PlansAdmin />}
       {role === 'owner' && area === 'details' && <PaymentDetailsAdmin />}
+      {role === 'owner' && area === 'service' && <ServiceAdmin />}
     </>
   );
 }
@@ -287,7 +290,7 @@ function ReviewQueue({ role }: { role: 'owner' | 'backup_reviewer' }) {
                   onClick={() => setSelected(item.id)}
                   className="w-full rounded-[12px] border bg-card p-4 text-left text-sm hover:border-[var(--ui-accent)] aria-pressed:border-[var(--ui-purple)]"
                 >
-                  <p className="font-semibold">{item.subject.name || 'Unnamed account'}</p>
+                  <p className="font-semibold">{item.subject.accountDeleted ? 'Deleted account' : item.subject.name || 'Unnamed account'}</p>
                   <p className="text-muted-foreground">
                     {documentLabels[item.documentType]} · sent {new Date(item.submittedAt).toLocaleString()}
                   </p>
@@ -320,7 +323,7 @@ function CaseDetail({ item }: { item: StaffQueueItem }) {
   const { subject } = item;
   return (
     <Card>
-      <h2 className="font-serif text-2xl">{subject.name || 'Unnamed account'}</h2>
+      <h2 className="font-serif text-2xl">{subject.accountDeleted ? 'Deleted account' : subject.name || 'Unnamed account'}</h2>
       <dl className="mt-4 grid gap-2 text-sm">
         <div>
           <dt className="inline font-semibold">Document: </dt>

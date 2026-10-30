@@ -2,7 +2,7 @@
  * Staff audit trail, notification outbox and owner-controlled switches (§10, spec 12.1).
  */
 import { sql } from 'drizzle-orm';
-import { bigint, boolean, index, jsonb, pgEnum, pgTable, smallint, text, uuid } from 'drizzle-orm/pg-core';
+import { bigint, boolean, check, index, integer, jsonb, pgEnum, pgTable, smallint, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { NOTIFICATION_CHANNELS, NOTIFICATION_STATUSES, OPERATIONS_FLAGS } from '@fh/shared';
 import { user } from './auth.ts';
 import { at, createdAt, updatedAt } from './columns.ts';
@@ -65,4 +65,52 @@ export const operationsFlag = pgTable('operations_flag', {
   reason: text('reason'),
   updatedByUserId: text('updated_by_user_id').references(() => user.id, { onDelete: 'set null' }),
   updatedAt: updatedAt(),
+});
+
+/**
+ * §8: after an account is deleted only a scrambled form of its sign-in email and phone is kept (a keyed hash,
+ * lib/identity-hash.ts), for 6 months, so that a banned person cannot sign up again. `profileIds` are the profiles
+ * deleted with the account: a serious report upheld against one of them later still bans it.
+ */
+export const retainedIdentity = pgTable(
+  'retained_identity',
+  {
+    userId: text('user_id')
+      .primaryKey()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    emailHash: text('email_hash'),
+    phoneHash: text('phone_hash'),
+    profileIds: uuid('profile_ids').array().notNull().default(sql`'{}'::uuid[]`),
+    banned: boolean('banned').notNull().default(false),
+    deletedAt: at('deleted_at').notNull().defaultNow(),
+    purgeAfter: at('purge_after').notNull(),
+  },
+  (t) => [index('retained_identity_email_idx').on(t.emailHash), index('retained_identity_phone_idx').on(t.phoneHash)],
+);
+
+/**
+ * Files whose rows are already gone (profile and account deletion, the retention sweep). The API deletes them
+ * straight after the change and the storage.cleanup job retries any that failed (lib/storage-cleanup.ts).
+ */
+export const storageDeletion = pgTable(
+  'storage_deletion',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    bucket: text('bucket').notNull(),
+    objectKey: text('object_key').notNull(),
+    attempts: smallint('attempts').notNull().default(0),
+    lastError: text('last_error'),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex('storage_deletion_object_idx').on(t.bucket, t.objectKey),
+    check('storage_deletion_bucket', sql`${t.bucket} in ('private', 'derived')`),
+  ],
+);
+
+/** Request counters for the rate limits (lib/rate-limit.ts): one row per key, its window restarts once passed. */
+export const rateLimitCounter = pgTable('rate_limit_counter', {
+  key: text('key').primaryKey(),
+  windowStartedAt: at('window_started_at').notNull(),
+  hits: integer('hits').notNull(),
 });
