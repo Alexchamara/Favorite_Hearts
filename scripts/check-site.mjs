@@ -1,0 +1,288 @@
+// Checks the built site (dist/site) for the SEO basics, so a broken page fails the build instead of reaching search
+// engines and link previews:
+//   pages     a unique title and description, a canonical link to the page's own address on siteUrl, a robots tag that
+//             follows "indexable", Open Graph and Twitter tags that repeat the title, description and address, a preview
+//             image that exists at the size the tags state, one h1, a language, and structured data that parses;
+//   links     every link and asset on the site's own domain resolves, and every #anchor exists on its page;
+//   sitemap   lists every page except the 404 page, once, at its canonical address;
+//   robots    robots.txt follows "indexable" in site.config.json, and the member app (/app/) is never indexed.
+// A title or description longer than search results show is reported as a note, not a failure.
+// Run via `npm run check:site` (also the last step of `npm run build:site`).
+import { readFile, readdir, stat } from 'node:fs/promises';
+import { join, relative, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const root = fileURLToPath(new URL('../dist/site/', import.meta.url));
+const config = JSON.parse(await readFile(new URL('../apps/website/site.config.json', import.meta.url), 'utf8'));
+const base = config.siteUrl.replace(/\/$/, '');
+// What search results show before cutting text off (an approximation: they measure in pixels).
+const TITLE_SHOWN = 70;
+const DESCRIPTION_SHOWN = 160;
+
+const problems = new Map();
+const notes = [];
+const fail = (area, where, message) => {
+  if (!problems.has(area)) problems.set(area, []);
+  problems.get(area).push(`${where}: ${message}`);
+};
+
+try {
+  await stat(join(root, 'index.html'));
+} catch {
+  console.error('The site has not been built yet. Run `npm run build:site`.');
+  process.exit(1);
+}
+
+const entities = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
+const decode = (s) =>
+  s.replace(/&(#x[\da-f]+|#\d+|[a-z]+);/gi, (m, e) =>
+    e[0] !== '#' ? (entities[e.toLowerCase()] ?? m) : String.fromCodePoint(Number(e[1] === 'x' || e[1] === 'X' ? `0${e.slice(1)}` : e.slice(1))),
+  );
+
+/** The page without comments, scripts and styles, so text inside them is not read as tags. */
+const markup = (html) =>
+  html.replace(/<!--[\s\S]*?-->/g, '').replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, '');
+
+/** Every element in `html` (or only those named `name`) as {name, attrs}, attribute values decoded. */
+function elements(html, name = '[a-z][\\w-]*') {
+  const found = [];
+  for (const m of html.matchAll(new RegExp(`<(${name})\\b((?:[^>"']|"[^"]*"|'[^']*')*)>`, 'gi'))) {
+    const attrs = {};
+    for (const a of m[2].matchAll(/([^\s"'=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+)))?/g)) {
+      attrs[a[1].toLowerCase()] = decode(a[2] ?? a[3] ?? a[4] ?? '');
+    }
+    found.push({ name: m[1].toLowerCase(), attrs });
+  }
+  return found;
+}
+
+/** Width and height from a JPEG's frame header, or null. */
+function jpegSize(buf) {
+  if (buf[0] !== 0xff || buf[1] !== 0xd8) return null;
+  for (let i = 2; i + 9 < buf.length; ) {
+    if (buf[i] !== 0xff) return null;
+    const marker = buf[i + 1];
+    if (marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker)) {
+      return { height: buf.readUInt16BE(i + 5), width: buf.readUInt16BE(i + 7) };
+    }
+    i += 2 + buf.readUInt16BE(i + 2);
+  }
+  return null;
+}
+
+async function exists(file) {
+  try {
+    return (await stat(file)).isFile();
+  } catch {
+    return false;
+  }
+}
+
+async function htmlFiles(dir) {
+  const out = [];
+  for (const entry of await readdir(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    // The member app is a single page of its own, checked only for being kept out of search (below).
+    if (entry.isDirectory() && full !== join(root, 'app')) out.push(...(await htmlFiles(full)));
+    else if (entry.isFile() && entry.name.endsWith('.html')) out.push(full);
+  }
+  return out;
+}
+
+const pages = [];
+for (const file of (await htmlFiles(root)).sort()) {
+  const rel = relative(root, file).split(sep).join('/');
+  const html = await readFile(file, 'utf8');
+  pages.push({ rel, route: `/${rel.replace(/(^|\/)index\.html$/, '$1')}`, html, tags: elements(markup(html)) });
+}
+const notFound = pages.find((p) => p.rel === '404.html');
+const listed = pages.filter((p) => p !== notFound);
+
+/** The path of a file on disk for an address on this site, or null for an address that is not a file here. */
+function fileFor(path) {
+  if (path.startsWith('/app/') || path === '/app') return join(root, 'app', 'index.html');
+  const decoded = decodeURI(path);
+  return join(root, decoded.endsWith('/') ? `${decoded}index.html` : decoded);
+}
+
+const idsOf = new Map(pages.map((p) => [p.route, new Set(p.tags.map((t) => t.attrs.id).filter(Boolean))]));
+const imageSizes = new Map();
+let linkCount = 0;
+let anchorCount = 0;
+
+for (const page of pages) {
+  const where = page.route;
+  const meta = new Map();
+  for (const { attrs } of page.tags.filter((t) => t.name === 'meta')) {
+    const key = attrs.name ?? attrs.property;
+    if (key) meta.set(key, [...(meta.get(key) ?? []), attrs.content ?? '']);
+  }
+  const one = (area, key) => {
+    const values = meta.get(key) ?? [];
+    if (values.length !== 1 || !values[0].trim()) {
+      fail(area, where, values.length ? `${key} appears ${values.length} times or is empty` : `${key} is missing`);
+      return null;
+    }
+    return values[0];
+  };
+
+  const titles = [...markup(page.html).matchAll(/<title\b[^>]*>([\s\S]*?)<\/title>/gi)].map((m) => decode(m[1]).trim());
+  page.title = titles.length === 1 && titles[0] ? titles[0] : null;
+  if (!page.title) fail('titles', where, `${titles.length} titles`);
+  if (!page.tags.find((t) => t.name === 'html')?.attrs.lang) fail('language', where, 'the html element has no lang');
+
+  const robots = one('robots tags', 'robots');
+  if (page === notFound) {
+    if (robots && !/\bnoindex\b/.test(robots)) fail('robots tags', where, `"${robots}" lets search engines index the not-found page`);
+  } else {
+    if (robots && config.indexable === /\bnoindex\b/.test(robots)) {
+      fail('robots tags', where, `"${robots}" but site.config.json has "indexable": ${config.indexable}`);
+    }
+
+    page.description = one('descriptions', 'description');
+    if (page.title && page.title.length > TITLE_SHOWN) notes.push(`${where} title: ${page.title.length} characters`);
+    if (page.description && page.description.length > DESCRIPTION_SHOWN) {
+      notes.push(`${where} description: ${page.description.length} characters`);
+    }
+
+    const url = base + page.route;
+    const canonical = page.tags.filter((t) => t.name === 'link' && t.attrs.rel?.split(/\s+/).includes('canonical'));
+    if (canonical.length !== 1) fail('canonical links', where, `${canonical.length} canonical links`);
+    else if (canonical[0].attrs.href !== url) fail('canonical links', where, `points to ${canonical[0].attrs.href}, not ${url}`);
+
+    const same = (key, expected) => {
+      const value = one('social previews', key);
+      if (value !== null && expected !== null && value !== expected) fail('social previews', where, `${key} is "${value}", not "${expected}"`);
+      return value;
+    };
+    same('og:title', page.title);
+    same('og:description', page.description);
+    same('og:url', url);
+    same('og:site_name', config.siteName);
+    const type = one('social previews', 'og:type');
+    if (type && type !== (page.route.startsWith('/newsroom/') && page.route !== '/newsroom/' ? 'article' : 'website')) {
+      fail('social previews', where, `og:type is ${type}`);
+    }
+    one('social previews', 'og:locale');
+    one('social previews', 'og:image:alt');
+    same('twitter:card', 'summary_large_image');
+    same('twitter:title', page.title);
+    same('twitter:description', page.description);
+    one('social previews', 'twitter:image:alt');
+    const image = one('social previews', 'og:image');
+    same('twitter:image', image);
+    if (image) {
+      if (!image.startsWith(`${base}/`)) fail('social previews', where, `og:image ${image} is not on ${base}`);
+      else {
+        if (!imageSizes.has(image)) {
+          const file = fileFor(new URL(image).pathname);
+          imageSizes.set(image, (await exists(file)) ? jpegSize(await readFile(file)) : 'missing');
+        }
+        const size = imageSizes.get(image);
+        const stated = `${meta.get('og:image:width')?.[0]}×${meta.get('og:image:height')?.[0]}`;
+        if (size === 'missing') fail('social previews', where, `og:image ${image} does not exist`);
+        else if (!size || `${size.width}×${size.height}` !== stated) {
+          fail('social previews', where, `og:image is ${size ? `${size.width}×${size.height}` : 'not a JPEG'}, the tags say ${stated}`);
+        }
+      }
+    }
+
+    const h1 = page.tags.filter((t) => t.name === 'h1').length;
+    if (h1 !== 1) fail('headings', where, `${h1} h1 headings`);
+
+    const data = [...page.html.matchAll(/<script\b[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi)];
+    if (!data.length) fail('structured data', where, 'no JSON-LD');
+    for (const [, text] of data) {
+      try {
+        const graph = JSON.parse(text)['@graph'] ?? [];
+        if (!graph.some((node) => node.url === url)) fail('structured data', where, `no node has url ${url}`);
+      } catch (error) {
+        fail('structured data', where, `JSON-LD does not parse (${error.message})`);
+      }
+    }
+  }
+
+  for (const { name, attrs } of page.tags) {
+    for (const key of ['href', 'src', 'poster', 'data-stock-fallback']) {
+      const value = attrs[key];
+      if (!value || (key === 'href' && name === 'link' && attrs.rel === 'canonical')) continue;
+      if (value.startsWith('#')) {
+        anchorCount++;
+        if (value.length > 1 && !idsOf.get(page.route).has(decodeURIComponent(value.slice(1)))) {
+          fail('links', where, `${value} has no element with that id`);
+        }
+        continue;
+      }
+      const local = value.startsWith(`${base}/`) ? value.slice(base.length) : value.startsWith('/') && !value.startsWith('//') ? value : null;
+      if (!local) continue;
+      linkCount++;
+      const path = local.split(/[?#]/)[0];
+      const hash = local.includes('#') ? local.slice(local.indexOf('#') + 1) : '';
+      if (!(await exists(fileFor(path)))) {
+        fail('links', where, `${value} does not exist`);
+        continue;
+      }
+      if (hash) {
+        anchorCount++;
+        if (!idsOf.get(path)?.has(decodeURIComponent(hash))) fail('links', where, `${value}: no element with id "${hash}" there`);
+      }
+    }
+  }
+}
+
+for (const [area, key] of [['titles', 'title'], ['descriptions', 'description']]) {
+  const seen = new Map();
+  for (const page of listed) if (page[key]) seen.set(page[key], [...(seen.get(page[key]) ?? []), page.route]);
+  for (const [value, routes] of seen) if (routes.length > 1) fail(area, routes.join(', '), `share the ${key} "${value}"`);
+}
+
+const sitemap = await readFile(join(root, 'sitemap.xml'), 'utf8').catch(() => null);
+if (sitemap === null) fail('sitemap', 'sitemap.xml', 'missing');
+else {
+  const locs = [...sitemap.matchAll(/<loc>([^<]*)<\/loc>/g)].map((m) => decode(m[1]).trim());
+  const expected = new Set(listed.map((p) => base + p.route));
+  for (const loc of new Set(locs.filter((l, i) => locs.indexOf(l) !== i))) fail('sitemap', loc, 'listed more than once');
+  for (const loc of new Set(locs)) if (!expected.has(loc)) fail('sitemap', loc, 'listed but there is no such page');
+  for (const url of expected) if (!locs.includes(url)) fail('sitemap', url, 'not listed');
+}
+
+const robotsTxt = (await readFile(join(root, 'robots.txt'), 'utf8').catch(() => '')).split('\n').map((l) => l.trim());
+if (config.indexable) {
+  if (!robotsTxt.includes('Allow: /') || robotsTxt.includes('Disallow: /')) fail('robots.txt', 'robots.txt', 'does not allow the site');
+  if (!robotsTxt.includes(`Sitemap: ${base}/sitemap.xml`)) fail('robots.txt', 'robots.txt', 'does not name the sitemap');
+} else if (!robotsTxt.includes('Disallow: /')) {
+  fail('robots.txt', 'robots.txt', 'allows search engines although "indexable" is false');
+}
+
+// The member app never belongs in search results, whatever "indexable" says.
+const headers = await readFile(join(root, '_headers'), 'utf8').catch(() => '');
+const appRule = headers.split(/\n(?=\S)/).find((block) => block.startsWith('/app/*'));
+if (!appRule || !/^\s+X-Robots-Tag:.*\bnoindex\b/m.test(appRule)) fail('robots.txt', '_headers', '/app/* has no X-Robots-Tag: noindex');
+
+const summary = [
+  ['titles', `${listed.length} unique`],
+  ['descriptions', `${listed.length} unique`],
+  ['canonical links', `${listed.length} point to the page's own address on ${base}`],
+  ['robots tags', config.indexable ? 'pages may be indexed, the 404 page may not' : 'noindex on every page (not indexable yet)'],
+  ['social previews', `Open Graph and Twitter tags on ${listed.length} pages, preview image ${[...imageSizes.values()].map((s) => (s && s !== 'missing' ? `${s.width}×${s.height}` : '?')).join(', ')}`],
+  ['headings', `one h1 on each of ${listed.length} pages`],
+  ['language', `lang set on ${pages.length} pages`],
+  ['structured data', `valid JSON-LD on ${listed.length} pages`],
+  ['links', `${linkCount} links and assets on this site resolve, ${anchorCount} anchors found`],
+  ['sitemap', `${listed.length} pages listed once each, the 404 page left out`],
+  ['robots.txt', config.indexable ? `Allow: / and Sitemap: ${base}/sitemap.xml; /app/ noindex` : 'Disallow: / while not indexable; /app/ noindex'],
+];
+
+console.log(`Site check of dist/site for ${base} ("indexable": ${config.indexable}), ${listed.length} pages and the 404 page:`);
+for (const [area, ok] of summary) {
+  const found = problems.get(area);
+  console.log(`  ${found ? '✗' : '✓'} ${area.padEnd(16)} ${found ? `${found.length} problem${found.length > 1 ? 's' : ''}` : ok}`);
+  for (const line of found ?? []) console.log(`      ${line}`);
+}
+if (notes.length) {
+  console.log(`Notes, not failures: search results may shorten these (titles over ${TITLE_SHOWN}, descriptions over ${DESCRIPTION_SHOWN} characters):`);
+  for (const note of notes) console.log(`  - ${note}`);
+}
+const total = [...problems.values()].reduce((n, list) => n + list.length, 0);
+console.log(total ? `${total} problem${total > 1 ? 's' : ''} found.` : 'No problems found.');
+process.exit(total ? 1 : 0);

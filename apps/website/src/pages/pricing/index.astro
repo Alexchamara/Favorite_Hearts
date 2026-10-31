@@ -1,11 +1,82 @@
 ---
-// Converted from the demo page src/pages/pricing/index.html — content unchanged.
+// Pricing (Stage 5b, OWNER-DECISIONS sections 1–3 and 9). The plan cards come from the live catalogue the owner
+// manages in the app (assets/js/pricing.js), so no price is written into this page.
 import Header from '../../components/Header.astro';
 import Navigation from '../../components/Navigation.astro';
 import Footer from '../../components/Footer.astro';
 import Dialogs from '../../components/Dialogs.astro';
 import Seo from '../../components/Seo.astro';
 import { css, js } from '../../lib/site';
+
+const title = 'Plans and prices — Favorite Hearts';
+const description =
+  'Publishing a profile is free once you are verified. Starter and Premium plans let a profile send and accept requests, in LKR in Sri Lanka and USD abroad.';
+
+const steps = [
+  {
+    icon: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="m8 9 2 2 5-5M8 16h8"/>',
+    title: 'Choose a plan in the app',
+    text: 'Pick a plan for the published profile. The app shows the price for the country you live in, and what changes if the profile already has a plan.',
+  },
+  {
+    icon: '<path d="M4 7h13m-4-4 4 4-4 4M20 17H7m4-4-4 4 4 4"/>',
+    title: 'Pay with your reference',
+    text: 'Send the exact amount to the account shown in the app: a bank transfer in Sri Lanka, or SWIFT, Wise or PayPal from abroad. Include the reference the app gives you.',
+  },
+  {
+    icon: '<path d="M12 16V3m-5 5 5-5 5 5M4 14v6h16v-6"/>',
+    title: 'Upload the receipt',
+    text: 'Add a photo or screenshot of the receipt in the app. We look for your payment in our own bank, Wise or PayPal statement, within 48 hours.',
+  },
+  {
+    icon: '<circle cx="12" cy="12" r="9"/><path d="m7 12 3 3 7-7"/>',
+    title: 'The plan starts',
+    text: 'The plan starts when we find your payment, not when the receipt arrives. We email you as soon as it is active.',
+  },
+];
+
+const questions = [
+  {
+    q: 'Do I need to pay to publish a profile?',
+    a: 'No. Creating and publishing a profile is free once the identity document is reviewed and the phone number is verified by SMS (for a profile a family member manages, the manager’s). Without a plan you can browse other published profiles and receive requests, but you cannot see who sent them, send requests or accept them, and you see no contact details.',
+  },
+  {
+    q: 'What does a plan include?',
+    a: 'Sending requests (Starter: 5 a day and 30 a month; Premium: unlimited requests, fair use applies, up to 30 a day), seeing who is interested, accepting requests, and the contact details and social handles of the people you connect with once you have both accepted. There is no chat in the app.',
+  },
+  {
+    q: 'Which price do I pay?',
+    a: 'The price for the country you live in. If you live in Sri Lanka you pay in LKR by local bank transfer; anywhere else you pay in USD by international transfer (SWIFT), Wise or PayPal. Our team compares the country you declare with how you pay and with your reviewed document. A difference is checked by a person, never rejected automatically.',
+  },
+  {
+    q: 'Can a parent or family member pay?',
+    a: 'Yes. A plan belongs to one profile, so a family member who manages several profiles buys a plan for each. If the candidate later takes over the profile, the paid time stays with the profile.',
+  },
+  {
+    q: 'Does a plan renew automatically?',
+    a: 'No. Nothing renews or charges you automatically. You can renew the same plan in its last 7 days; the new term counts from the day we approve the payment. If you send a renewal receipt before the plan ends, access continues for up to 3 days after the end while we check it.',
+  },
+  {
+    q: 'Can I change to another plan?',
+    a: 'You can move up to a higher plan at any time. It starts when we approve the payment, and the unused days of the current plan are lost: the app tells you exactly how many before you pay. A lower plan can be bought once the current plan has ended.',
+  },
+  {
+    q: 'What happens when a plan ends?',
+    a: 'You no longer see anyone’s contact details or social handles, including your connections’. Your connections stay, and their details come back when you renew. We email you 7 days before the end, on the last day, and once it has ended.',
+  },
+  {
+    q: 'What is the refund policy?',
+    a: 'There are no refunds once a plan is active, except for a duplicate payment, a payment made by mistake, or a failure on our side. You confirm that you have read this before you pay. If a payment is later reversed or disputed, for example through PayPal, the plan it paid for can be ended. If a profile is suspended for breaking our rules, the remaining time is lost. Marking a profile engaged or married, or deleting it, also ends its plan without a refund.',
+  },
+  {
+    q: 'How do I ask about a payment I have made?',
+    a: 'Contact us with the payment reference (FH followed by six letters and numbers) and a short description. Never send passwords, codes or full bank statements: Favorite Hearts staff will never ask for them.',
+  },
+  {
+    q: 'Is there chat or horoscope matching?',
+    a: 'No. Once both sides accept, contact details are shared so you can continue in your own way. Horoscope matching is not offered; a profile can say how important horoscope matching is to the family.',
+  },
+];
 ---
 <!doctype html>
 <html lang="en">
@@ -13,8 +84,8 @@ import { css, js } from '../../lib/site';
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#ffffff">
-<title>Pricing — Favorite Hearts</title>
-<meta name="description" content="Pricing at Favorite Hearts. Clear information for thoughtful matrimony introductions and support.">
+<title>{title}</title>
+<meta name="description" content={description}>
 <link rel="stylesheet" href={css("landing.css")}>
 <script is:inline src={js("site-config.js")} defer>
 </script>
@@ -28,13 +99,15 @@ import { css, js } from '../../lib/site';
 <link rel="stylesheet" href={css("resources.css")}>
 <script is:inline src={js("pricing-carousel.js")} defer>
 </script>
+<script is:inline src={js("pricing.js")} defer>
+</script>
 <link rel="stylesheet" href={css("welcome.css")}>
 <script is:inline src={js("welcome.js")} defer>
 </script>
 <script is:inline src={js("motion.js")} defer></script>
 <link rel="stylesheet" href={css("design-system.css")}>
 <link rel="stylesheet" href={css("tailwind.css")}>
-<Seo route="/pricing/" title={"Pricing — Favorite Hearts"} description={"Pricing at Favorite Hearts. Clear information for thoughtful matrimony introductions and support."} headline={"Find your person. Choose your beginning."} />
+<Seo route="/pricing/" title={title} description={description} headline={"Free to publish. A plan when you’re ready."} />
 </head>
 <body class="tw-antialiased">
 <a class="skip" href="#main">Skip to content</a>
@@ -43,221 +116,77 @@ import { css, js } from '../../lib/site';
 <main id="main" class="resource-page" data-theme="light">
 <section class="section resource-intro">
 <p class="label">Pricing</p>
-<h1>Find your person.<br>Choose your beginning.</h1>
-<p class="resource-lead">Explore plans for Sri Lanka and the Sri Lankan diaspora. Choose your package during account creation—not on this page.</p>
+<h1>Free to publish.<br>A plan when you’re ready.</h1>
+<p class="resource-lead">Creating and publishing a profile is free once you are verified. A plan lets the profile send requests, see who is interested, and accept requests.</p>
 </section>
-<section class="section plans-section" aria-labelledby="plans-title">
-<p class="label">Find your starting point</p>
-<h2 id="plans-title">Three ways to begin.</h2>
+<section class="section plans-section" aria-labelledby="plans-title" data-plans>
+<p class="label">Plans</p>
+<h2 id="plans-title">Choose how you begin.</h2>
 <div class="currency-control">
-<span id="currency-local">Sri Lankan LKR</span>
+<span id="currency-local">Living in Sri Lanka · LKR</span>
 <label class="currency-switch">
-<input type="checkbox" id="currency-toggle" role="switch" aria-label="Use Overseas USD">
+<input type="checkbox" id="currency-toggle" role="switch" aria-label="Show prices for members living outside Sri Lanka, in USD">
 <span class="currency-switch-track" aria-hidden="true">
 </span>
 </label>
-<span id="currency-overseas">Overseas USD</span>
+<span id="currency-overseas">Living abroad · USD</span>
 </div>
-<p class="market-description" id="market-description">For members based in Sri Lanka. Prices shown in LKR.</p>
-<div class="pricing-carousel tw-min-w-0" role="region" aria-roledescription="carousel" aria-label="Subscription plans">
-<div class="plans-grid pricing-track" tabindex="0" aria-label="Subscription plans — use left and right arrow keys to browse">
-<article class="plan-card" aria-label="Essential plan">
-<div class="plan-topline">
-<p class="label">Favorite Hearts</p>
-<span class="plan-icon" aria-hidden="true">
-<svg viewBox="0 0 24 24">
-<path d="M12 20S3 14.5 3 8.5a4.5 4.5 0 0 1 9-1 4.5 4.5 0 0 1 9 1C21 14.5 12 20 12 20Z"/>
-</svg>
-</span>
+<p class="market-description" id="market-description">For members living in Sri Lanka. Prices in LKR.</p>
+<p class="plan-template-note" id="plans-status" role="status">Loading today’s plans and prices…</p>
+<noscript><p class="plan-template-note">Turn on JavaScript to see today’s prices here, or see them in the app when you choose a plan.</p></noscript>
+<div class="pricing-carousel tw-min-w-0" role="region" aria-roledescription="carousel" aria-label="Plans" hidden>
+<div class="plans-grid pricing-track" tabindex="0" aria-label="Plans — use left and right arrow keys to browse">
 </div>
-<h3>Essential</h3>
-<p class="plan-tagline">A thoughtful first step.</p>
-<p class="plan-price">
-<span class="plan-currency">LKR</span> <span data-price-local="3,000" data-price-diaspora="29">3,000</span>
-</p>
-<p class="plan-period">Plan duration to be confirmed</p>
-<ul>
-<li>Matrimonial profile</li>
-<li>Browse and express interest</li>
-<li>Private details after mutual acceptance</li>
-<li>Standard support</li>
-</ul>
-<p class="plan-selection">Choose during account creation</p>
-</article>
-<article class="plan-card" aria-label="Signature plan">
-<div class="plan-topline">
-<p class="label">Favorite Hearts</p>
-<span class="plan-icon" aria-hidden="true">
-<svg viewBox="0 0 24 24">
-<path d="m12 2 2.6 6.8L22 12l-7.4 3.2L12 22l-2.6-6.8L2 12l7.4-3.2Z"/>
-</svg>
-</span>
-</div>
-<h3>Signature</h3>
-<p class="plan-tagline">A little more guidance.</p>
-<p class="plan-price">
-<span class="plan-currency">LKR</span> <span data-price-local="5,000" data-price-diaspora="49">5,000</span>
-</p>
-<p class="plan-period">Plan duration to be confirmed</p>
-<ul>
-<li>Everything in Essential</li>
-<li>Profile presentation guidance</li>
-<li>Help reviewing your introduction</li>
-<li>Priority support — proposed</li>
-</ul>
-<p class="plan-selection">Choose during account creation</p>
-</article>
-<article class="plan-card" aria-label="Premier plan">
-<div class="plan-topline">
-<p class="label">Favorite Hearts</p>
-<span class="plan-icon" aria-hidden="true">
-<svg viewBox="0 0 24 24">
-<path d="m3 7 5 4 4-7 4 7 5-4-2 12H5Z"/>
-<path d="M6 22h12"/>
-</svg>
-</span>
-</div>
-<h3>Premier</h3>
-<p class="plan-tagline">Support for your next chapter.</p>
-<p class="plan-price">
-<span class="plan-currency">LKR</span> <span data-price-local="8,000" data-price-diaspora="69">8,000</span>
-</p>
-<p class="plan-period">Plan duration to be confirmed</p>
-<ul>
-<li>Everything in Signature</li>
-<li>Dedicated onboarding guidance — proposed</li>
-<li>Family-managed profile setup guidance</li>
-<li>Personal profile review — proposed</li>
-</ul>
-<p class="plan-selection">Choose during account creation</p>
-</article>
-</div>
-<div class="pricing-dashes" aria-label="Subscription plans navigation">
-<button type="button" aria-label="Go to subscription plans 1" aria-current="true">
-<span aria-hidden="true">
-</span>
-</button>
-<button type="button" aria-label="Go to subscription plans 2" aria-current="false">
-<span aria-hidden="true">
-</span>
-</button>
-<button type="button" aria-label="Go to subscription plans 3" aria-current="false">
-<span aria-hidden="true">
-</span>
-</button>
+<div class="pricing-dashes" aria-label="Plans navigation">
 </div>
 </div>
-<p class="plan-template-note">Package templates: prices are shown as provided; plan durations and proposed service benefits are not final. Full inclusions and terms will be shown during account creation before you select or pay for a package. This page does not collect payments.</p>
+<p class="plan-template-note">Each profile has its own plan, chosen and paid for in the app once the profile is published. The app shows the exact price before you pay. Plans never renew by themselves.</p>
 </section>
 <section class="section resource-band" data-theme="dark">
-<p class="label">The planned payment journey</p>
-<h2>Simple steps.<br>A clear decision.</h2>
-<div class="pricing-carousel tw-min-w-0" role="region" aria-roledescription="carousel" aria-label="Membership steps">
-<div class="resource-grid pricing-track" tabindex="0" aria-label="Membership steps — use left and right arrow keys to browse">
+<p class="label">How paying works</p>
+<h2>Pay by transfer.<br>We check every payment.</h2>
+<div class="pricing-carousel tw-min-w-0" role="region" aria-roledescription="carousel" aria-label="Payment steps">
+<div class="resource-grid pricing-track" tabindex="0" aria-label="Payment steps — use left and right arrow keys to browse">
+{steps.map((step, i) => (
 <article class="resource-card">
-<svg class="step-icon" viewBox="0 0 24 24" aria-hidden="true">
-<rect x="4" y="3" width="16" height="18" rx="2"/>
-<path d="m8 9 2 2 5-5M8 16h8"/>
-</svg>
-<span class="resource-index">Step 01</span>
-<h3>Choose your plan</h3>
-<p>Review the published price, period, features, and terms before deciding.</p>
+<svg class="step-icon" viewBox="0 0 24 24" aria-hidden="true" set:html={step.icon} />
+<span class="resource-index">Step {String(i + 1).padStart(2, '0')}</span>
+<h3>{step.title}</h3>
+<p>{step.text}</p>
 </article>
-<article class="resource-card">
-<svg class="step-icon" viewBox="0 0 24 24" aria-hidden="true">
-<path d="M12 16V3m-5 5 5-5 5 5M4 14v6h16v-6"/>
-</svg>
-<span class="resource-index">Step 02</span>
-<h3>Submit payment proof</h3>
-<p>When payments open, follow the official bank-transfer instructions and submit proof through the designated process.</p>
-</article>
-<article class="resource-card">
-<svg class="step-icon" viewBox="0 0 24 24" aria-hidden="true">
-<circle cx="12" cy="12" r="9"/>
-<path d="m7 12 3 3 7-7"/>
-</svg>
-<span class="resource-index">Step 03</span>
-<h3>Wait for approval</h3>
-<p>The planned subscription activates after payment verification. Sending a slip alone does not activate membership.</p>
-</article>
+))}
 </div>
-<div class="pricing-dashes" aria-label="Membership steps navigation">
-<button type="button" aria-label="Go to membership steps 1" aria-current="true">
+<div class="pricing-dashes" aria-label="Payment steps navigation">
+{steps.map((_, i) => (
+<button type="button" aria-label={`Go to step ${i + 1}`} aria-current={i === 0 ? 'true' : 'false'}>
 <span aria-hidden="true">
 </span>
 </button>
-<button type="button" aria-label="Go to membership steps 2" aria-current="false">
-<span aria-hidden="true">
-</span>
-</button>
-<button type="button" aria-label="Go to membership steps 3" aria-current="false">
-<span aria-hidden="true">
-</span>
-</button>
+))}
 </div>
 </div>
-<p class="band-small">Payments are not open on this website. Do not transfer money based only on a social message or a description of planned features.</p>
+<p class="band-small">We never ask you to pay through a social media message, and Favorite Hearts staff never ask for passwords or codes.</p>
 </section>
 <section class="section resource-section">
-<p class="label">Membership questions</p>
+<p class="label">Plan rules</p>
 <h2>The details matter.</h2>
 <div class="resource-questions">
+{questions.map((item) => (
 <details name="resource-answer">
-<summary>Can I pay or subscribe now?<span aria-hidden="true">+</span>
+<summary>{item.q}<span aria-hidden="true">+</span>
 </summary>
 <div>
-<p>No. This website does not collect payments or activate subscriptions. Contact our team for current information before making any payment.</p>
+<p>{item.a}</p>
 </div>
 </details>
-<details name="resource-answer">
-<summary>Do men and women both need a paid account?<span aria-hidden="true">+</span>
-</summary>
-<div>
-<p>Yes, the planned matrimony model requires a paid subscription to publish a profile for both men and women. Local plan prices are LKR 3,000, 5,000, and 8,000. Diaspora plan prices are USD 29, 49, and 69. Final durations and inclusions will be shown before payment.</p>
-</div>
-</details>
-<details name="resource-answer">
-<summary>Can a parent pay for a profile?<span aria-hidden="true">+</span>
-</summary>
-<div>
-<p>The planned experience supports authorised family-managed profiles. The person making a payment should understand which candidate and plan it relates to. Payment does not replace the candidate’s own wishes or grant unrestricted access to their information.</p>
-</div>
-</details>
-<details name="resource-answer">
-<summary>Will a subscription renew automatically?<span aria-hidden="true">+</span>
-</summary>
-<div>
-<p>Renewal arrangements have not been published. Do not assume automatic renewal. The final subscription terms must explain how renewal works before you subscribe.</p>
-</div>
-</details>
-<details name="resource-answer">
-<summary>What is the cancellation or refund policy?<span aria-hidden="true">+</span>
-</summary>
-<div>
-<p>Final cancellation and refund conditions have not been published. These need to be available before a paid service is offered. Contact the team about any payment concern; nothing on this page removes applicable consumer rights.</p>
-</div>
-</details>
-<details name="resource-answer">
-<summary>Does membership include chat or horoscope matching?<span aria-hidden="true">+</span>
-</summary>
-<div>
-<p>In the planned matrimony experience, contact details are shared after mutual acceptance rather than through in-app chat. Horoscope matching is reserved for a later version and is not currently available.</p>
-</div>
-</details>
-<details name="resource-answer">
-<summary>How do I ask about a payment I have already made?<span aria-hidden="true">+</span>
-</summary>
-<div>
-<p>Contact support with the payment reference and a short description. Do not share passwords, one-time codes, or full bank statements. The team can help clarify the payment and the appropriate next step.</p>
-</div>
-</details>
+))}
 </div>
 </section>
 <section class="section resource-end" data-theme="dark">
 <div>
 <p class="label">Let’s make it clear</p>
 <h2>Still weighing<br>things up?</h2>
-<p>Ask us about membership, payments, or what is planned for Favorite Hearts.</p>
+<p>Ask us about plans, payments or anything on this page.</p>
 </div>
 <div class="resource-actions">
 <a class="pill" href="/help/">Explore Help &amp; FAQ <span aria-hidden="true">↗</span>

@@ -18,7 +18,7 @@ reference/         the original demo, READ-ONLY (copy from it; never edit or dep
 
 | Layer | Choice | Why / notes |
 | --- | --- | --- |
-| Marketing site | Astro (static output) | Fast pages, tiny attack surface. Hosted as static files (Cloudflare Pages assumed). |
+| Marketing site | Astro 7.4 (static output) | Fast pages, tiny attack surface. Hosted as static files (Cloudflare Pages assumed). See "Website". |
 | Member app | Vite, React 19, TypeScript | SPA behind login, no server rendering needed. |
 | UI | Tailwind + Radix UI | Accessible primitives. The demo's design tokens and UI components are in `apps/member` (Stage 1); screens move with their stage. |
 | Server state | TanStack Query | The API stays the source of truth; no duplicated client state. |
@@ -134,7 +134,7 @@ member data only through `withActor(c, tx => …)` (`src/http.ts`).
 - **`documents.purge`.** It runs daily and deletes each due file before clearing its key, so a failed delete is retried
   the next night. Each run is logged and audited with counts only.
 
-## Member app screens (Stages 2b, 3b, 4b and 5a)
+## Member app screens (Stages 2b, 3b, 4b, 5a and 5b)
 
 One single-page app at `/app` (`apps/member`, react-router with base `/app`). Members and staff use the same app; the
 staff area is `/app/staff`.
@@ -173,6 +173,10 @@ staff area is `/app/staff`.
   candidate, or for its manager while no candidate has joined; a manager of a joined candidate is pointed to "Hand the
   profile over" in the Candidate tab. The sign-in screen and the document upload say when the owner has paused them,
   and the owner's Service tab switches the pauses.
+- **Help footer (5b).** Every member screen and the sign-in page end with "Need help?": WhatsApp and calls on the
+  support number, the support email, "Favorite Hearts staff will never ask for your password or a code", and links to
+  the website's help, terms and privacy pages. The number and email come from the website's `site.config.json`, so the
+  app and the website always show the same ones. Staff screens leave it out.
 
 - **One contract.** The API's response shapes are in `packages/shared/src/api-types.ts`; the API annotates its
   responses with them and the app reads them, so both sides compile against the same types. Forms validate with the
@@ -378,6 +382,38 @@ database rules are in `drizzle/0011_safety_rules.sql`; tests in `test/safety.tes
   shortlist, blocks, plan history), their payments, document reviews (not the document) and reports they made, plus
   the original photos. It is read through row-level security as the app reads it, so it never holds more than the
   member may see: a sender hidden until the member has a plan stays hidden. Each export is audited.
+
+## Website (Stage 5b)
+
+The public site (`apps/website`, Astro 7.4.0 pinned, static output). Its text follows `OWNER-DECISIONS.md`; the terms
+and the privacy policy are drafts for the owner's lawyer, and what the lawyer must check is in `LEGAL-REVIEW.md`.
+
+- **Settings** (`site.config.json`): the domain (`siteUrl`, https://favoritehearts.com), `indexable` (false until the
+  owner approves launch), the support email and phone, the social links (a link stays hidden while it is `null`), and
+  `release`, added to every stylesheet and script address so browsers fetch new copies after a release.
+- **Prices.** The pricing page has no price in its HTML. `assets/js/pricing.js` loads the owner's live catalogue
+  (`GET /api/v1/plans`, the plans and prices the app sells), builds the cards with `textContent` because plan names are
+  the owner's text, and switches between LKR and USD with the visitor's country choice. When the API cannot be
+  reached, the page says so and points to the app; it never falls back to a stored or sample price. The API is called
+  on the site's own address (`/api` through the production domain). If it gets an address of its own, building with
+  `VITE_API_URL` makes `scripts/assemble-site.mjs` add that origin to the website policy's `connect-src`.
+- **Legal pages.** `src/components/LegalPage.astro` lays out the terms and the privacy policy from the section lists
+  in their pages: numbered contents, the date, a "Draft for legal review" notice that also says the English text is
+  the official version, and highlighted placeholders (`[operator’s legal name and address]`) for the owner to fill.
+- **Help.** The questions are a data list in `src/pages/help/index.astro`; `assets/js/help.js` filters and searches
+  them.
+- **Search engines and link previews.** `src/components/Seo.astro` gives every page a canonical link on `siteUrl`, a
+  robots tag that follows `indexable`, Open Graph and Twitter tags with a 1200×630 preview photo
+  (`public/assets/og-image.jpg`), and JSON-LD. `sitemap.xml` lists every page except the 404 page. `robots.txt`
+  disallows everything while `indexable` is false, then allows the site and names the sitemap. The member app is never
+  indexed (`X-Robots-Tag: noindex` under `/app/`, see "Safety").
+- **Site check.** `npm run check:site` (`scripts/check-site.mjs`, also the last step of `npm run build:site`) reads
+  `dist/site` and fails the build on: a missing or repeated title or description; a canonical link that is not the
+  page's own address; a robots tag or `robots.txt` that disagrees with `indexable`; missing or mismatched social tags; a
+  preview image that is missing or not the size its tags state; a page without exactly one `h1` or without a language;
+  JSON-LD that does not parse; a broken internal link, asset or `#anchor`; a sitemap that misses or adds a page; and
+  `/app/` without `noindex`. Titles over 70 and descriptions over 160 characters, which search results may shorten,
+  are listed as notes.
 
 ## Database access
 

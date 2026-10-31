@@ -1,9 +1,12 @@
-/** Snap positions are measured after layout; indicators represent reachable positions. */
+/**
+ * Snap positions are measured after layout; indicators represent reachable positions. A carousel whose cards arrive
+ * later (the live plans on the pricing page) is measured again on its `fh:cards` event.
+ */
 (() => {
   document.querySelectorAll('.pricing-carousel').forEach(root => {
     const track = root.querySelector('.pricing-track');
-    const cards = [...track.querySelectorAll('article')];
-    const dots = [...root.querySelectorAll('.pricing-dashes button')];
+    let cards = [...track.querySelectorAll('article')];
+    let dots = [];
     let targets = [0], active = 0, drag = null, frame = 0;
     const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
     const status = document.createElement('span');
@@ -12,20 +15,23 @@
       frame = 0;
       active = targets.reduce((best, target, i) => Math.abs(target - track.scrollLeft) < Math.abs(targets[best] - track.scrollLeft) ? i : best, 0);
       dots.forEach((dot,i) => dot.setAttribute('aria-current', String(i === active)));
-      status.textContent = targets.length > 1 ? `Position ${active + 1} of ${targets.length}` : 'All three cards are visible';
+      status.textContent = targets.length > 1 ? `Position ${active + 1} of ${targets.length}` : 'All cards are visible';
     }
     function measure() {
       const max = Math.max(0, track.scrollWidth - track.clientWidth);
       const edge = track.getBoundingClientRect().left;
       targets = cards.map(card => Math.max(0, Math.min(max, track.scrollLeft + card.getBoundingClientRect().left - edge - 2)))
         .filter((target,i,list) => i === 0 || Math.abs(target - list[i-1]) > 4);
+      if (!targets.length) targets = [0];
       dots.forEach((dot,i) => { dot.hidden = targets.length === 1 || i >= targets.length; dot.setAttribute('aria-label', `Show position ${i+1} of ${targets.length}`); });
       track.tabIndex = targets.length > 1 ? 0 : -1;
       root.querySelector('.pricing-dashes').hidden = targets.length === 1;
       update();
     }
     function go(i) { i = Math.max(0,Math.min(targets.length-1,i)); track.scrollTo({left:targets[i],behavior:reduced()?'auto':'smooth'}); }
-    dots.forEach((dot,i) => dot.addEventListener('click', () => go(i)));
+    function bindDots() { dots = [...root.querySelectorAll('.pricing-dashes button')]; dots.forEach((dot,i) => { dot.onclick = () => go(i); }); }
+    bindDots();
+    root.addEventListener('fh:cards', () => { cards = [...track.querySelectorAll('article')]; bindDots(); measure(); });
     track.addEventListener('scroll', () => { if (!frame) frame = requestAnimationFrame(update); }, {passive:true});
     track.addEventListener('scrollend',update);
     track.addEventListener('keydown',event => {

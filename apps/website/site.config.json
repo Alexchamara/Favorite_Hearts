@@ -1,6 +1,6 @@
 {
   "siteName": "Favorite Hearts",
-  "siteUrl": "https://favorite-hearts-integrated-matrimony.vishwad.chatgpt.site",
+  "siteUrl": "https://favoritehearts.com",
   "indexable": false,
   "registrationUrl": "app/",
   "social": {
@@ -11,5 +11,5 @@
   "email": "hello@favoritehearts.com",
   "telephone": "+94766769894",
   "language": "en-LK",
-  "release": "integrated-1"
+  "release": "5b-1"
 }

@@ -1,0 +1,103 @@
+---
+/**
+ * Layout of the terms and the privacy policy: a contents list and numbered sections. A section's body is a list of
+ * paragraphs (trusted HTML written in the page) and bulleted lists (arrays). Both documents are drafts until the
+ * owner's lawyer approves them (OWNER-DECISIONS Part 2), and English is the official version (owner, 31 Oct 2026).
+ */
+import Header from './Header.astro';
+import Navigation from './Navigation.astro';
+import Footer from './Footer.astro';
+import Dialogs from './Dialogs.astro';
+import Seo from './Seo.astro';
+import { css, js } from '../lib/site';
+
+export type LegalSection = { id: string; title: string; body: (string | string[])[] };
+
+interface Props {
+  route: string;
+  title: string;
+  heading: string;
+  description: string;
+  lead: string;
+  updated: string;
+  sections: LegalSection[];
+  other: { href: string; label: string };
+}
+
+const { route, title, heading, description, lead, updated, sections, other } = Astro.props;
+---
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#ffffff">
+<title>{title}</title>
+<meta name="description" content={description}>
+<link rel="stylesheet" href={css("landing.css")}>
+<script is:inline src={js("site-config.js")} defer>
+</script>
+<script is:inline src={js("site.js")} defer>
+</script>
+<script is:inline src={js("legal.js")} defer>
+</script>
+<link rel="stylesheet" href={css("monochrome.css")}>
+<link rel="stylesheet" href={css("legal.css")}>
+<link rel="stylesheet" href={css("welcome.css")}>
+<script is:inline src={js("welcome.js")} defer>
+</script>
+<script is:inline src={js("motion.js")} defer></script>
+<link rel="stylesheet" href={css("design-system.css")}>
+<link rel="stylesheet" href={css("tailwind.css")}>
+<Seo route={route} title={title} description={description} headline={heading} />
+</head>
+<body class="tw-antialiased">
+<a class="skip" href="#main">Skip to content</a>
+<Header />
+<Navigation />
+<main id="main" class="legal-page" data-theme="light">
+<section class="section legal-intro">
+<p class="label">The details that matter</p>
+<h1>{heading}</h1>
+<p class="legal-lead">{lead}</p>
+<p class="legal-date">Draft · {updated}</p>
+<p class="legal-draft" role="note"><strong>Draft for legal review.</strong> This text describes how Favorite Hearts works and is
+being reviewed by our lawyer. It is not final and may change before launch. The English text is the official version.</p>
+</section>
+<div class="section legal-layout">
+<aside class="legal-contents" aria-label="On this page">
+<p>On this page</p>
+<nav aria-label="Contents">
+{sections.map((section, i) => (
+<a href={`#${section.id}`}>{String(i + 1).padStart(2, '0')} <span>{section.title}</span>
+</a>
+))}
+</nav>
+</aside>
+<article class="legal-body">
+{sections.map((section, i) => (
+<section id={section.id}>
+<p class="legal-number">{String(i + 1).padStart(2, '0')}</p>
+<h2>{section.title}</h2>
+{section.body.map((part) =>
+  Array.isArray(part) ? (
+<ul>
+{part.map((item) => <li set:html={item} />)}
+</ul>
+  ) : (
+<p set:html={part} />
+  ),
+)}
+</section>
+))}
+<div class="legal-end">
+<a class="pill" href="/contact/">Contact us</a>
+<a href={other.href}>{other.label} <span aria-hidden="true">↗</span>
+</a>
+</div>
+</article>
+</div>
+</main><Footer />
+<Dialogs />
+</body>
+</html>

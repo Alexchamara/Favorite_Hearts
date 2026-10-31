@@ -1,130 +1,144 @@
 ---
-// Converted from the demo page src/pages/privacy/index.html — content unchanged.
-import Header from '../../components/Header.astro';
-import Navigation from '../../components/Navigation.astro';
-import Footer from '../../components/Footer.astro';
-import Dialogs from '../../components/Dialogs.astro';
-import Seo from '../../components/Seo.astro';
-import { css, js } from '../../lib/site';
+// Privacy policy (Stage 5b): a draft for the owner's lawyer that lists exactly what is collected, who sees it, and what
+// is kept and for how long (OWNER-DECISIONS sections 6–8; audit rows W10, W11, X02, X04). It matches what the app does
+// (docs/ARCHITECTURE.md, "Safety"). The points the lawyer must check are listed in docs/LEGAL-REVIEW.md.
+import LegalPage, { type LegalSection } from '../../components/LegalPage.astro';
+import { site } from '../../lib/site';
+
+const operator = '<mark class="legal-placeholder">[operator’s legal name and address]</mark>';
+const email = `<a href="mailto:${site.email}">${site.email}</a>`;
+
+const sections: LegalSection[] = [
+  {
+    id: 'about',
+    title: 'About this policy',
+    body: [
+      `This policy explains how ${operator} (“we”, “us”) collects, uses, shares and keeps personal information when you use the Favorite Hearts website and app. The English text is the official version.`,
+      `For any question or request about your information, email ${email} with the subject “Privacy request”.`,
+    ],
+  },
+  {
+    id: 'collect',
+    title: 'What we collect',
+    body: [
+      [
+        '<strong>Your account</strong>: your name, your email address and/or phone number, and your sign-in. Sign-in codes expire after 10 minutes.',
+        '<strong>Profiles you run</strong>: the details you enter, such as gender, date of birth, where the candidate lives, education, occupation, height, marital status, languages, family details, an introduction, values and interests; up to 5 photos; contact details and social handles.',
+        '<strong>Optional sensitive details</strong>: religion, caste and income range. Each is optional, with “Prefer not to say”. Caste is saved only with your explicit consent and can be removed at any time; income is shown as a range labelled self-declared.',
+        '<strong>Verification</strong>: a photo of your identity document (NIC, passport or driving licence), your verified phone number, and our review decision.',
+        '<strong>Activity</strong>: requests, connections, blocks, reports, plan history, and a record of which kinds of details were shared with whom and when (the kinds, never the details themselves).',
+        '<strong>Payments</strong>: the country you live in, the plan, amount, payment method and reference, the receipt photos or screenshots you upload, the matching line of our statement, and our decision.',
+        '<strong>Messages</strong> you send us, and the emails we send you.',
+        '<strong>Technical information</strong>: your IP address and device details, used for security and to limit abuse.',
+      ],
+    ],
+  },
+  {
+    id: 'use',
+    title: 'How we use it',
+    body: [
+      'We use your information to run Favorite Hearts: to publish and show profiles, send and answer requests, share details after both sides accept, review identity documents and phone numbers, check payments, send you emails about your account (sign-in codes, invitations, payment decisions and plan reminders), keep members safe (reports, moderation, limits on attempts and a bot check), and meet our legal obligations.',
+      'We do not sell personal information, we do not show advertising, and we do not use your information for anything unrelated to finding a marriage partner.',
+    ],
+  },
+  {
+    id: 'sharing',
+    title: 'Who sees what',
+    body: [
+      [
+        '<strong>Visitors who are not signed in</strong> see no profiles at all.',
+        '<strong>Signed-in members whose own identity check is complete</strong> can see published profiles: the age (never the date of birth), the details the profile shows, caste only if you consented, the cover photo only if you allow it, and the other photos blurred.',
+        '<strong>A member without a plan who receives a request</strong> sees the sender’s age and occupation, not who sent it.',
+        '<strong>Once both sides accept a request</strong>, each side sees the other’s contact details and social handles (the candidate’s and the managing family member’s), the full photo gallery and the parents’ names. The candidate can limit which contact details are shared. Details that have been shared cannot be taken back.',
+        '<strong>The people who run a profile</strong> (the candidate and a managing family member) see it according to the permissions the candidate sets.',
+        '<strong>Our staff</strong>: the owner and one backup reviewer, each with two-step sign-in. The backup reviewer reviews documents and reports and has no access to payments. Every look at an identity document or a receipt is logged.',
+      ],
+    ],
+  },
+  {
+    id: 'providers',
+    title: 'Service providers and where your information is processed',
+    body: [
+      'We use these providers to run Favorite Hearts. They process information only to provide their service to us:',
+      [
+        'Neon: our database, in Singapore.',
+        'Cloudflare: website hosting, private file storage (R2), and the Turnstile bot check on sign-in forms.',
+        'Resend: sending email.',
+        'Pexels: some photos on the public website are loaded from the Pexels image library, so your browser contacts Pexels to show them.',
+        'An SMS provider for sign-in and verification codes, and a host for our application server; both will be named here before launch.',
+      ],
+      'Your information is therefore stored and processed outside Sri Lanka. We share information with authorities only when the law requires it.',
+    ],
+  },
+  {
+    id: 'security',
+    title: 'How we protect it',
+    body: [
+      'Connections are encrypted. Identity documents, receipts and original photos are kept in private storage and are shown only through links that expire within minutes, and only to people allowed to see them. Members who may not yet see a photo receive a separate blurred copy. Staff sign in with two-step login, and sign-in and code attempts are limited. Favorite Hearts staff will never ask for your password or a code.',
+      'No system is perfectly secure. If you notice something wrong, tell us at once.',
+    ],
+  },
+  {
+    id: 'retention',
+    title: 'How long we keep it',
+    body: [
+      [
+        '<strong>Identity documents</strong> are deleted 90 days after our review, whether approved or rejected. After that we keep only the document type, the reviewer, the date and the decision.',
+        '<strong>While your account is open</strong>, we keep your information for as long as it is needed to run the service.',
+        '<strong>When you delete a profile</strong>, it disappears at once. Its details, photos, contact details, social handles, requests, connections and shortlists are deleted at once. Its payment records and receipts, plan history, reports and blocks, and our staff’s record of their actions are kept for 6 months, then deleted.',
+        '<strong>When you delete your account</strong>, every profile you run is deleted as above, except a profile whose candidate has joined it, which passes to the candidate. Your name, email address and phone number are removed from the account at once, your identity document is deleted at once, and you are signed out everywhere. For 6 months we keep only the records listed above and a scrambled form of your email address and phone number, used only to stop a banned person from signing up again. Then they are deleted too.',
+      ],
+      'Details already shared with your connections cannot be taken back from them.',
+    ],
+  },
+  {
+    id: 'rights',
+    title: 'Your choices and rights',
+    body: [
+      [
+        '<strong>See and download</strong>: Download my data in the app gives you one file with your profiles, contact details, photos, requests, connections and payments.',
+        '<strong>Correct</strong>: edit your profile in the app at any time.',
+        '<strong>Delete</strong>: delete a profile or your account in the app.',
+        '<strong>Withdraw consent or limit sharing</strong>: remove your caste, choose which contact details connections receive, or pause the profile.',
+      ],
+      `For anything else, email ${email} with the subject “Privacy request”. We may ask you to confirm that the request comes from you. You may also complain to the data protection authority of the country you live in.`,
+    ],
+  },
+  {
+    id: 'children',
+    title: 'Under 18s',
+    body: [
+      'Favorite Hearts is only for adults. If you believe a profile belongs to someone under 18, report it: it is hidden at once while our staff review it.',
+    ],
+  },
+  {
+    id: 'storage',
+    title: 'Cookies and storage in your browser',
+    body: [
+      [
+        'When you sign in, the app sets one cookie that keeps you signed in. We use no advertising or tracking cookies.',
+        'The website remembers your language and country if you choose them, and the app remembers whether you prefer the light or dark theme. Both stay in your browser.',
+        'On sign-in and code forms, Cloudflare Turnstile checks that you are a person; Cloudflare processes technical information about your browser to do this.',
+      ],
+    ],
+  },
+  {
+    id: 'changes',
+    title: 'Changes and contact',
+    body: [
+      'We will update this policy when our practices change and show the new date at the top. We tell members about important changes before they take effect.',
+      `Contact: ${operator}, ${email}, or WhatsApp and calls on 076 676 9894.`,
+    ],
+  },
+];
 ---
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#ffffff">
-<title>Privacy Policy — Favorite Hearts</title>
-<meta name="description" content="Privacy Policy for the Favorite Hearts information website. Read our website scope and contact us with questions.">
-<link rel="stylesheet" href={css("landing.css")}>
-<script is:inline src={js("site-config.js")} defer>
-</script>
-<script is:inline src={js("site.js")} defer>
-</script>
-<script is:inline src={js("legal.js")} defer>
-</script>
-<link rel="stylesheet" href={css("monochrome.css")}>
-<link rel="stylesheet" href={css("legal.css")}>
-<link rel="stylesheet" href={css("welcome.css")}>
-<script is:inline src={js("welcome.js")} defer>
-</script>
-<script is:inline src={js("motion.js")} defer></script>
-<link rel="stylesheet" href={css("design-system.css")}>
-<link rel="stylesheet" href={css("tailwind.css")}>
-<Seo route="/privacy/" title={"Privacy Policy — Favorite Hearts"} description={"Privacy Policy for the Favorite Hearts information website. Read our website scope and contact us with questions."} headline={"Privacy Policy"} />
-</head>
-<body class="tw-antialiased">
-<a class="skip" href="#main">Skip to content</a>
-<Header />
-<Navigation />
-<main id="main" class="legal-page" data-theme="light">
-<section class="section legal-intro">
-<p class="label">The details that matter</p>
-<h1>Privacy Policy</h1>
-<p class="legal-lead">Your information deserves thoughtful care.</p>
-<p class="legal-date">Website edition · Updated 17 October 2026</p>
-</section>
-<div class="section legal-layout">
-<aside class="legal-contents" aria-label="On this page">
-<p>On this page</p>
-<nav aria-label="Policy contents">
-<a href="#scope">01 <span>About this policy</span>
-</a>
-<a href="#information">02 <span>Information you share</span>
-</a>
-<a href="#technical">03 <span>Browsing and technical information</span>
-</a>
-<a href="#purposes">04 <span>How information is used</span>
-</a>
-<a href="#providers">05 <span>External services and links</span>
-</a>
-<a href="#storage">06 <span>Storage, retention, and international processing</span>
-</a>
-<a href="#choices">07 <span>Your choices and requests</span>
-</a>
-<a href="#safety">08 <span>Privacy and safety</span>
-</a>
-<a href="#updates">09 <span>Updates and contact</span>
-</a>
-</nav>
-</aside>
-<article class="legal-body">
-<section id="scope">
-<p class="legal-number">01</p>
-<h2>About this policy</h2>
-<p>This policy explains privacy on the Favorite Hearts information website and how to contact us with privacy questions. The website presents our matrimony vision, articles, and support information. It does not currently provide profile registration, matching, identity verification, or payment collection. Separate, updated information will be needed before those services become available.</p>
-</section>
-<section id="information">
-<p class="legal-number">02</p>
-<h2>Information you share</h2>
-<p>If you email or message Favorite Hearts, the channel you choose shares your contact details and message with us. This may include your name, email address, phone number, attachments, and information you choose to provide about an enquiry. Please send only what is needed; do not send passwords, one-time codes, or identity documents in an initial message.</p>
-</section>
-<section id="technical">
-<p class="legal-number">03</p>
-<h2>Browsing and technical information</h2>
-<p>The current website code does not submit your FAQ or newsroom searches to Favorite Hearts, and it does not add advertising analytics or use browser local storage for profiles. Search and filter operations happen in your browser. When you continue through the welcome screen, your language and country preferences are stored locally in your browser to remember your choice and set the initial pricing currency. This preference is not a member profile or precise-location lookup. You can change it through the home-page footer or remove it by clearing website data. Hosting, access-control, and network providers may process technical information such as an IP address, browser details, and request logs to deliver and protect the website. Their own privacy notices also apply to their services.</p>
-</section>
-<section id="purposes">
-<p class="legal-number">04</p>
-<h2>How information is used</h2>
-<p>Information you provide in an enquiry is used to understand and respond to that enquiry, handle a concern, and communicate with you about it. Technical processing supports website delivery and security. The applicable basis for processing depends on the activity and law, including responding to a requested service, legitimate operational needs where permitted, legal obligations, or consent where required. A support enquiry does not automatically sign you up for promotional messages.</p>
-</section>
-<section id="providers">
-<p class="legal-number">05</p>
-<h2>External services and links</h2>
-<p>This site links to WhatsApp, Facebook, TikTok, and email services. Opening a link takes you to a service governed by its own terms and privacy practices. Some photographs are loaded from an external image provider; your browser sends a network request to that provider to display them. Service providers involved in hosting and communications may process information as part of providing their services. Information may also need to be disclosed when legally required.</p>
-</section>
-<section id="storage">
-<p class="legal-number">06</p>
-<h2>Storage, retention, and international processing</h2>
-<p>Hosting and communication providers may process information outside Sri Lanka. Their processing locations and retention practices vary. Enquiry information should be kept only for as long as needed to handle the matter and meet applicable obligations; there is no single published retention period for every type of enquiry. Contact us for details about a particular message or request. Provider-level technical logs may have separate retention periods.</p>
-</section>
-<section id="choices">
-<p class="legal-number">07</p>
-<h2>Your choices and requests</h2>
-<p>You can ask about personal information you have shared with Favorite Hearts, request a correction or deletion, or raise an objection or consent-withdrawal request where applicable. The rights available and any exceptions depend on applicable law and the circumstances. Email <a href="mailto:hello@favoritehearts.com">hello@favoritehearts.com</a> with the subject “Privacy request”. We may need proportionate information to confirm that a request comes from the right person. You may also contact the relevant data protection authority about a concern.</p>
-</section>
-<section id="safety">
-<p class="legal-number">08</p>
-<h2>Privacy and safety</h2>
-<p>Favorite Hearts is intended for adults aged 18 and over. Please contact us if you believe a child’s personal information has been shared with us. Do not submit sensitive information about another person without appropriate authority. No website or messaging channel can promise absolute security; choose carefully what you share and tell us if you notice a privacy or security concern.</p>
-</section>
-<section id="updates">
-<p class="legal-number">09</p>
-<h2>Updates and contact</h2>
-<p>We will update this page when the website or relevant practices change, and revise the date shown above. New account, payment, or verification features require further privacy information before they are introduced. For questions about this policy, contact Favorite Hearts at <a href="mailto:hello@favoritehearts.com">hello@favoritehearts.com</a> or visit <a href="/contact/">Contact Us</a>.</p>
-</section>
-<div class="legal-end">
-<a class="pill" href="/contact/">Contact us</a>
-<a href="/terms/">Terms & Conditions <span aria-hidden="true">↗</span>
-</a>
-</div>
-</article>
-</div>
-<section class="section">
-<h2>Welcome preferences</h2>
-<p>A temporary session-storage flag controls whether the welcome dialog has already appeared in the current browser tab. You can reopen it from the footer. Selecting Sinhala currently saves a preference; the website content remains in English.</p>
-</section>
-</main><Footer />
-<Dialogs />
-</body>
-</html>
+<LegalPage
+  route="/privacy/"
+  title="Privacy Policy — Favorite Hearts"
+  heading="Privacy Policy"
+  description="What we collect, who can see it, how it is protected, and what is kept, and for how long, after you delete a profile or account. Draft awaiting legal review."
+  lead="Your information deserves thoughtful care."
+  updated="31 October 2026"
+  sections={sections}
+  other={{ href: '/terms/', label: 'Terms & Conditions' }}
+/>

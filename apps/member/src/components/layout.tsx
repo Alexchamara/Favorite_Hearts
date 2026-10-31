@@ -6,12 +6,21 @@ import { authClient } from '@/lib/auth-client';
 import { resetSession, useMe } from '@/lib/queries';
 import { useTheme } from '@/lib/theme';
 import { cn } from '@/lib/utils';
+import site from '../../../website/site.config.json';
+
+// The official support channels are the website's (apps/website/site.config.json; owner, 30 Oct 2026), so the app and
+// the website always show the same ones (audit X06). The one number takes WhatsApp messages and calls.
+const phoneDigits = site.telephone.replace(/\D/g, '');
+const phoneLabel = site.telephone.startsWith('+94')
+  ? `0${phoneDigits.slice(2)}`.replace(/^(\d{3})(\d{3})(\d{4})$/, '$1 $2 $3')
+  : site.telephone;
 
 export function AppShell({ children, home = '/' }: { children: ReactNode; home?: string }) {
   const { theme, toggleTheme } = useTheme();
   const me = useMe();
   const navigate = useNavigate();
   const showNav = Boolean(me.data && !me.data.staffRole && me.data.name);
+  const showSupport = home !== '/staff' && !me.data?.staffRole;
   const signOut = async () => {
     await authClient.signOut();
     await resetSession();
@@ -62,9 +71,52 @@ export function AppShell({ children, home = '/' }: { children: ReactNode; home?:
       <main id="main" className="mx-auto w-full max-w-3xl px-4 py-8 sm:py-12">
         {children}
       </main>
+      {showSupport && <SupportFooter />}
     </div>
   );
 }
+
+/** Support channels and the policies, under every member screen and the sign-in page. */
+function SupportFooter() {
+  return (
+    <footer className="mx-auto w-full max-w-3xl px-4 pb-10 text-sm text-muted-foreground">
+      <div className="border-t pt-6">
+        <h2 className="font-semibold text-foreground">Need help?</h2>
+        <ul className="mt-2 flex flex-wrap gap-x-5 gap-y-1">
+          <li>
+            <a className={footerLink} href={`https://wa.me/${phoneDigits}`} target="_blank" rel="noopener noreferrer">
+              WhatsApp {phoneLabel}
+            </a>
+          </li>
+          <li>
+            <a className={footerLink} href={`tel:${site.telephone}`}>
+              Call {phoneLabel}
+            </a>
+          </li>
+          <li>
+            <a className={footerLink} href={`mailto:${site.email}`}>
+              {site.email}
+            </a>
+          </li>
+        </ul>
+        <p className="mt-3">Favorite Hearts staff will never ask for your password or a code.</p>
+        <nav aria-label="Help and policies" className="mt-3 flex flex-wrap gap-x-5 gap-y-1">
+          <a className={footerLink} href="/help/">
+            Help
+          </a>
+          <a className={footerLink} href="/terms/">
+            Terms
+          </a>
+          <a className={footerLink} href="/privacy/">
+            Privacy
+          </a>
+        </nav>
+      </div>
+    </footer>
+  );
+}
+
+const footerLink = 'underline underline-offset-4 hover:text-foreground';
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
   cn('rounded-[8px] px-2.5 py-1.5 font-semibold', isActive ? 'bg-[var(--ui-soft)] text-foreground' : 'text-muted-foreground hover:text-foreground');

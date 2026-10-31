@@ -17,8 +17,9 @@
     "sandbox:api": "npm run sandbox -w @fh/api",
     "sandbox:member": "API_ORIGIN=http://127.0.0.1:8788 MEMBER_PORT=5174 npm run dev -w @fh/member",
     "build": "npm run build --workspaces --if-present",
-    "build:site": "npm run build -w @fh/member && npm run build -w @fh/website && node scripts/assemble-site.mjs",
+    "build:site": "npm run build -w @fh/member && npm run build -w @fh/website && node scripts/assemble-site.mjs && node scripts/check-site.mjs",
     "preview:site": "node scripts/serve-site.mjs",
+    "check:site": "node scripts/check-site.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "db:generate": "npm run db:generate -w @fh/api",
@@ -30,6 +31,6 @@
     "concurrently": "^9.0.0"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.22.0"
   }
 }

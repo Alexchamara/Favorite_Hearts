@@ -20,7 +20,7 @@ without output.
 | 2 Accounts and verification (codes, invites, takeover, badges, staff 2FA, documents) | **done (2a server, 2b screens), awaiting owner review.** SMS **BLOCKED** until a provider is chosen; evidence below. |
 | 3 Requests, connections and privacy | **done (3a server, 3b screens), awaiting owner review.** Evidence below. |
 | 4 Plans, payments, email, Turnstile | **done (4a server, 4b screens), awaiting owner review.** Real payment details, Turnstile keys and email to members are **BLOCKED** on the owner; evidence below. |
-| 5 Content, safety and quality | **5a (safety) done, awaiting owner review.** 5b (website text and SEO) and 5c (Sinhala and accessibility) not started. Evidence below. |
+| 5 Content, safety and quality | **5a (safety) and 5b (website text and SEO) done, awaiting owner review.** The terms and privacy policy wait for the owner's lawyer (`docs/LEGAL-REVIEW.md`). 5c (Sinhala and accessibility) not started. Evidence below. |
 | 6 Test, harden and hand over | not started |
 
 ## Decisions recorded during setup
@@ -41,7 +41,7 @@ without output.
 | 2026-10-28 | Contact details hide for the member whose own plan ended; the other member's expiry does not hide them (spec O03). | Owner (confirmed 29 Oct 2026) |
 | 2026-10-28 | ~~Any active member may browse published profiles, verified or not (audit N04).~~ Replaced on 29 Oct 2026: verified members only. | Owner |
 | 2026-10-28 | After a takeover the candidate does not see the former manager's payment records (spec 6.3). | Proposed — confirm |
-| 2026-10-28 | Astro 7 upgrade deferred to Stage 5. The critical advisory needs `define:vars` or server islands, and the static site uses neither. | Proposed — confirm |
+| 2026-10-28 | Astro 7 upgrade deferred to Stage 5. The critical advisory needs `define:vars` or server islands, and the static site uses neither. Done in 5b (31 Oct 2026): Astro 7.4.0. | Proposed — confirm |
 | 2026-10-28 | Stage 2 split: 2a builds the server, 2b the member and staff screens. | Owner |
 | 2026-10-28 | SMS stays BLOCKED until a provider is chosen. In development, codes print to the API console (`SMS_PROVIDER=log`); nothing pretends an SMS was sent. | Owner |
 | 2026-10-28 | No takeover fee and no selfie (§5). Before takeover, a joined candidate confirms or declines, sets the manager's permissions and what is shared, withdraws consent or takes over, but does not edit profile fields. | Engineering (per §5) |
@@ -50,7 +50,7 @@ without output.
 | 2026-10-28 | After a candidate declines, the manager cannot send further invitations for that profile. | Proposed — confirm |
 | 2026-10-28 | A person can be the candidate of only one live profile (spec O14). | Proposed — confirm |
 | 2026-10-28 | Identity documents are accepted as photos (JPEG, PNG or WebP, at most 5 MB), not PDF. | Proposed — confirm |
-| 2026-10-28 | sharp upgraded to 0.35.5 in the API (libvips, libheif and librsvg advisories). Astro's build-time copy stays until the Astro upgrade. | Engineering |
+| 2026-10-28 | sharp upgraded to 0.35.5 in the API (libvips, libheif and librsvg advisories). Astro's build-time copy stays until the Astro upgrade. Gone in 5b: Astro 7.4.0 uses the same sharp 0.35.5. | Engineering |
 | 2026-10-29 | Staff screens live in the member app at `/app/staff`, not in a separate admin app. They share sign-in, design and the API contract; the server and database decide what staff may do. | Engineering |
 | 2026-10-29 | The two-step login QR code is drawn in the browser (`uqr`), so the secret never goes to a QR service. | Engineering |
 | 2026-10-29 | `npm run dev:sandbox` runs the real API on an in-memory database for trying the screens; codes print to its console. It is a development tool only and never deployed. | Engineering |
@@ -95,6 +95,17 @@ without output.
 | 2026-10-30 | Rate limits (numbers in ARCHITECTURE.md, "Safety"), counted in Postgres. Production requires `CLIENT_IP_HEADER`, the header the host sets to the visitor's address. | Proposed — confirm |
 | 2026-10-30 | The data export is one ZIP: `data.json` (everything the account and its profiles hold, as the app shows it) and the original photos. Identity documents are not included. 5 exports a day. | Proposed — confirm |
 | 2026-10-30 | The member app carries its own Content-Security-Policy in its page; the static host removes the website's policy under `/app/`. `/app/assets/*` is passed through before the SPA rewrite, because Cloudflare Pages applies `_redirects` even when a file exists. | Engineering |
+| 2026-10-31 | The site's domain is favoritehearts.com (`siteUrl`). The site stays out of search engines (`indexable: false`) until the owner approves launch. | Owner |
+| 2026-10-31 | Favorite Labs stays as advice only. The research claims (user surveys, cause-and-effect research, behavioural analysis) are removed, and the newsroom's "Research & Advice" category is now "Advice". | Owner |
+| 2026-10-31 | The terms and the privacy policy show the operator as a marked placeholder, `[operator’s legal name and address]`, until the owner gives the legal name (the business is not registered yet). | Owner |
+| 2026-10-31 | English is the official text of the terms and the privacy policy; the Sinhala translation (5c) is for convenience, and the English applies if they differ. | Owner |
+| 2026-10-31 | The pricing page shows the live plans and prices from the API (the catalogue the owner manages in the app), never prices written into the page. If the API cannot be reached it says so and points to the app. | Proposed — confirm |
+| 2026-10-31 | Support hours stay as the site already gave them: daily, 8:00 AM–10:00 PM, Sri Lanka time. | Proposed — confirm |
+| 2026-10-31 | The Facebook, Instagram and TikTok links stay hidden until the owner sets their addresses in `site.config.json`. | Proposed — confirm |
+| 2026-10-31 | The draft terms choose the laws and courts of Sri Lanka, without removing protections of the member's own country. For the lawyer to confirm (`docs/LEGAL-REVIEW.md`). | Proposed — confirm |
+| 2026-10-31 | Astro pinned to 7.4.0, the newest release at least two weeks old; the website then has no audit findings. Node 22.22 or newer, as Astro 7.4.0 requires. | Engineering |
+| 2026-10-31 | `npm run build:site` ends with the site check (`scripts/check-site.mjs`): an SEO mistake, a broken link or a sitemap that misses a page fails the build. | Engineering |
+| 2026-10-31 | The member app shows the support channels from the website's `site.config.json`, so the two never disagree (audit X06). | Engineering |
 
 ## Step 5 evidence
 
@@ -481,7 +492,7 @@ Built from [`RULE-AUDIT.md`](RULE-AUDIT.md); IDs refer to its rows. Ticked items
 - [x] Use synthetic data only: test accounts are created inside the tests; no fictional members, account switcher or demo codes (P06, P28).
 - [x] Do not port the horoscope workspace; keep only the preference field (P26).
 - [x] Correct the Supabase comment in `packages/shared/src/contact.ts` (X07).
-- [x] Astro 7 upgrade: deferred, see the decisions table (proposed).
+- [x] Astro 7 upgrade: deferred to Stage 5, see the decisions table; done in 5b (Astro 7.4.0).
 - [x] Apply migrations 0002–0003 to the Neon dev database (28 Oct 2026; output in the Stage 1 evidence).
 - [ ] **BLOCKED, owner action:** create the Neon staging and production projects (`docs/ARCHITECTURE.md`, "Environments").
 
@@ -575,7 +586,7 @@ Open:
   without the secret.
 - [ ] **BLOCKED, owner action:** email to members needs the domain verified in Resend. Until then Resend delivers only
   to the account owner's inbox.
-- [ ] The refund wording on the pricing page and in the terms (Stage 5, lawyer review).
+- [x] The refund wording on the pricing page and in the terms: drafted in 5b. The lawyer's review is open, see 5b.
 - [ ] Apply migrations 0008–0011 to the Neon dev database (on request; 0010–0011 are Stage 5a's).
 
 **Stage 5: Content, safety and quality**
@@ -590,16 +601,20 @@ Open:
 - [x] Security headers on the API, the website and the member app; the member app's policy allows Turnstile.
 - [x] Fixed: `_redirects` would have answered every member-app script with the page on Cloudflare Pages.
 
-5b, website text and SEO:
+5b, website text and SEO (done):
 
-- [ ] Rewrite pricing, help/FAQ, terms and privacy (W01–W12, W16, X01, X02, X04), listing every page changed. The
-  lawyer reviews W08–W11. The privacy policy lists exactly what is kept and for how long (5a's list).
-- [ ] Remove the sample testimonials and the unproven research claims (W13, X03).
-- [ ] Support channels and a "staff never ask for passwords or codes" statement (W15, X06): hello@favoritehearts.com
-  and +94 76 676 9894 for WhatsApp and calls (owner, 30 Oct 2026).
-- [ ] SEO basics: unique titles and descriptions, canonical links, social preview tags, sitemap check.
-- [ ] Set the real `siteUrl` once the domain is bought (X05).
-- [ ] Astro upgrade (deferred from Stage 1).
+- [x] Rewrite pricing, help/FAQ, terms and privacy (W01–W12, W16, X01, X02, X04), listing every page changed. The
+  privacy policy lists exactly what is kept and for how long (5a's list). The terms and privacy policy are drafts.
+- [x] Remove the sample testimonials and the unproven research claims (W13, X03).
+- [x] Support channels and a "staff never ask for passwords or codes" statement (W15, X06): hello@favoritehearts.com
+  and +94 76 676 9894 for WhatsApp and calls (owner, 30 Oct 2026), on the website and under every member screen.
+- [x] SEO basics: unique titles and descriptions, canonical links, social preview tags, sitemap check
+  (`npm run check:site`, run by `npm run build:site`).
+- [x] Set the real `siteUrl` (X05): https://favoritehearts.com (owner, 31 Oct 2026); not indexable until launch.
+- [x] Astro upgrade (deferred from Stage 1): 7.4.0.
+- [ ] **Owner action:** the lawyer reviews the terms and the privacy policy, and the owner fills the placeholders
+  (operator, governing law, liability, SMS provider and API host): `docs/LEGAL-REVIEW.md` (W08–W11).
+- [ ] **Owner action:** the Facebook, Instagram and TikTok addresses, if the owner wants them shown.
 
 5c, Sinhala and accessibility:
 
@@ -1985,3 +2000,173 @@ sandbox's synthetic accounts. The owner's sandbox on 8788/5174 was not touched.
   hand-over, and whether payment records and receipts may be kept 6 months (accountant) and documents of deleted
   members deleted at once (lawyer).
 - The privacy policy must list what is kept and for how long: 5b, with the lawyer's review.
+
+## Stage 5b evidence (31 Oct 2026): website text and SEO
+
+Scope (Part 3 "Stage 5", second part): replace the pricing page, FAQs, terms, privacy and help text with versions that
+match `OWNER-DECISIONS.md`, list every page changed, remove fictional testimonials and unverified claims, and the SEO
+basics. 5c (Sinhala with Tamil hidden, the spreadsheet for the reviewer, accessibility fixes) follows.
+
+### Owner decisions taken at the start
+
+- Domain: favoritehearts.com. The site stays out of search engines until launch is approved.
+- Favorite Labs: advice only; the research claims go.
+- The operator in the terms and privacy policy: a marked placeholder for now.
+- The official text of the terms and privacy policy: English.
+
+### Every page changed
+
+| Page | What changed | Audit rows |
+| --- | --- | --- |
+| `/pricing/` | Rewritten. The plan cards come from the live catalogue (`GET /api/v1/plans`) in LKR or USD, with each plan's length and request limits; the page itself holds no price. Free to publish; four payment steps (choose in the app, pay with the reference, upload the receipt, the plan starts when we find the payment, within 48 hours); ten plan rules: free publishing, what a plan includes, which price, family paying, no automatic renewal (the last 7 days, the 3-day grace), upgrades and lost days, what happens when a plan ends, refunds (the three exceptions, disputes, suspension, engaged or deleted), payment questions, and no chat or horoscope matching. The Essential/Signature/Premier tiers, "duration to be confirmed" and the paid human services are gone. | W01–W07, W16 |
+| `/help/` | Rewritten as 40 questions in six groups (getting started, profiles and family, introductions, payments, privacy and safety, not-so-frequent questions): free publishing, refunds, renewal, documents only through the app, the 48-hour reviews, sign-up open (no more "registration is not available"), WhatsApp, calls and email with the hours, and "staff never ask for passwords or codes". | W04–W07, W12, W15, W16, X01 |
+| `/terms/` | A draft in 16 sections for the lawyer: who may use it, accounts and the three badges, profiles run by family (the manager's declaration, the candidate's rights), requests and sharing, plans and caps, paying, changing and renewing, refunds and disputes, conduct, reports, content, leaving, responsibility, law. The operator is a placeholder. | W08, W09, X02 |
+| `/privacy/` | A draft in 11 sections: what is collected (caste only with consent), how it is used, who sees what (shared details cannot be taken back), providers and where data is processed, protection, exactly what is kept and for how long after a deletion (5a's list), rights (download, correct, delete, limit sharing), under 18s, and browser storage (one sign-in cookie; language, country and theme kept in the browser; Turnstile). | W10, W11, W12, X02, X04 |
+| `/` | The three fictional testimonials ("Illustrative sample reviews") and their script (`landing.js`) are removed; the Labs teaser reads "Ideas for a shared life." | W13 |
+| `/labs/` | "Favorite Hearts user surveys", "Cause and effect research" and "Behavioral analysis" are removed; the page says its articles are ideas to talk about together, not research findings. | X03 |
+| `/newsroom/` and 8 articles | The category "Research & Advice" is now "Advice" (in the pages and `newsroom.js`); Labs is described as sharing ideas. | X03 |
+| `/contact/` | A "Call us" card; social cards only when an address is set; staff never ask for passwords or codes; documents only through the app. | W12, W15 |
+| `/security/` | Sign-in codes instead of passwords, how information is protected, what each badge means, what to do after sharing a code. | W15, X02 |
+| `/trust-and-safety/` | What stays private until both accept; staff never ask; documents only in the app; ending, blocking and reporting in the app. | W12, W15 |
+| `/mission/` | Its own description. | SEO |
+| Every page | Canonical links, the sitemap and social tags on https://favoritehearts.com; a 1200×630 preview photo with its size and description; social buttons only when an address is set; Astro 7.4.0. | X05 |
+| Member app, every screen | The "Need help?" footer: WhatsApp and calls, email, "staff never ask", and links to help, terms and privacy. | W15, X06 |
+
+New files: `src/components/LegalPage.astro`, `public/assets/js/pricing.js`, `public/assets/og-image.jpg`,
+`scripts/check-site.mjs` and `docs/LEGAL-REVIEW.md` (what the lawyer and the accountant must check, section by section).
+
+### Site check (`npm run build:site`)
+
+```text
+Site check of dist/site for https://favoritehearts.com ("indexable": false), 21 pages and the 404 page:
+  ✓ titles           21 unique
+  ✓ descriptions     21 unique
+  ✓ canonical links  21 point to the page's own address on https://favoritehearts.com
+  ✓ robots tags      noindex on every page (not indexable yet)
+  ✓ social previews  Open Graph and Twitter tags on 21 pages, preview image 1200×630
+  ✓ headings         one h1 on each of 21 pages
+  ✓ language         lang set on 22 pages
+  ✓ structured data  valid JSON-LD on 21 pages
+  ✓ links            673 links and assets on this site resolve, 48 anchors found
+  ✓ sitemap          21 pages listed once each, the 404 page left out
+  ✓ robots.txt       Disallow: / while not indexable; /app/ noindex
+Notes, not failures: search results may shorten these (titles over 70, descriptions over 160 characters):
+  - /newsroom/a-first-conversation/ description: 162 characters
+  - /newsroom/a-thoughtful-beginning/ description: 216 characters
+  - /newsroom/across-borders-on-the-same-page/ description: 185 characters
+  - /newsroom/an-honest-profile/ title: 74 characters
+  - /newsroom/an-honest-profile/ description: 189 characters
+  - /newsroom/before-marriage/ title: 72 characters
+  - /newsroom/before-marriage/ description: 165 characters
+  - /newsroom/belonging-across-borders/ description: 178 characters
+  - /newsroom/beyond-the-checklist/ title: 74 characters
+  - /newsroom/beyond-the-checklist/ description: 189 characters
+  - /newsroom/family-and-your-voice/ title: 76 characters
+  - /newsroom/family-and-your-voice/ description: 178 characters
+  - /newsroom/matrimony-with-more-heart/ title: 77 characters
+  - /newsroom/matrimony-with-more-heart/ description: 197 characters
+  - /newsroom/respect-in-every-introduction/ description: 197 characters
+No problems found.
+```
+
+The notes are the owner's article headlines and opening paragraphs, kept as written.
+
+### The site check catches what it should
+
+Each break was made on a fresh copy of `dist/site` (and of `site.config.json` for "indexable"), then the check ran on
+that copy:
+
+```text
+CAUGHT 404_index        exit 1  ✗ robots tags      1 problem  | /404.html: "index" lets search engines index the not-found page
+CAUGHT app_noindex      exit 1  ✗ robots.txt       1 problem  | _headers: /app/* has no X-Robots-Tag: noindex
+CAUGHT broken_anchor    exit 1  ✗ links            1 problem  | /privacy/: #keeping has no element with that id
+CAUGHT broken_link      exit 1  ✗ links            1 problem  | /terms/: /privacy-policy/ does not exist
+CAUGHT canonical        exit 1  ✗ canonical links  1 problem  | /labs/: points to http://localhost:4321/labs/, not https://favoritehearts.com/labs/
+CAUGHT dup_desc         exit 1  ✗ descriptions     1 problem; ✗ social previews  2 problems  | /help/, /security/: share the description "Answers about joining Favorite Hearts, verification, family-managed
+CAUGHT dup_title        exit 1  ✗ titles           1 problem; ✗ social previews  2 problems  | /help/, /pricing/: share the title "Help & FAQ — Favorite Hearts"
+CAUGHT indexable        exit 1  ✗ robots tags      21 problems; ✗ robots.txt       2 problems  | /contact/: "noindex, nofollow" but site.config.json has "indexable": true
+CAUGHT jsonld           exit 1  ✗ structured data  1 problem  | /help/: JSON-LD does not parse (Expected double-quoted property name in JSON at position 33 (line 1 column 34)
+CAUGHT lang             exit 1  ✗ language         1 problem  | /newsroom/: the html element has no lang
+CAUGHT og_missing       exit 1  ✗ social previews  21 problems  | /contact/: og:image https://favoritehearts.com/assets/og-image.jpg does not exist
+CAUGHT og_size          exit 1  ✗ social previews  21 problems  | /contact/: og:image is 1800×1200, the tags say 1200×630
+CAUGHT og_title         exit 1  ✗ social previews  1 problem  | /mission/: og:title is "Mission", not "Our Mission — Favorite Hearts"
+CAUGHT robots_meta      exit 1  ✗ robots tags      1 problem  | /: "index, follow" but site.config.json has "indexable": false
+CAUGHT robots_txt       exit 1  ✗ robots.txt       1 problem  | robots.txt: allows search engines although "indexable" is false
+CAUGHT sitemap_extra    exit 1  ✗ sitemap          1 problem  | https://favoritehearts.com/404.html: listed but there is no such page
+CAUGHT sitemap_missing  exit 1  ✗ sitemap          1 problem  | https://favoritehearts.com/pricing/: not listed
+CAUGHT two_h1           exit 1  ✗ headings         1 problem  | /contact/: 2 h1 headings
+18/18 mutations caught
+```
+
+### Astro 7.4.0
+
+- Same pages as on Astro 5: comparing the 22 HTML files tag by tag, the only differences are `&` written as `&amp;`
+  inside attributes (`&#38;` before) and one whitespace change in `404.html`. Browsers read both the same way.
+- `astro check`: 33 files, 0 errors, 0 warnings, 0 hints.
+- `npm audit --workspace @fh/website`: "found 0 vulnerabilities". Astro's build-time sharp is now the API's 0.35.5.
+- `npm audit` for the whole repository: "5 moderate severity vulnerabilities", from two findings that were already
+  there at `stage-5a`, with the same versions:
+  - `@hono/node-server` 1.19.17 (GHSA-rmxm-3fg6-px4f): `serveStatic` decodes a path twice. The API does not use
+    `serveStatic` (only `serve` and `getConnInfo`). The fix is in 2.1.3, a new major version: a change of its own,
+    see "Not done in 5b".
+  - `esbuild` ≤ 0.24.2 inside `drizzle-kit` 0.31.11 (GHSA-67mh-4wv8-2f99): esbuild's development server. drizzle-kit
+    is a developer tool that never starts it; npm's only fix would downgrade drizzle-kit to 0.18.1.
+
+### Browser walkthrough
+
+On the built site (`dist/site` served with its headers and policies, ports 8099/8799, the sandbox API with its
+catalogue of the §2 plans). The owner's sandbox on 8788/5174 was not touched.
+
+| Checked | Result |
+| --- | --- |
+| Pricing, plans | Three cards from the API, in LKR first: Starter LKR 3,000 (1 month, "5 requests a day, 30 a month") and Premium 3 months LKR 8,500 ("Unlimited requests (fair use applies: up to 30 a day)"), then Premium 6 months. No console errors under the website's policy. |
+| Pricing, LKR/USD | The switch showed USD 20, 55 and 100 and "For members living outside Sri Lanka. Prices in USD." |
+| Pricing, carousel | A dash moved the cards to "Position 2 of 2"; the third dash stays hidden while only two positions exist. |
+| Pricing, API down | "We could not load today’s prices. You will see them in the app when you choose a plan, or you can ask us." No cards. |
+| Help | Searching "refund" found 2 answers and announced "2 answers found."; the Payments filter showed its 5 questions; the refund answer matches §9. |
+| Contact | WhatsApp, "Call 076 676 9894" (`tel:+94766769894`) and email; no social cards; "Favorite Hearts staff will never ask for your password or a code." |
+| Terms and privacy | 16 and 11 sections with matching contents links, "Draft · 31 October 2026", the draft notice and two highlighted placeholders each; the contents link to Refunds lands on it. |
+| Home and Labs | No reviews section and no `landing.js`; Labs opens with "Ideas for a shared life." |
+| Claims | A scan of every built page for testimonial, research, statistic and guarantee wording found only disclaimers ("cannot guarantee", "not research findings"). |
+| Phones (375 px) | No sideways scrolling on pricing, help, terms, privacy, contact, home, Labs, security, trust and safety, mission and the newsroom. |
+| Member app | "Need help?" under the sign-in page (desktop and 375 px) with WhatsApp (new tab), call, email, Help, Terms and Privacy; not on the staff sign-in. |
+| Framing | Loading a page inside a frame was refused by the site's policy (`frame-ancestors 'none'`). |
+
+### Problems found while building and walking through, all fixed
+
+- The member app showed no support channels at all (X06). It now has the footer.
+- The Node requirement had been set to 22.23.4, stricter than any installed package needs. It is now 22.22.0, Astro
+  7.4.0's own minimum.
+- Six descriptions written in this stage were longer than search results show (161–182 characters). Now 146–157.
+- The trust and safety page had two different descriptions (the meta tag and the social tags). Now one.
+- `astro check` hinted at an unused variable on the pricing page. Renamed.
+
+### `npm test`, `npm run typecheck` and `npm run build:site`
+
+- `npm test`: 131 tests, all passing (5b changes no server code):
+
+  ```text
+  ℹ tests 131
+  ℹ suites 47
+  ℹ pass 131
+  ℹ fail 0
+  ℹ cancelled 0
+  ℹ skipped 0
+  ℹ todo 0
+  ℹ duration_ms 15019.192709
+  ```
+
+- `npm run typecheck`: exit 0 (API, member app and shared with `tsc`; `astro check` 0 errors, 0 warnings, 0 hints).
+- `npm run build:site`: exit 0. The website built 22 pages. The member app's main chunk is 551.36 kB (549.94 kB in
+  5a; the difference is the footer). The site check passed (above).
+
+### Not done in 5b
+
+- Sinhala with Tamil hidden, the spreadsheet for the reviewer, accessibility fixes, and the language dialog's
+  "Website content is currently in English" (W14): 5c.
+- **Owner action:** the lawyer's review and the placeholders (`docs/LEGAL-REVIEW.md`); the social addresses, if wanted.
+- The newsroom headlines and opening paragraphs stay as the owner wrote them, although search results may shorten 15
+  of them (the notes above).
+- `@hono/node-server` 2.x, which fixes an advisory this API cannot reach: proposed as its own change, with the API
+  tests.
+- Migrations 0008–0011 on Neon dev and pushing to GitHub: on request, as before.

@@ -1,11 +1,13 @@
 ---
-// Converted from the demo page src/pages/contact/index.html — content unchanged.
+// Contact (Stage 5b, OWNER-DECISIONS section 10): email, WhatsApp and calls on the support number (owner, 30 Oct 2026),
+// and that staff never ask for passwords or codes. Social pages appear only once their real address is configured in
+// site.config.json: until then there is no official page to point to.
 import Header from '../../components/Header.astro';
 import Navigation from '../../components/Navigation.astro';
 import Footer from '../../components/Footer.astro';
 import Dialogs from '../../components/Dialogs.astro';
 import Seo from '../../components/Seo.astro';
-import { css, js } from '../../lib/site';
+import { css, js, site } from '../../lib/site';
 ---
 <!doctype html>
 <html lang="en">
@@ -14,7 +16,7 @@ import { css, js } from '../../lib/site';
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#ffffff">
 <title>Contact Us — Favorite Hearts</title>
-<meta name="description" content="Find support, general enquiries and community updates from Favorite Hearts. A thoughtful place to start with your questions.">
+<meta name="description" content="Contact Favorite Hearts by WhatsApp, phone or email about your account, verification, a payment or a safety concern. Staff never ask for passwords or codes.">
 <link rel="stylesheet" href={css("landing.css")}>
 <script is:inline src={js("site-config.js")} defer>
 </script>
@@ -30,7 +32,7 @@ import { css, js } from '../../lib/site';
 <script is:inline src={js("motion.js")} defer></script>
 <link rel="stylesheet" href={css("design-system.css")}>
 <link rel="stylesheet" href={css("tailwind.css")}>
-<Seo route="/contact/" title={"Contact Us — Favorite Hearts"} description={"Find support, general enquiries and community updates from Favorite Hearts. A thoughtful place to start with your questions."} headline={"Contact us."} />
+<Seo route="/contact/" title={"Contact Us — Favorite Hearts"} description={"Contact Favorite Hearts by WhatsApp, phone or email about your account, verification, a payment or a safety concern. Staff never ask for passwords or codes."} headline={"Contact us."} />
 </head>
 <body class="tw-antialiased">
 <a class="skip" href="#main">Skip to content</a>
@@ -40,7 +42,7 @@ import { css, js } from '../../lib/site';
 <section class="section contact-intro">
 <p class="label">Here for you</p>
 <h1>Contact us.</h1>
-<p>We’re here to help with your account, introductions,<br>verification, safety concerns, and general enquiries.</p>
+<p>We’re here to help with your account, introductions,<br>verification, payments, safety concerns, and general enquiries.<br>Favorite Hearts staff will never ask for your password or a code.</p>
 </section>
 <section class="section contact-channels" aria-label="Ways to contact Favorite Hearts">
 <div class="contact-grid">
@@ -77,6 +79,34 @@ import { css, js } from '../../lib/site';
 <div class="contact-card-top">
 <span class="contact-icon mail">
 <svg viewBox="0 0 24 24" aria-hidden="true">
+<path d="M5 3h4l2 5-2.5 1.5a11 11 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 5a2 2 0 0 1 2-2Z"/>
+</svg>
+</span>
+<div class="contact-card-heading">
+<h2>Call us</h2>
+<p class="contact-service-label">Same number</p>
+</div>
+</div>
+<h3 class="contact-card-subheading">Talk to our team</h3>
+<p class="contact-description">Call during support hours about your account, a payment, verification or a safety concern.</p>
+<p class="contact-address contact-phone">
+<span>076</span> <span>676</span> <span>9894</span>
+</p>
+<div class="contact-hours">
+<p>Daily, 8:00 AM – 10:00 PM <span>(Sri Lanka time)</span>
+</p>
+</div>
+<a class="pill contact-action" href={`tel:${site.telephone}`}>
+<svg viewBox="0 0 24 24" aria-hidden="true">
+<path d="M5 3h4l2 5-2.5 1.5a11 11 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 5a2 2 0 0 1 2-2Z"/>
+</svg>
+<span>Call 076 676 9894</span>
+</a>
+</article>
+<article class="contact-card">
+<div class="contact-card-top">
+<span class="contact-icon mail">
+<svg viewBox="0 0 24 24" aria-hidden="true">
 <rect x="3" y="5" width="18" height="14" rx="2"/>
 <path d="m3 7 9 6 9-6"/>
 </svg>
@@ -101,6 +131,7 @@ import { css, js } from '../../lib/site';
 <span>Send email</span>
 </a>
 </article>
+{site.social.Facebook && (
 <article class="contact-card">
 <div class="contact-card-top">
 <span class="contact-icon facebook">
@@ -116,13 +147,15 @@ import { css, js } from '../../lib/site';
 <h3 class="contact-card-subheading">Latest from our community</h3>
 <p class="contact-description">Follow Favorite Hearts for announcements, helpful relationship ideas, and the latest updates from our community.</p>
 <p class="contact-address">Favorite Hearts</p>
-<a class="pill contact-action" href="https://www.facebook.com/search/pages/?q=Favorite%20Hearts" target="_blank" rel="noopener noreferrer">
+<a class="pill contact-action" href={site.social.Facebook} target="_blank" rel="noopener noreferrer">
 <svg viewBox="0 0 24 24" aria-hidden="true">
 <path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06c0 5.02 3.66 9.18 8.44 9.94v-7.03H7.9v-2.91h2.54V9.84c0-2.52 1.49-3.91 3.77-3.91 1.09 0 2.23.2 2.23.2v2.47h-1.26c-1.24 0-1.62.78-1.62 1.57v1.89h2.77l-.44 2.91h-2.33V22C18.34 21.24 22 17.08 22 12.06Z"/>
 </svg>
 <span>Join Facebook</span>
 </a>
 </article>
+)}
+{site.social.TikTok && (
 <article class="contact-card">
 <div class="contact-card-top">
 <span class="contact-icon tiktok">
@@ -140,7 +173,7 @@ import { css, js } from '../../lib/site';
 <h3 class="contact-card-subheading">A little inspiration</h3>
 <p class="contact-description">Find Favorite Hearts for fresh perspectives on relationships, thoughtful conversations, and a little inspiration for your next chapter.</p>
 <p class="contact-address">Favorite Hearts</p>
-<a class="pill contact-action" href="https://www.tiktok.com/search?q=Favorite%20Hearts" target="_blank" rel="noopener noreferrer">
+<a class="pill contact-action" href={site.social.TikTok} target="_blank" rel="noopener noreferrer">
 <svg viewBox="0 0 24 24" aria-hidden="true">
 <path style="fill:#25F4EE" transform="translate(-.7,-.5)" d="M16.7 2c.2 2.5 1.6 4 4.3 4.2v3.5a9 9 0 0 1-4.3-1.3v7.7a6.6 6.6 0 1 1-5.7-6.6v3.6a3.1 3.1 0 1 0 2.2 3V2h3.5Z"/>
 <path style="fill:#FE2C55" transform="translate(.7,.5)" d="M16.7 2c.2 2.5 1.6 4 4.3 4.2v3.5a9 9 0 0 1-4.3-1.3v7.7a6.6 6.6 0 1 1-5.7-6.6v3.6a3.1 3.1 0 1 0 2.2 3V2h3.5Z"/>
@@ -149,6 +182,7 @@ import { css, js } from '../../lib/site';
 <span>Watch TikTok</span>
 </a>
 </article>
+)}
 </div>
 </section>
 <section class="section contact-guide" data-theme="dark" aria-labelledby="contact-guide-title">
@@ -169,7 +203,7 @@ import { css, js } from '../../lib/site';
 <summary>What should I keep private?<span aria-hidden="true">+</span>
 </summary>
 <div>
-<p>Never share passwords, one-time codes, full bank details, or identity documents through social messages. Keep other people’s personal information out of public comments.</p>
+<p>Never share a password or a sign-in code with anyone: Favorite Hearts staff will never ask for them. Never send identity documents by WhatsApp, email or social messages; upload them only on the verification page of the app. Keep full bank details and other people’s personal information out of messages and public comments.</p>
 </div>
 </details>
 <details name="contact-help">

@@ -1,147 +1,175 @@
 ---
-// Converted from the demo page src/pages/terms/index.html — content unchanged.
-import Header from '../../components/Header.astro';
-import Navigation from '../../components/Navigation.astro';
-import Footer from '../../components/Footer.astro';
-import Dialogs from '../../components/Dialogs.astro';
-import Seo from '../../components/Seo.astro';
-import { css, js } from '../../lib/site';
+// Terms and conditions (Stage 5b): a draft for the owner's lawyer that states every rule docs/OWNER-DECISIONS.md assigns
+// to the terms (audit rows W08, W09, X02). The points the lawyer must check are listed in docs/LEGAL-REVIEW.md.
+import LegalPage, { type LegalSection } from '../../components/LegalPage.astro';
+import { site } from '../../lib/site';
+
+const operator = '<mark class="legal-placeholder">[operator’s legal name and address]</mark>';
+const email = `<a href="mailto:${site.email}">${site.email}</a>`;
+
+const sections: LegalSection[] = [
+  {
+    id: 'about',
+    title: 'About these terms',
+    body: [
+      `These terms are an agreement between you and the operator of Favorite Hearts, ${operator} (“we”, “us”). They apply when you use the Favorite Hearts website or app, create an account, run a profile or buy a plan. If you do not agree, please do not use Favorite Hearts.`,
+      'The English text is the official version. A Sinhala translation is provided for convenience; if the two differ, the English text applies.',
+    ],
+  },
+  {
+    id: 'service',
+    title: 'What Favorite Hearts is',
+    body: [
+      'Favorite Hearts is a matrimony service for adults who are looking for marriage, in Sri Lanka and abroad. It is not a dating service and it has no chat. We help people find each other; we do not arrange marriages, and we cannot guarantee a match, a relationship or a marriage.',
+    ],
+  },
+  {
+    id: 'eligibility',
+    title: 'Who may use it',
+    body: [
+      'You must be 18 or older. A profile may only be created for an adult who is looking for marriage.',
+      'You may hold one account. Favorite Hearts staff will never ask for your password or a sign-in code.',
+    ],
+  },
+  {
+    id: 'accounts',
+    title: 'Your account and verification',
+    body: [
+      'You sign in with a code sent to your email or phone. Keep them private: you are responsible for what is done with your account.',
+      'A profile is published only after the identity document of the person who runs it (NIC, passport or driving licence) has been reviewed by our staff and their phone number has been verified by SMS. The badges on a profile mean exactly this:',
+      [
+        '<strong>Manager verified</strong>: the family member who manages the profile had their identity document reviewed and their phone verified.',
+        '<strong>Candidate confirmed</strong>: the candidate accepted the profile themselves.',
+        '<strong>Candidate identity verified</strong>: the candidate’s own identity document was reviewed.',
+      ],
+      'A badge is not a government verification and does not guarantee anyone’s identity or intentions. Upload identity documents only through the verification page of the app: we never accept them by WhatsApp, email or any other way.',
+    ],
+  },
+  {
+    id: 'managers',
+    title: 'Running a profile for someone else',
+    body: [
+      'A parent, guardian or other family member may create and manage a profile for a candidate, up to 3 profiles unless we agree to more. By creating one, you confirm that the candidate is 18 or older, that they have given you permission to create the profile, and that they agree to their contact details being shared with members they connect with, as described below.',
+      'Until the candidate confirms the profile, their details are shared on your word, and a phone number you entered for them is shown as “not verified by candidate”. You must hide or delete the profile, or stop sharing their details, as soon as the candidate asks.',
+      'The candidate can join the profile by invitation at any time, choose what you may do and what is shared, have it hidden, take it over, or delete it. When a candidate takes the profile over, you lose all access to it straight away, your own contact details are removed from it, and any paid time stays with the profile.',
+    ],
+  },
+  {
+    id: 'connections',
+    title: 'Requests, connections and sharing',
+    body: [
+      'A profile with a plan can send requests. A connection is made only when both sides accept; a declined request unlocks nothing.',
+      'Once both sides accept, the contact details and social handles of the candidate and of the family member who manages the profile, the full photo gallery and the parents’ names are shared with the other side. The candidate can limit which contact details are shared in the privacy settings. Details that have been shared cannot be taken back.',
+      'Either side can end a connection or block a profile at any time; access to each other’s details ends from that moment. After a decline, a withdrawn request or an ended connection, a new request between the same two profiles can be sent after 7 days.',
+      'You may use the contact details you receive only to get to know that person with a view to marriage. Do not pass them on or use them for anything else.',
+    ],
+  },
+  {
+    id: 'plans',
+    title: 'Plans and prices',
+    body: [
+      'Creating and publishing a profile is free. A plan lets a profile send requests, see who sent requests to it, and accept requests. Each profile has its own plan.',
+      'The plans, their length, their limits and their prices are shown on our <a href="/pricing/">pricing page</a> and in the app. Starter allows 5 requests a day and 30 a month. Premium is offered as unlimited requests, fair use applies: it allows up to 30 requests a day. A day starts at midnight Sri Lanka time. A request counts when it is sent, even if it is later withdrawn or declined.',
+      'If you live in Sri Lanka you pay the local price in LKR; if you live anywhere else you pay the overseas price in USD. You must state the country you live in truthfully. We may compare it with how you pay and with your reviewed document, and ask you about a difference.',
+      'We may change our plans and prices. A change never affects a plan that is already paid for.',
+    ],
+  },
+  {
+    id: 'payments',
+    title: 'Paying',
+    body: [
+      'You pay by bank transfer in Sri Lanka, or by international transfer (SWIFT), Wise or PayPal from abroad, to the details shown in the app, with the unique reference the app gives you. You then upload a photo or screenshot of the receipt.',
+      'A plan starts only when we have found your payment in our own bank, Wise or PayPal statement; a receipt alone is not enough. We aim to check payments within 48 hours. If we cannot match a payment, we tell you why.',
+      'Plans never renew automatically, and we never take a payment without your action.',
+    ],
+  },
+  {
+    id: 'changes',
+    title: 'Changing, renewing and ending a plan',
+    body: [
+      'You may move to a higher plan at any time. It starts when we approve the payment, and the unused days of your current plan are lost; the app shows exactly how many before you pay. A lower plan can be bought once the current plan has ended.',
+      'You may renew the same plan in its last 7 days. The new term counts from the day we approve the payment. If you send a renewal receipt before the plan ends, access continues for up to 3 days after the end while we check it.',
+      'When a plan ends, you can no longer see anyone’s contact details or social handles, including your connections’. Your connections remain, and their details become visible again when you renew. We remind you before a plan ends.',
+    ],
+  },
+  {
+    id: 'refunds',
+    title: 'Refunds, disputes and lost time',
+    body: [
+      'There are no refunds once a plan is active, except for:',
+      ['a duplicate payment;', 'a payment made by mistake;', 'a failure on our side.'],
+      'You confirm that you have read this before you pay.',
+      'If a payment is reversed or disputed after the plan started, for example through PayPal, we may end the plan it paid for.',
+      'If we suspend a profile for breaking these terms, its remaining plan time is lost. If you mark a profile engaged or married, or delete it or your account, its plan ends and the remaining time is not refunded.',
+      'Nothing in these terms takes away rights you have under consumer protection law.',
+    ],
+  },
+  {
+    id: 'conduct',
+    title: 'How you must behave',
+    body: [
+      [
+        'Be honest about yourself and about the candidate. Do not impersonate anyone, or create a profile for someone without their permission.',
+        'Never create or manage a profile for anyone under 18.',
+        'Do not harass, threaten or deceive anyone, ask anyone for money, or send explicit content.',
+        'Use Favorite Hearts only to look for a marriage partner, not to sell, advertise or recruit.',
+        'Do not copy profiles, collect members’ information, or try to get around our access rules, limits or security.',
+        'Do not make false reports.',
+      ],
+    ],
+  },
+  {
+    id: 'safety',
+    title: 'Reports and moderation',
+    body: [
+      'Any verified member can report a profile or a photo. A report about explicit content, a minor, threats or a scam hides it at once; any other report hides it once three different verified members have reported it. Our staff review everything that is hidden, restore it if it was hidden by mistake, and may warn, suspend or remove a member who breaks these terms. Repeated false reporting has consequences.',
+      'If you are worried about someone’s safety, contact local emergency services first. Favorite Hearts is not an emergency service.',
+    ],
+  },
+  {
+    id: 'content',
+    title: 'Your content',
+    body: [
+      'You are responsible for what you add to a profile, including photos you have permission to share. You keep your rights in it, and you allow us to store it and to show it to other members as these terms and our <a href="/privacy/">privacy policy</a> describe, for as long as it is on Favorite Hearts.',
+      'Photos are shown blurred to anyone who may not yet see them; we make the blurred copies.',
+      'The Favorite Hearts name, design and text belong to us or to those who licensed them to us.',
+    ],
+  },
+  {
+    id: 'ending',
+    title: 'Pausing, deleting and leaving',
+    body: [
+      'You can pause a profile, mark it engaged or married, delete a profile, or delete your whole account at any time in the app. Deleting needs a recent sign-in.',
+      'A deleted profile disappears at once. What is deleted, what we keep and for how long is set out in our <a href="/privacy/">privacy policy</a>.',
+      'We may suspend or close an account that breaks these terms, after reviewing it.',
+    ],
+  },
+  {
+    id: 'liability',
+    title: 'Our responsibility',
+    body: [
+      'We work to keep Favorite Hearts available, accurate and secure, but we cannot promise that it will always be available or free of errors. We are not responsible for what members do outside Favorite Hearts, including when they meet. Meet in a public place and tell someone you trust.',
+      'Any limit on our responsibility applies only as far as the law allows, and nothing in these terms limits a responsibility that the law does not allow to be limited.',
+    ],
+  },
+  {
+    id: 'law',
+    title: 'Changes, law and contact',
+    body: [
+      'We may update these terms. We tell members about important changes before they take effect; continuing to use Favorite Hearts after that means you accept them.',
+      'These terms are governed by the laws of Sri Lanka, and the courts of Sri Lanka decide any dispute about them, without removing any protection the law of the country you live in gives you.',
+      `Questions about these terms: ${operator}, ${email}, or WhatsApp and calls on 076 676 9894.`,
+    ],
+  },
+];
 ---
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#ffffff">
-<title>Terms & Conditions — Favorite Hearts</title>
-<meta name="description" content="Terms & Conditions for the Favorite Hearts information website. Read our website scope and contact us with questions.">
-<link rel="stylesheet" href={css("landing.css")}>
-<script is:inline src={js("site-config.js")} defer>
-</script>
-<script is:inline src={js("site.js")} defer>
-</script>
-<script is:inline src={js("legal.js")} defer>
-</script>
-<link rel="stylesheet" href={css("monochrome.css")}>
-<link rel="stylesheet" href={css("legal.css")}>
-<link rel="stylesheet" href={css("welcome.css")}>
-<script is:inline src={js("welcome.js")} defer>
-</script>
-<script is:inline src={js("motion.js")} defer></script>
-<link rel="stylesheet" href={css("design-system.css")}>
-<link rel="stylesheet" href={css("tailwind.css")}>
-<Seo route="/terms/" title={"Terms & Conditions — Favorite Hearts"} description={"Terms & Conditions for the Favorite Hearts information website. Read our website scope and contact us with questions."} headline={"Terms & Conditions"} />
-</head>
-<body class="tw-antialiased">
-<a class="skip" href="#main">Skip to content</a>
-<Header />
-<Navigation />
-<main id="main" class="legal-page" data-theme="light">
-<section class="section legal-intro">
-<p class="label">The details that matter</p>
-<h1>Terms & Conditions</h1>
-<p class="legal-lead">A clear understanding, from the beginning.</p>
-<p class="legal-date">Website edition · Updated 17 October 2026</p>
-</section>
-<div class="section legal-layout">
-<aside class="legal-contents" aria-label="On this page">
-<p>On this page</p>
-<nav aria-label="Policy contents">
-<a href="#scope">01 <span>Using this website</span>
-</a>
-<a href="#eligibility">02 <span>Who the website is for</span>
-</a>
-<a href="#availability">03 <span>Current and planned features</span>
-</a>
-<a href="#conduct">04 <span>Respectful and lawful use</span>
-</a>
-<a href="#content">05 <span>Articles and website content</span>
-</a>
-<a href="#payments">06 <span>Payments and subscriptions</span>
-</a>
-<a href="#ownership">07 <span>Content and intellectual property</span>
-</a>
-<a href="#external">08 <span>External services</span>
-</a>
-<a href="#privacy">09 <span>Privacy and communications</span>
-</a>
-<a href="#limits">10 <span>Availability and responsibility</span>
-</a>
-<a href="#changes">11 <span>Changes to these terms</span>
-</a>
-<a href="#contact">12 <span>Questions and concerns</span>
-</a>
-</nav>
-</aside>
-<article class="legal-body">
-<section id="scope">
-<p class="legal-number">01</p>
-<h2>Using this website</h2>
-<p>These terms cover the Favorite Hearts information website, including its articles, help pages, and contact links. By using the website, you agree to use it lawfully and in accordance with these terms. They do not create a paid subscription or a contract for a matching service. If you do not agree, please stop using the website.</p>
-</section>
-<section id="eligibility">
-<p class="legal-number">02</p>
-<h2>Who the website is for</h2>
-<p>Favorite Hearts is intended for adults aged 18 and over who are interested in matrimony. If you enquire on behalf of another adult, be clear about your role and ensure you have appropriate authority to share their information. A family member’s involvement does not replace the candidate’s own choice.</p>
-</section>
-<section id="availability">
-<p class="legal-number">03</p>
-<h2>Current and planned features</h2>
-<p>This website currently provides information and contact options. Registration, profile publishing, matching, payment processing, and verification are not available here. Descriptions of planned features explain our intended direction and may change. Specific service terms, pricing, and privacy information must be provided before those features are offered.</p>
-</section>
-<section id="conduct">
-<p class="legal-number">04</p>
-<h2>Respectful and lawful use</h2>
-<p>Do not impersonate someone, submit misleading information, harass others, send unlawful content, misuse contact channels, or share information you are not authorised to share. Do not attempt to bypass access controls, disrupt the website, introduce malicious software, or extract personal information through unauthorised means.</p>
-</section>
-<section id="content">
-<p class="legal-number">05</p>
-<h2>Articles and website content</h2>
-<p>Our relationship articles provide general ideas and information. They are not personalised legal, financial, medical, or psychological advice. An introduction, recommendation, or paid service cannot guarantee compatibility, a relationship, or marriage. Decisions about relationships remain with the people involved.</p>
-</section>
-<section id="payments">
-<p class="legal-number">06</p>
-<h2>Payments and subscriptions</h2>
-<p>This website does not collect payments or activate subscriptions. Do not treat descriptions of future plans as an instruction to transfer money. Confirm any payment instructions directly with Favorite Hearts. Prices, subscription periods, cancellation terms, and any refund conditions will need to be provided before a paid service is offered. Nothing here removes rights that apply under consumer law.</p>
-</section>
-<section id="ownership">
-<p class="legal-number">07</p>
-<h2>Content and intellectual property</h2>
-<p>The website’s text, design, branding, and other materials may be protected by intellectual property rights belonging to Favorite Hearts or their respective owners. You may browse and share links for personal use. Do not reproduce or commercially reuse protected material without permission unless the law allows it. Third-party photographs, logos, and platform names remain subject to their owners’ rights.</p>
-</section>
-<section id="external">
-<p class="legal-number">08</p>
-<h2>External services</h2>
-<p>WhatsApp, social networks, email services, and other linked websites operate independently and have their own terms. A link does not guarantee their availability, content, or security. Check that a social profile belongs to the intended business before sharing information; some links currently lead to a search rather than a verified profile.</p>
-</section>
-<section id="privacy">
-<p class="legal-number">09</p>
-<h2>Privacy and communications</h2>
-<p>Our <a href="/privacy/">Privacy Policy</a> explains this website’s privacy scope and contact options. Please keep sensitive information out of initial messages. Support hours are listed on our <a href="/contact/">Contact Us page</a>; a message sent outside those hours may be handled later. Favorite Hearts support is not an emergency service.</p>
-</section>
-<section id="limits">
-<p class="legal-number">10</p>
-<h2>Availability and responsibility</h2>
-<p>We aim to keep the website useful and accurate, but content may contain errors and access may be interrupted or changed. Please contact us if something appears incorrect. Nothing in these terms excludes or limits liability or rights that cannot lawfully be excluded or limited. Any other limitation is subject to applicable law.</p>
-</section>
-<section id="changes">
-<p class="legal-number">11</p>
-<h2>Changes to these terms</h2>
-<p>We may revise these website terms as the site develops and will update the date above. New product features may require additional terms and an appropriate acceptance process. A later update does not remove rights or obligations that already apply under law.</p>
-</section>
-<section id="contact">
-<p class="legal-number">12</p>
-<h2>Questions and concerns</h2>
-<p>Contact Favorite Hearts at <a href="mailto:hello@favoritehearts.com">hello@favoritehearts.com</a> if you have a question or concern about these terms. Please describe the issue and give us an opportunity to respond. Nothing in these terms prevents you from seeking assistance or exercising rights through a competent regulator or court.</p>
-</section>
-<div class="legal-end">
-<a class="pill" href="/contact/">Contact us</a>
-<a href="/privacy/">Privacy Policy <span aria-hidden="true">↗</span>
-</a>
-</div>
-</article>
-</div>
-</main><Footer />
-<Dialogs />
-</body>
-</html>
+<LegalPage
+  route="/terms/"
+  title="Terms & Conditions — Favorite Hearts"
+  heading="Terms & Conditions"
+  description="The rules of Favorite Hearts: eligibility, verification, profiles run by family, sharing, plans, payments, refunds and conduct. Draft awaiting legal review."
+  lead="A clear understanding, from the beginning."
+  updated="31 October 2026"
+  sections={sections}
+  other={{ href: '/privacy/', label: 'Privacy Policy' }}
+/>

@@ -1,11 +1,210 @@
 ---
-// Converted from the demo page src/pages/help/index.html — content unchanged.
+// Help and FAQ (Stage 5b): answers match docs/OWNER-DECISIONS.md and what the app does. Answers are trusted HTML
+// written here (some carry a link); search and filters are in assets/js/help.js.
 import Header from '../../components/Header.astro';
 import Navigation from '../../components/Navigation.astro';
 import Footer from '../../components/Footer.astro';
 import Dialogs from '../../components/Dialogs.astro';
 import Seo from '../../components/Seo.astro';
-import { css, js } from '../../lib/site';
+import { css, js, site } from '../../lib/site';
+
+const title = 'Help & FAQ — Favorite Hearts';
+const description =
+  'Answers about joining Favorite Hearts, verification, family-managed profiles, requests, plans and payments, privacy and safety. Search the FAQ and NFAQ.';
+
+const groups: { name: string; heading?: string; items: { q: string; a: string }[] }[] = [
+  {
+    name: 'Getting started',
+    items: [
+      {
+        q: 'What is Favorite Hearts?',
+        a: 'Favorite Hearts is a matrimony service for Sri Lankans in Sri Lanka and around the world, for people looking for marriage. It is not a dating app and has no chat. Our mission is to make life less lonely by bringing people together to build happy families.',
+      },
+      {
+        q: 'Who is Favorite Hearts for?',
+        a: 'Adults aged 18 and over who are considering marriage, and the parents, guardians or family members who help them. The candidate’s own wishes always come first.',
+      },
+      {
+        q: 'How do I join?',
+        a: 'Choose <a href="/app/">Join now</a>. You sign in with a 6-digit code sent to your email or phone, and the first code also creates your account. Favorite Hearts staff will never ask you for a code.',
+      },
+      {
+        q: 'How does a profile get published?',
+        a: 'Publishing is free. It needs a complete profile and two checks: an identity document (NIC, passport or driving licence) reviewed by our staff, and a phone number verified by SMS. For a profile a family member manages, the manager’s document and phone are checked. We aim to review documents within 48 hours.',
+      },
+      {
+        q: 'Can I join if I live outside Sri Lanka?',
+        a: 'Yes. Members abroad use the same app and pay in USD; members in Sri Lanka pay in LKR. Where you live, and where you would like to settle, are good things to discuss early.',
+      },
+      {
+        q: 'What do the badges on a profile mean?',
+        a: '<strong>Manager verified</strong>: the family member who manages the profile had their identity document reviewed and their phone verified. <strong>Candidate confirmed</strong>: the candidate accepted the profile themselves. <strong>Candidate identity verified</strong>: the candidate’s own identity document was reviewed. A badge means that check was done. It is not a government verification and cannot guarantee anyone’s intentions.',
+      },
+    ],
+  },
+  {
+    name: 'Profiles & family',
+    items: [
+      {
+        q: 'Can a parent or family member create a profile?',
+        a: 'Yes. A parent, guardian or other family member can create and manage a profile for a candidate, up to 3 profiles each. They confirm that the candidate is 18 or older and has agreed to the profile and to their details being shared after mutual acceptance.',
+      },
+      {
+        q: 'How does the candidate join a profile a family member made?',
+        a: 'The manager sends an invitation to the candidate’s own email or phone. The link works once, expires after 24 hours, and needs a code sent to that address. The candidate can confirm the profile, choose what the manager may do and what is shared, decline it, or take it over and manage it alone at any time. A profile that is taken over keeps its plan, and the manager loses access straight away.',
+      },
+      {
+        q: 'What should I include in a profile?',
+        a: 'Share an honest introduction, your interests, and what you hope for in a partnership. Details about education, work, and everyday life can help someone start a meaningful conversation.',
+      },
+      {
+        q: 'Which photos should I choose?',
+        a: 'Up to 5 recent, clear photos of the candidate, one of them the cover. You choose whether other members see the cover photo; the other photos stay blurred for everyone until you both accept a request. The blurred copies are made on our server, so an original is never sent to someone who may not see it. Use only photos you have permission to share.',
+      },
+      {
+        q: 'How do I change my profile?',
+        a: 'In the app: the profile’s details, photos and contact details can be changed at any time by the people allowed to edit it. Never send identity documents by WhatsApp or email; upload them only on the app’s verification page.',
+      },
+      {
+        q: 'Can I hide my profile for a while?',
+        a: 'Yes. Pause hides the profile from other members at any time, and you can publish it again later. If you are engaged or married, mark the profile engaged or married: it is hidden and its plan ends, and the remaining time is not refunded.',
+      },
+      {
+        q: 'Does a family introduction mean I have to continue?',
+        a: 'No. An introduction is an invitation. Both people should feel free to ask for time, set boundaries, or decide that the connection is not right for them.',
+      },
+    ],
+  },
+  {
+    name: 'Introductions',
+    items: [
+      {
+        q: 'How does a request work?',
+        a: 'A profile with a plan sends a request, and the other side accepts or declines. Only when both have accepted are you connected and contact details shared. A declined request unlocks nothing.',
+      },
+      {
+        q: 'What is shared once we both accept?',
+        a: 'The contact details and social handles of the candidate and of the family member who manages the profile, the full photo gallery, and the parents’ names. The candidate can choose in the privacy settings which contact details are shared. Details someone has already seen cannot be taken back.',
+      },
+      {
+        q: 'Can I receive requests without a plan?',
+        a: 'Yes. Without a plan you see that a request arrived, with the sender’s age and occupation, but not who sent it. To see the sender and to accept, the profile needs a plan.',
+      },
+      {
+        q: 'How many requests can I send?',
+        a: 'Starter: 5 a day and 30 a month. Premium: unlimited requests, fair use applies, up to 30 a day. A day starts at midnight Sri Lanka time. Each request counts once, even if it is later withdrawn or declined.',
+      },
+      {
+        q: 'Can I send another request after a no?',
+        a: 'After a decline, a withdrawn request or an ended connection, either side can send a new request to the other after 7 days.',
+      },
+      {
+        q: 'Is there chat inside Favorite Hearts?',
+        a: 'No. Once both sides accept, contact details are shared so you can continue in your own way.',
+      },
+      {
+        q: 'Can I end a connection?',
+        a: 'Yes, at any time. Both sides lose access to each other’s details from that moment. You can also block a profile, which hides each of you from the other.',
+      },
+      {
+        q: 'What should we talk about first?',
+        a: 'Begin with everyday life, what matters to each of you, and the future you hope to build. You do not need to settle every important question in the first conversation.',
+      },
+    ],
+  },
+  {
+    name: 'Payments',
+    items: [
+      {
+        q: 'Do I need to pay to publish a profile?',
+        a: 'No. Publishing is free once you are verified. A plan lets the profile send requests, see who is interested and accept requests. See <a href="/pricing/">plans and prices</a>.',
+      },
+      {
+        q: 'How do payments work?',
+        a: 'By transfer, never automatically. You choose a plan in the app, pay the exact amount with the reference the app gives you, and upload a photo or screenshot of the receipt. The plan starts once we find your payment in our bank, Wise or PayPal statement: a receipt alone is not enough. We aim to check payments within 48 hours.',
+      },
+      {
+        q: 'What is the refund policy?',
+        a: 'There are no refunds once a plan is active, except for a duplicate payment, a payment made by mistake, or a failure on our side. The details are on the <a href="/pricing/">pricing page</a> and in our <a href="/terms/">terms</a>.',
+      },
+      {
+        q: 'Can I ask about a payment I have made?',
+        a: 'Yes. Contact us with the payment reference (FH followed by six letters and numbers). Never send passwords, codes, card numbers or full bank statements.',
+      },
+      {
+        q: 'Where can I see the prices?',
+        a: 'On the <a href="/pricing/">pricing page</a>, and in the app when you choose a plan. Do not rely on prices in social media comments or in messages from other people.',
+      },
+    ],
+  },
+  {
+    name: 'Privacy & safety',
+    items: [
+      {
+        q: 'Who can see my profile?',
+        a: 'Only signed-in members whose own identity check is complete can browse published profiles. Visitors who are not signed in see no profiles at all. Contact details and the full photo gallery are shared only after both sides accept.',
+      },
+      {
+        q: 'Do I have to give my caste or religion?',
+        a: 'No. Both are optional, with “Prefer not to say”. Caste is saved only with your explicit consent, is shown only to signed-in members, and can be removed at any time. Income is optional, shown as a range and labelled self-declared.',
+      },
+      {
+        q: 'Will Favorite Hearts ever ask for my password or code?',
+        a: 'Never. Favorite Hearts staff will never ask for a password or a sign-in code, by phone, WhatsApp, email or anywhere else. Anyone who asks is not us.',
+      },
+      {
+        q: 'How do I report someone?',
+        a: 'Use Report on their profile. A report about explicit content, a minor, threats or a scam hides the profile at once until our staff review it; other reports hide it once three different verified members report it. Staff restore anything hidden by mistake. You can also block the profile. If you are in danger, contact local emergency services.',
+      },
+      {
+        q: 'What if someone asks me for money?',
+        a: 'Do not send money to someone you have only met online. Stop and seek support if a person pressures you to pay, invest, share bank details, or keep financial requests secret.',
+      },
+      {
+        q: 'How should I prepare for a first meeting?',
+        a: 'Choose a public place, arrange your own transport, and tell someone you trust where you are going. Meet at a pace you feel comfortable with and leave if you feel uneasy.',
+      },
+      {
+        q: 'How long do you keep my information?',
+        a: 'Identity documents are deleted 90 days after the review. When you delete a profile or your account it disappears at once, and a short list of records, such as payment records, reports and blocks, is kept for 6 months and then deleted. The <a href="/privacy/">privacy policy</a> lists everything.',
+      },
+      {
+        q: 'Can I download or delete my data?',
+        a: `Yes. In the app, Your account has Download my data (one ZIP file with your profiles, contact details, photos, requests, connections and payments) and Delete my account. For anything else, email <a href="mailto:${site.email}">${site.email}</a> with the subject “Privacy request”.`,
+      },
+    ],
+  },
+  {
+    name: 'NFAQ',
+    heading: 'Not-so frequently asked questions',
+    items: [
+      {
+        q: 'What does NFAQ mean?',
+        a: 'Not-so frequently asked questions: the things you might be wondering about, even if they do not come up in every conversation.',
+      },
+      {
+        q: 'Do we need to agree on everything?',
+        a: 'No two people are identical. What matters is having room to talk honestly about differences, understand each other’s priorities, and decide what you can build together.',
+      },
+      {
+        q: 'What if my family and I want different things?',
+        a: 'Try explaining what matters to you and the kind of support you would welcome. Family can offer perspective, but your own willingness should never be replaced by pressure.',
+      },
+      {
+        q: 'Does Favorite Hearts guarantee a marriage?',
+        a: 'No. A meaningful partnership depends on the people involved. Introductions can create opportunities, but neither a profile nor a plan can guarantee a relationship or marriage.',
+      },
+      {
+        q: 'Is horoscope matching available?',
+        a: 'No. A profile can say how important horoscope matching is to the family, so you can talk about it, but Favorite Hearts does not match horoscopes.',
+      },
+      {
+        q: 'When can I contact the team?',
+        a: 'Our support hours are daily, 8:00 AM–10:00 PM, Sri Lanka time. You can call or send a WhatsApp message to 076 676 9894, or email us; messages outside those hours are answered when we are back. Favorite Hearts is not an emergency service.',
+      },
+    ],
+  },
+];
 ---
 <!doctype html>
 <html lang="en">
@@ -13,8 +212,8 @@ import { css, js } from '../../lib/site';
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#ffffff">
-<title>Help &amp; FAQ — Favorite Hearts</title>
-<meta name="description" content="Find answers about Favorite Hearts, matrimony introductions, family-managed profiles, payments and privacy. Search our Help, FAQ and NFAQ.">
+<title>{title}</title>
+<meta name="description" content={description}>
 <link rel="stylesheet" href={css("landing.css")}>
 <script is:inline src={js("site-config.js")} defer>
 </script>
@@ -30,7 +229,7 @@ import { css, js } from '../../lib/site';
 <script is:inline src={js("motion.js")} defer></script>
 <link rel="stylesheet" href={css("design-system.css")}>
 <link rel="stylesheet" href={css("tailwind.css")}>
-<Seo route="/help/" title={"Help & FAQ — Favorite Hearts"} description={"Find answers about Favorite Hearts, matrimony introductions, family-managed profiles, payments and privacy. Search our Help, FAQ and NFAQ."} headline={"Good questions. Thoughtful answers."} />
+<Seo route="/help/" title={title} description={description} headline={"Good questions. Thoughtful answers."} />
 </head>
 <body class="tw-antialiased">
 <a class="skip" href="#main">Skip to content</a>
@@ -51,256 +250,33 @@ import { css, js } from '../../lib/site';
 </label>
 <div class="help-filters" role="group" aria-label="Filter questions by category">
 <button type="button" data-category="All questions" aria-pressed="true">All questions</button>
-<button type="button" data-category="Getting started" aria-pressed="false">Getting started</button>
-<button type="button" data-category="Profiles &amp; family" aria-pressed="false">Profiles &amp; family</button>
-<button type="button" data-category="Introductions" aria-pressed="false">Introductions</button>
-<button type="button" data-category="Payments" aria-pressed="false">Payments</button>
-<button type="button" data-category="Privacy &amp; safety" aria-pressed="false">Privacy &amp; safety</button>
-<button type="button" data-category="NFAQ" aria-pressed="false">NFAQ</button>
+{groups.map((group) => (
+<button type="button" data-category={group.name} aria-pressed="false">{group.name}</button>
+))}
 </div>
 </section>
 <section class="section help-content" aria-label="Help and frequently asked questions">
 <p id="help-status" class="sr-only" role="status" aria-live="polite">
 </p>
-<section class="faq-group" data-group="Getting started">
+{groups.map((group) => (
+<section class="faq-group" data-group={group.name}>
 <div class="faq-group-heading">
-<h2>Getting started</h2>
+<h2>{group.name}</h2>
+{group.heading && <p>{group.heading}</p>}
 </div>
 <div class="faq-items">
-<details name="help-answer" data-category="Getting started">
-<summary>What is Favorite Hearts?<span aria-hidden="true">+</span>
+{group.items.map((item) => (
+<details name="help-answer" data-category={group.name}>
+<summary>{item.q}<span aria-hidden="true">+</span>
 </summary>
 <div class="faq-answer">
-<p>Favorite Hearts is a matrimony platform being built for Sri Lankans at home and around the world. Our mission is to make life less lonely by bringing people together to build happy families.</p>
+<p set:html={item.a} />
 </div>
 </details>
-<details name="help-answer" data-category="Getting started">
-<summary>Who is Favorite Hearts for?<span aria-hidden="true">+</span>
-</summary>
-<div class="faq-answer">
-<p>Favorite Hearts is for adults aged 18 and over who are considering marriage. Your own wishes, boundaries, and readiness should guide the journey.</p>
-</div>
-</details>
-<details name="help-answer" data-category="Getting started">
-<summary>Can I create an account on this website?<span aria-hidden="true">+</span>
-</summary>
-<div class="faq-answer">
-<p>Account registration is not available on this website yet. You can explore our approach, read our articles, and contact our team with questions about getting started.</p>
-</div>
-</details>
-<details name="help-answer" data-category="Getting started">
-<summary>Can I join if I live outside Sri Lanka?<span aria-hidden="true">+</span>
-</summary>
-<div class="faq-answer">
-<p>Our vision includes Sri Lankans living abroad as well as those in Sri Lanka. Location, plans for the future, and family expectations are useful things to discuss early.</p>
-</div>
-</details>
+))}
 </div>
 </section>
-<section class="faq-group" data-group="Profiles &amp; family">
-<div class="faq-group-heading">
-<h2>Profiles &amp; family</h2>
-</div>
-<div class="faq-items">
-<details name="help-answer" data-category="Profiles &amp; family">
-<summary>Can a parent or family member create a profile?<span aria-hidden="true">+</span>
-</summary>
-<div class="faq-answer">
-<p>The planned matrimony experience supports profiles created by a candidate or an authorised parent, guardian, or other manager. The manager’s role should be clear, and the candidate’s wishes should stay central.</p>
-</div>
-</details>
-<details name="help-answer" data-category="Profiles &amp; family">
-<summary>What should I include in a profile?<span aria-hidden="true">+</span>
-</summary>
-<div class="faq-answer">
-<p>Share an honest introduction, your interests, and what you hope for in a partnership. Details about education, work, and everyday life can help someone start a meaningful conversation.</p>
-</div>
-</details>
-<details name="help-answer" data-category="Profiles &amp; family">
-<summary>Which photos should I choose?<span aria-hidden="true">+</span>
-</summary>
-<div class="faq-answer">
-<p>Choose recent, clear photos that represent you. Use photos you have permission to share, and avoid including other people’s private information or images without their consent.</p>
-</div>
-</details>
-<details name="help-answer" data-category="Profiles &amp; family">
-<summary>How do I get help with profile changes?<span aria-hidden="true">+</span>
-</summary>
-<div class="faq-answer">
-<p>Contact our team with a short description of what you want to change. Avoid sending identity documents, passwords, or one-time codes in your first message.</p>
-</div>
-</details>
-<details name="help-answer" data-category="Profiles &amp; family">
-<summary>Does a family introduction mean I have to continue?<span aria-hidden="true">+</span>
-</summary>
-<div class="faq-answer">
-<p>No. An introduction is an invitation. Both people should feel free to ask for time, set boundaries, or decide that the connection is not right for them.</p>
-</div>
-</details>
-</div>
-</section>
-<section class="faq-group" data-group="Introductions">
-<div class="faq-group-heading">
-<h2>Introductions</h2>
-</div>
-<div class="faq-items">
-<details name="help-answer" data-category="Introductions">
-<summary>How will an interest request work?<span aria-hidden="true">+</span>
-</summary>
-<div class="faq-answer">
-<p>In the planned matrimony journey, one person sends an interest request and the other chooses whether to accept. Mutual acceptance is the next step towards getting to know each other.</p>
-</div>
-</details>
-<details name="help-answer" data-category="Introductions">
-<summary>Will there be chat inside matrimony?<span aria-hidden="true">+</span>
-</summary>
-<div class="faq-answer">
-<p>The planned matrimony experience does not include in-app chat. Contact details are intended to become available after mutual acceptance, so both people can decide how to continue.</p>
-</div>
-</details>
-<details name="help-answer" data-category="Introductions">
-<summary>When will private photos and contact details be shared?<span aria-hidden="true">+</span>
-</summary>
-<div class="faq-answer">
-<p>The planned experience keeps sensitive profile details and the full photo gallery private until both sides accept an interest request. Always consider what you feel comfortable sharing.</p>
-</div>
-</details>
-<details name="help-answer" data-category="Introductions">
-<summary>What should we talk about first?<span aria-hidden="true">+</span>
-</summary>
-<div class="faq-answer">
-<p>Begin with everyday life, what matters to each of you, and the future you hope to build. You do not need to settle every important question in the first conversation.</p>
-</div>
-</details>
-</div>
-</section>
-<section class="faq-group" data-group="Payments">
-<div class="faq-group-heading">
-<h2>Payments</h2>
-</div>
-<div class="faq-items">
-<details name="help-answer" data-category="Payments">
-<summary>Do I need to pay to publish a profile?<span aria-hidden="true">+</span>
-</summary>
-<div class="faq-answer">
-<p>The planned matrimony service requires a paid subscription to publish a profile, for both men and women. Final plans and prices will be shown before you make a payment.</p>
-</div>
-</details>
-<details name="help-answer" data-category="Payments">
-<summary>How will bank-transfer payments work?<span aria-hidden="true">+</span>
-</summary>
-<div class="faq-answer">
-<p>The planned flow is to choose a plan, follow the payment instructions, and submit proof of payment for review. A subscription becomes active after approval. This website does not currently accept payments.</p>
-</div>
-</details>
-<details name="help-answer" data-category="Payments">
-<summary>Can I ask about a payment or payment slip?<span aria-hidden="true">+</span>
-</summary>
-<div class="faq-answer">
-<p>Yes. Contact support with your question and the relevant payment reference, if you have one. Do not share passwords, one-time codes, card security codes, or full bank statements.</p>
-</div>
-</details>
-<details name="help-answer" data-category="Payments">
-<summary>Where can I find pricing and refund information?<span aria-hidden="true">+</span>
-</summary>
-<div class="faq-answer">
-<p>Our <a href="/pricing/">pricing page</a> lists proposed packages in LKR and USD. Plan duration, final benefits, and refund terms must be confirmed before payment. Ask our team for clarification; do not rely on prices in social comments or messages from other users.</p>
-</div>
-</details>
-</div>
-</section>
-<section class="faq-group" data-group="Privacy &amp; safety">
-<div class="faq-group-heading">
-<h2>Privacy &amp; safety</h2>
-</div>
-<div class="faq-items">
-<details name="help-answer" data-category="Privacy &amp; safety">
-<summary>How can I protect my personal information?<span aria-hidden="true">+</span>
-</summary>
-<div class="faq-answer">
-<p>Keep passwords, one-time codes, identity documents, financial information, and your home address private. Avoid posting sensitive details in a profile or public comment.</p>
-</div>
-</details>
-<details name="help-answer" data-category="Privacy &amp; safety">
-<summary>How do I raise a safety concern?<span aria-hidden="true">+</span>
-</summary>
-<div class="faq-answer">
-<p>Contact us on WhatsApp or by email with a short description of the concern. Keep relevant messages or screenshots, but avoid sharing unnecessary personal information. You can stop an uncomfortable interaction at any time.</p>
-</div>
-</details>
-<details name="help-answer" data-category="Privacy &amp; safety">
-<summary>What if someone asks me for money?<span aria-hidden="true">+</span>
-</summary>
-<div class="faq-answer">
-<p>Do not send money to someone you have only met online. Stop and seek support if a person pressures you to pay, invest, share bank details, or keep financial requests secret.</p>
-</div>
-</details>
-<details name="help-answer" data-category="Privacy &amp; safety">
-<summary>How should I prepare for a first meeting?<span aria-hidden="true">+</span>
-</summary>
-<div class="faq-answer">
-<p>Choose a public place, arrange your own transport, and tell someone you trust where you are going. Meet at a pace you feel comfortable with and leave if you feel uneasy.</p>
-</div>
-</details>
-<details name="help-answer" data-category="Privacy &amp; safety">
-<summary>How can I ask about my data or account?<span aria-hidden="true">+</span>
-</summary>
-<div class="faq-answer">
-<p>Email hello@favoritehearts.com with a brief description of your request. Our team can explain the appropriate next step. Never include passwords or one-time codes in your message.</p>
-</div>
-</details>
-</div>
-</section>
-<section class="faq-group" data-group="NFAQ">
-<div class="faq-group-heading">
-<h2>NFAQ</h2>
-<p>Not-so frequently asked questions</p>
-</div>
-<div class="faq-items">
-<details name="help-answer" data-category="NFAQ">
-<summary>What does NFAQ mean?<span aria-hidden="true">+</span>
-</summary>
-<div class="faq-answer">
-<p>Not-so frequently asked questions: the things you might be wondering about, even if they do not come up in every conversation.</p>
-</div>
-</details>
-<details name="help-answer" data-category="NFAQ">
-<summary>Do we need to agree on everything?<span aria-hidden="true">+</span>
-</summary>
-<div class="faq-answer">
-<p>No two people are identical. What matters is having room to talk honestly about differences, understand each other’s priorities, and decide what you can build together.</p>
-</div>
-</details>
-<details name="help-answer" data-category="NFAQ">
-<summary>What if my family and I want different things?<span aria-hidden="true">+</span>
-</summary>
-<div class="faq-answer">
-<p>Try explaining what matters to you and the kind of support you would welcome. Family can offer perspective, but your own willingness should never be replaced by pressure.</p>
-</div>
-</details>
-<details name="help-answer" data-category="NFAQ">
-<summary>Does Favorite Hearts guarantee a marriage?<span aria-hidden="true">+</span>
-</summary>
-<div class="faq-answer">
-<p>No. A meaningful partnership depends on the people involved. Introductions can create opportunities, but neither a profile nor a subscription can guarantee a relationship or marriage.</p>
-</div>
-</details>
-<details name="help-answer" data-category="NFAQ">
-<summary>Is horoscope matching available?<span aria-hidden="true">+</span>
-</summary>
-<div class="faq-answer">
-<p>Horoscope matching is not available on this website. It is reserved for a later version of the product.</p>
-</div>
-</details>
-<details name="help-answer" data-category="NFAQ">
-<summary>When can I contact the team?<span aria-hidden="true">+</span>
-</summary>
-<div class="faq-answer">
-<p>Our listed support hours are daily, 8:00 AM–10:00 PM, Sri Lanka time. You can send a WhatsApp message at any time; replies are handled during support hours. Favorite Hearts is not an emergency service.</p>
-</div>
-</details>
-</div>
-</section>
+))}
 <div id="help-empty" hidden>
 <h2>No answers found.</h2>
 <p>Try a different word, choose another category, or ask our team.</p>
@@ -311,12 +287,14 @@ import { css, js } from '../../lib/site';
 <div>
 <p class="label">We’re here for you</p>
 <h2>Still have<br>a question?</h2>
-<p>Some things need a conversation. Tell us what’s on your mind and we’ll help you find the next step.</p>
+<p>Some things need a conversation. Tell us what’s on your mind and we’ll help you find the next step. Favorite Hearts staff will never ask for a password or a code.</p>
 </div>
 <div class="help-contact-actions">
 <a class="help-direct" href="https://wa.me/94766769894" target="_blank" rel="noopener noreferrer">WhatsApp · 076 676 9894 <span aria-hidden="true">↗</span>
 </a>
-<a class="help-direct" href="mailto:hello@favoritehearts.com">hello@favoritehearts.com <span aria-hidden="true">↗</span>
+<a class="help-direct" href={`tel:${site.telephone}`}>Call · 076 676 9894 <span aria-hidden="true">↗</span>
+</a>
+<a class="help-direct" href={`mailto:${site.email}`}>{site.email} <span aria-hidden="true">↗</span>
 </a>
 <p>Daily, 8:00 AM–10:00 PM<br>Sri Lanka time</p>
 <a class="pill" href="/contact/">Contact us <span aria-hidden="true">↗</span>

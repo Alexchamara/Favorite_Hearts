@@ -19,7 +19,7 @@ reference/         original demo — read-only, never deployed
 
 ## Requirements
 
-Node 22+ (`nvm use`), npm 10+. Accounts (owner-owned, developer as collaborator):
+Node 22.22 or newer (`nvm use`; the website's Astro 7 needs it), npm 10+. Accounts (owner-owned, developer as collaborator):
 Neon, Resend, Cloudflare (R2 + Pages), Fly.io or Railway, GitHub.
 
 ## Getting started
@@ -50,12 +50,13 @@ nothing is pre-filled. To try the Turnstile widget too, start it with Cloudflare
 restart the sandbox after pulling.
 
 One deployable folder for static hosting: `npm run build:site` → `dist/site/`
-(website at `/`, member app at `/app/`). Preview it with `npm run preview:site` (http://localhost:8080): it applies
+(website at `/`, member app at `/app/`). The build ends with the site check (`npm run check:site`), which fails on SEO
+mistakes such as a repeated title, a wrong canonical link, a broken link or a sitemap that misses a page. Preview it with `npm run preview:site` (http://localhost:8080): it applies
 `_headers` and `_redirects` the way Cloudflare Pages does, so the security headers and the app's routing can be checked
 before a deploy. With `API_ORIGIN=http://127.0.0.1:8788` it also passes `/api` to a running sandbox; that sandbox must
 allow the preview's origin (`SANDBOX_MEMBER_ORIGIN=http://localhost:8080`).
 
-Checks: `npm run typecheck`, `npm test` and `npm run build`.
+Checks: `npm run typecheck`, `npm test`, `npm run build`, and `npm run build:site` (with its site check).
 
 ## Secrets
 
