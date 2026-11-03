@@ -13,12 +13,12 @@ export const RECENT_SIGN_IN_MINUTES = 15;
 /** What deleting an account does to each profile it runs (owner decision, 30 Oct 2026: the candidate decides). */
 export const DELETION_OUTCOMES = ['deleted', 'handed_over'] as const;
 
-const confirmed = z.literal(true, { error: 'Confirm that you understand this cannot be undone.' });
+const confirmed = z.literal(true, { error: 'validation.confirmIrreversible' });
 export const deleteAccountSchema = z.object({ confirm: confirmed });
 export const deleteProfileSchema = z.object({ confirm: confirmed });
 
 export const operationsFlagSchema = z.object({
-  enabled: z.boolean({ error: 'Choose on or off.' }),
-  reason: z.string().trim().max(300, 'Keep the reason to 300 characters or fewer.').optional(),
+  enabled: z.boolean({ error: 'validation.staff.switchOnOff' }),
+  reason: z.string().trim().max(300).optional(),
 });
-export const operationsFlagKeySchema = z.enum(OPERATIONS_FLAGS, { error: 'Unknown switch.' });
+export const operationsFlagKeySchema = z.enum(OPERATIONS_FLAGS, { error: 'validation.staff.unknownSwitch' });

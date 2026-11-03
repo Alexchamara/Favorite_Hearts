@@ -3,6 +3,7 @@
  * visible label, an optional hint, and an error announced to screen readers.
  */
 import { useId, type ReactNode } from 'react';
+import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 const control =
@@ -93,10 +94,11 @@ export function SelectField<T extends string>({
   value,
   onChange,
   options,
-  placeholder = 'Choose…',
+  placeholder,
   ...props
 }: Common & { value: T | '' | null; onChange: (value: T | '') => void; options: { value: T; label: string }[]; placeholder?: string }) {
   const { label, hint, error, className, disabled } = props;
+  const { t } = useI18n();
   return (
     <Field label={label} hint={hint} error={error} className={className}>
       {(id, describedBy) => (
@@ -109,7 +111,7 @@ export function SelectField<T extends string>({
           aria-describedby={describedBy}
           className={control}
         >
-          <option value="">{placeholder}</option>
+          <option value="">{placeholder ?? t('fields.choose')}</option>
           {options.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
@@ -131,6 +133,7 @@ export function ChipPicker<T extends string>({
   options,
   max,
 }: { label: string; hint?: string; error?: string; value: T[]; onChange: (value: T[]) => void; options: { value: T; label: string }[]; max: number }) {
+  const { t } = useI18n();
   const toggle = (item: T) =>
     onChange(value.includes(item) ? value.filter((v) => v !== item) : value.length < max ? [...value, item] : value);
   return (
@@ -155,7 +158,7 @@ export function ChipPicker<T extends string>({
           );
         })}
       </div>
-      <p className="text-xs text-muted-foreground">{hint ?? `Up to ${max}.`}</p>
+      <p className="text-xs text-muted-foreground">{hint ?? t('fields.upTo', { max })}</p>
       {error && (
         <p role="alert" className="text-xs font-medium text-destructive">
           {error}
@@ -177,6 +180,7 @@ export function ListField({
   placeholder,
 }: { label: string; hint?: string; error?: string; value: string[]; onChange: (value: string[]) => void; max: number; maxLength: number; placeholder?: string }) {
   const id = useId();
+  const { t } = useI18n();
   const add = (input: HTMLInputElement | null) => {
     const text = input?.value.trim() ?? '';
     if (!input || !text || value.length >= max || value.includes(text)) return;
@@ -196,7 +200,7 @@ export function ListField({
               <button
                 type="button"
                 className="rounded-full px-2 text-muted-foreground hover:bg-accent"
-                aria-label={`Remove ${item}`}
+                aria-label={t('fields.remove', { item })}
                 onClick={() => onChange(value.filter((v) => v !== item))}
               >
                 ×
@@ -225,10 +229,10 @@ export function ListField({
           className="min-h-[46px] rounded-[10px] border bg-card px-4 text-sm font-semibold hover:bg-accent disabled:opacity-50"
           onClick={() => add(document.getElementById(id) as HTMLInputElement | null)}
         >
-          Add
+          {t('fields.add')}
         </button>
       </div>
-      <p className="text-xs text-muted-foreground">{hint ?? `Up to ${max}.`}</p>
+      <p className="text-xs text-muted-foreground">{hint ?? t('fields.upTo', { max })}</p>
       {error && (
         <p role="alert" className="text-xs font-medium text-destructive">
           {error}

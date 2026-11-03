@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { AppShell, Loading, Notice, PageTitle } from '@/components/layout';
 import { Toaster } from '@/components/ui/sonner';
+import { EnglishOnly, useI18n } from '@/lib/i18n';
 import { useMe } from '@/lib/queries';
 import Home from '@/features/home/Home';
 
@@ -24,9 +25,10 @@ function MemberOnly({ children }: { children: ReactNode }) {
 
 export default function App() {
   const { pathname } = useLocation();
+  const { t, rich } = useI18n();
   return (
     <>
-      <Toaster position="top-center" />
+      <Toaster position="top-center" containerAriaLabel={t('common.notifications')} />
       <ErrorBoundary key={pathname}>
         <Suspense fallback={<Loading />}>
           <Routes>
@@ -36,14 +38,27 @@ export default function App() {
             <Route path="/browse" element={<MemberOnly><BrowsePage /></MemberOnly>} />
             <Route path="/members/:id" element={<MemberOnly><MemberPage /></MemberOnly>} />
             <Route path="/invite" element={<InvitePage />} />
-            <Route path="/staff" element={<StaffApp />} />
+            <Route
+              path="/staff"
+              element={
+                <EnglishOnly>
+                  <StaffApp />
+                </EnglishOnly>
+              }
+            />
             <Route
               path="*"
               element={
                 <AppShell>
-                  <PageTitle title="Page not found" />
+                  <PageTitle title={t('notFound.title')} />
                   <Notice>
-                    This page does not exist. <a className="underline" href="/app/">Go to your profiles</a>.
+                    {rich('notFound.body', {
+                      link: (words) => (
+                        <a className="underline" href="/app/">
+                          {words}
+                        </a>
+                      ),
+                    })}
                   </Notice>
                 </AppShell>
               }

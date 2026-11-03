@@ -16,19 +16,20 @@ import { errorMessage, post } from '@/lib/api';
 import { storeProfile, useMe, useMyCases, useProfiles } from '@/lib/queries';
 import { AccountCard } from '@/features/account/AccountCard';
 import { NameStep, SignIn } from '@/features/auth/SignIn';
-import { caseStatusLabels, documentLabels, options, relationshipLabels, statusLabels } from '@/features/profile/options';
+import { options, useLabels } from '@/features/profile/options';
+import { useI18n } from '@/lib/i18n';
 
 export default function Home() {
   const me = useMe();
+  const { t } = useI18n();
   if (me.isPending) return <AppShell><Loading /></AppShell>;
   if (me.data?.staffRole) return <Navigate to="/staff" replace />;
   return (
     <AppShell>
       {!me.data ? (
         <>
-          <PageTitle kicker="Your matrimony account" title="A thoughtful beginning.">
-            Create or manage a matrimony profile, for yourself or for a family member. Creating and publishing a profile is
-            free once you are verified.
+          <PageTitle kicker={t('home.kicker')} title={t('home.title')}>
+            {t('home.intro')}
           </PageTitle>
           <Card>
             <SignIn />
@@ -36,7 +37,7 @@ export default function Home() {
         </>
       ) : !me.data.name ? (
         <>
-          <PageTitle kicker="Welcome" title="What should we call you?" />
+          <PageTitle kicker={t('home.welcome.kicker')} title={t('home.welcome.title')} />
           <Card>
             <NameStep />
           </Card>
@@ -53,6 +54,8 @@ function Dashboard() {
   const cases = useMyCases();
   const me = useMe().data!;
   const [creating, setCreating] = useState<'self' | 'manager' | null>(null);
+  const { t } = useI18n();
+  const { caseStatusLabels, documentLabels } = useLabels();
   if (profiles.isPending) return <Loading />;
   if (profiles.isError) return <Notice tone="error">{errorMessage(profiles.error)}</Notice>;
 
@@ -63,10 +66,10 @@ function Dashboard() {
 
   return (
     <>
-      <PageTitle kicker={`Hello, ${me.name}`} title="Your profiles" />
+      <PageTitle kicker={t('dashboard.kicker', { name: me.name })} title={t('dashboard.title')} />
       <div className="flex flex-col gap-4">
         {list.length === 0 && (
-          <Notice title="No profiles yet">Start with your own profile, or one for a family member you are helping.</Notice>
+          <Notice title={t('dashboard.none.title')}>{t('dashboard.none.body')}</Notice>
         )}
         {list.map((profile) => (
           <ProfileCard key={profile.id} profile={profile} />
@@ -74,7 +77,7 @@ function Dashboard() {
         <div className="flex flex-wrap gap-3">
           {!ownProfile && (
             <Button className="h-11" onClick={() => setCreating('self')}>
-              Create my own profile
+              {t('dashboard.createOwn')}
             </Button>
           )}
           <Button
@@ -83,40 +86,44 @@ function Dashboard() {
             disabled={managed.length >= DEFAULT_MANAGER_CAPACITY}
             onClick={() => setCreating('manager')}
           >
-            Create a profile for a family member
+            {t('dashboard.createForFamily')}
           </Button>
         </div>
         {managed.length >= DEFAULT_MANAGER_CAPACITY && (
           <p className="text-sm text-muted-foreground">
-            You manage {managed.length} profiles, the usual limit. Contact us if you need to manage more.
+            {t('dashboard.limit', { count: managed.length })}
           </p>
         )}
       </div>
 
       <Card className="mt-10">
-        <h2 className="font-serif text-2xl">Your verification</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Publishing needs your identity document reviewed and your phone verified by SMS. Documents are uploaded only here,
-          never by WhatsApp or email.
-        </p>
+        <h2 className="font-serif text-2xl">{t('dashboard.verification.title')}</h2>
+        <p className="mt-2 text-sm text-muted-foreground">{t('dashboard.verification.body')}</p>
         <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
           <div>
-            <dt className="font-semibold">Identity document</dt>
+            <dt className="font-semibold">{t('dashboard.verification.document')}</dt>
             <dd className="text-muted-foreground">
               {latestCase
-                ? `${documentLabels[latestCase.documentType]}: ${caseStatusLabels[latestCase.status].toLowerCase()}`
-                : 'Not submitted'}
+                ? t('dashboard.verification.documentStatus', {
+                    document: documentLabels[latestCase.documentType],
+                    status: caseStatusLabels[latestCase.status].toLowerCase(),
+                  })
+                : t('dashboard.verification.notSubmitted')}
             </dd>
           </div>
           <div>
-            <dt className="font-semibold">Phone</dt>
+            <dt className="font-semibold">{t('dashboard.verification.phone')}</dt>
             <dd className="text-muted-foreground">
-              {me.phoneNumber ? `${me.phoneNumber}${me.phoneNumberVerified ? ' (verified)' : ''}` : 'Not verified'}
+              {me.phoneNumber
+                ? me.phoneNumberVerified
+                  ? t('dashboard.verification.phoneVerified', { phone: me.phoneNumber })
+                  : me.phoneNumber
+                : t('dashboard.verification.notVerified')}
             </dd>
           </div>
         </dl>
         <Button asChild variant="outline" className="mt-5 h-11">
-          <Link to="/verify">Verification</Link>
+          <Link to="/verify">{t('dashboard.verification.button')}</Link>
         </Button>
       </Card>
 
@@ -128,22 +135,29 @@ function Dashboard() {
 }
 
 function ProfileCard({ profile }: { profile: ProfileView }) {
+  const { t } = useI18n();
+  const { relationshipLabels, statusLabels } = useLabels();
   const role =
     profile.me.role === 'manager'
-      ? 'You manage this profile'
+      ? t('card.youManage')
       : profile.management === 'manager'
-        ? `Managed by ${profile.manager?.name ?? 'a family member'} (${profile.manager ? relationshipLabels[profile.manager.relationship].toLowerCase() : ''})`
-        : 'Your own profile';
+        ? profile.manager
+          ? t('card.managedBy', {
+              name: profile.manager.name,
+              relationship: relationshipLabels[profile.manager.relationship].toLowerCase(),
+            })
+          : t('card.managedByFamily')
+        : t('card.own');
   return (
     <Link
       to={`/profiles/${profile.id}`}
       className="group flex items-center justify-between gap-4 rounded-[var(--ui-panel-radius)] border bg-card p-5 shadow-[var(--ui-shadow)] hover:border-[var(--ui-accent)]"
     >
       <div className="flex min-w-0 flex-col gap-2">
-        <p className="font-serif text-xl">{profile.fields.displayName ?? 'Untitled profile'}</p>
+        <p className="font-serif text-xl">{profile.fields.displayName ?? t('card.untitled')}</p>
         <p className="text-sm text-muted-foreground">
           {role} · <span className="font-semibold text-foreground">{statusLabels[profile.status]}</span>
-          {profile.status === 'draft' && profile.missing.length > 0 && ` · ${profile.missing.length} to complete`}
+          {profile.status === 'draft' && profile.missing.length > 0 && ` · ${t('card.toComplete', { count: profile.missing.length })}`}
         </p>
         <TrustBadges badges={profile.badges} />
       </div>
@@ -156,6 +170,8 @@ function CreateProfileDialog({ kind, onClose }: { kind: 'self' | 'manager' | nul
   const navigate = useNavigate();
   const [declared, setDeclared] = useState(false);
   const [relationship, setRelationship] = useState<(typeof MANAGER_RELATIONSHIPS)[number] | ''>('');
+  const { t } = useI18n();
+  const { relationshipLabels } = useLabels();
   const create = useMutation({
     mutationFn: () =>
       post<ProfileView>(
@@ -185,18 +201,14 @@ function CreateProfileDialog({ kind, onClose }: { kind: 'self' | 'manager' | nul
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{kind === 'self' ? 'Create your profile' : 'Create a profile for a family member'}</DialogTitle>
-          <DialogDescription>
-            {kind === 'self'
-              ? 'Your profile stays private as a draft until you publish it.'
-              : 'You can invite the candidate later to confirm it, manage it with you, or take it over.'}
-          </DialogDescription>
+          <DialogTitle>{t(kind === 'self' ? 'create.self.title' : 'create.manager.title')}</DialogTitle>
+          <DialogDescription>{t(kind === 'self' ? 'create.self.body' : 'create.manager.body')}</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4">
           {create.isError && <Notice tone="error">{errorMessage(create.error)}</Notice>}
           {kind === 'manager' && (
             <SelectField
-              label="You are the candidate’s"
+              label={t('create.relationship')}
               value={relationship}
               onChange={setRelationship}
               options={options(relationshipLabels)}
@@ -205,19 +217,15 @@ function CreateProfileDialog({ kind, onClose }: { kind: 'self' | 'manager' | nul
           <CheckboxField
             checked={declared}
             onChange={setDeclared}
-            label={
-              kind === 'self'
-                ? 'I am 18 or older and I am looking for marriage.'
-                : 'The candidate is 18 or older, and I have their permission to create this profile and share their details after mutual acceptance.'
-            }
+            label={t(kind === 'self' ? 'create.self.declare' : 'create.manager.declare')}
           />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button disabled={!ready || create.isPending} onClick={() => create.mutate()}>
-            {create.isPending ? 'Creating…' : 'Create profile'}
+            {create.isPending ? t('create.creating') : t('create.submit')}
           </Button>
         </DialogFooter>
       </DialogContent>

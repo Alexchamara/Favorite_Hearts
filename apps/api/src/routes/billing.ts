@@ -25,7 +25,7 @@ import { requireMember } from '../middleware/session.ts';
 import { InvalidImageError, processReceipt } from '../storage/images.ts';
 import { newObjectKey } from '../storage/storage.ts';
 
-const idParam = (value: string | undefined) => parse(z.uuid({ error: 'Not found.' }), value);
+const idParam = (value: string | undefined) => parse(z.uuid({ error: 'api.notFound' }), value);
 
 /** Public: the plans on sale with their current prices (the pricing page reads the same values). */
 export const plans = new Hono<AppEnv>();
@@ -102,7 +102,7 @@ profileBilling.post('/:id/payments', async (c) => {
 async function ownPayment(tx: Tx, id: string): Promise<PaymentView> {
   // Row-level security: the payer (and the owner) only.
   const [row] = await tx.select().from(paymentSubmission).where(eq(paymentSubmission.id, id));
-  if (!row) fail(404, 'NOT_FOUND', 'Payment not found.');
+  if (!row) fail(404, 'NOT_FOUND', 'api.payment.notFound');
   return (await paymentViews(tx, [row]))[0]!;
 }
 
@@ -117,27 +117,27 @@ payments.get('/:id', async (c) => {
 payments.post('/:id/proof', async (c) => {
   const id = idParam(c.req.param('id'));
   const { storage } = c.var.deps;
-  const form = await c.req.parseBody().catch(() => fail(400, 'BAD_FORM', 'Send the receipt as a form upload.'));
+  const form = await c.req.parseBody().catch(() => fail(400, 'BAD_FORM', 'api.upload.receiptForm'));
   const file = form.file;
-  if (!(file instanceof File)) fail(400, 'VALIDATION', 'Choose a photo or screenshot of the receipt.', { file: 'Required' });
+  if (!(file instanceof File)) fail(400, 'VALIDATION', 'api.payment.chooseReceipt', { file: 'validation.required' });
 
   // Friendly answers before the upload; app.attach_payment_proof checks all of it again.
   await withActor(c, async (tx) => {
     const payment = await ownPayment(tx, id);
     if (!['awaiting_proof', 'pending_review', 'held'].includes(payment.status)) {
-      fail(409, 'PAYMENT_CLOSED', 'This payment is closed. Start a new one if you still want the plan.');
+      fail(409, 'PAYMENT_CLOSED', 'api.payment.closed');
     }
     if (payment.proofCount >= MAX_PAYMENT_PROOFS) {
-      fail(409, 'PROOF_LIMIT', `A payment can have up to ${MAX_PAYMENT_PROOFS} receipts. Contact us if you need to send more.`);
+      fail(409, 'PROOF_LIMIT', 'api.payment.proofLimit');
     }
   });
-  if (!storage.configured) fail(503, 'STORAGE_UNAVAILABLE', 'Receipt upload is not available yet.');
+  if (!storage.configured) fail(503, 'STORAGE_UNAVAILABLE', 'api.payment.uploadUnavailable');
 
   let image: Buffer;
   try {
     image = (await processReceipt(Buffer.from(await file.arrayBuffer()))).image;
   } catch (err) {
-    if (err instanceof InvalidImageError) fail(400, 'INVALID_RECEIPT', err.message);
+    if (err instanceof InvalidImageError) fail(400, 'INVALID_RECEIPT', err.key);
     throw err;
   }
   const key = newObjectKey('payment-proofs');

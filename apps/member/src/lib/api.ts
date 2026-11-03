@@ -1,5 +1,6 @@
 import type { ApiErrorBody } from '@fh/shared';
 import { env } from './env';
+import { currentLanguage, say } from './i18n';
 
 export class ApiError extends Error {
   constructor(
@@ -13,16 +14,17 @@ export class ApiError extends Error {
 }
 
 /**
- * Fetch wrapper for our own API (/api/v1/*). Always sends the session cookie and
- * turns error responses into ApiError with the server's code + friendly message.
+ * Fetch wrapper for our own API (/api/v1/*). Always sends the session cookie, asks for messages in the language on
+ * screen, and turns error responses into ApiError with the server's code + friendly message.
  * Use it through TanStack Query so the server stays the source of truth.
  */
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const isForm = init.body instanceof FormData;
+  const language = { 'Accept-Language': currentLanguage() };
   const res = await fetch(`${env.apiUrl}/api/v1${path}`, {
     ...init,
     credentials: 'include',
-    headers: isForm ? init.headers : { 'Content-Type': 'application/json', ...init.headers },
+    headers: isForm ? { ...language, ...init.headers } : { 'Content-Type': 'application/json', ...language, ...init.headers },
   });
   if (res.status === 204) return undefined as T;
   const body = (await res.json().catch(() => null)) as (ApiErrorBody & T) | null;
@@ -30,7 +32,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new ApiError(
       res.status,
       body?.code ?? 'UNKNOWN',
-      body?.message ?? 'Something went wrong. Please try again.',
+      body?.message ?? say('common.somethingWrong'),
       body?.fields ?? {},
     );
   }
@@ -46,10 +48,10 @@ export const del = (path: string) => api<void>(path, { method: 'DELETE' });
 
 /** Downloads a file from our API (e.g. the data export) and hands it to the browser to save. */
 export async function download(path: string, fallbackName: string): Promise<void> {
-  const res = await fetch(`${env.apiUrl}/api/v1${path}`, { credentials: 'include' });
+  const res = await fetch(`${env.apiUrl}/api/v1${path}`, { credentials: 'include', headers: { 'Accept-Language': currentLanguage() } });
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as ApiErrorBody | null;
-    throw new ApiError(res.status, body?.code ?? 'UNKNOWN', body?.message ?? 'Something went wrong. Please try again.');
+    throw new ApiError(res.status, body?.code ?? 'UNKNOWN', body?.message ?? say('common.somethingWrong'));
   }
   const name = /filename="([^"]+)"/.exec(res.headers.get('content-disposition') ?? '')?.[1] ?? fallbackName;
   const url = URL.createObjectURL(await res.blob());
@@ -65,5 +67,5 @@ export async function download(path: string, fallbackName: string): Promise<void
 /** A readable message for any error thrown by api() or a Better-Auth client call. */
 export function errorMessage(error: unknown): string {
   if (error instanceof Error && error.message) return error.message;
-  return 'Something went wrong. Please try again.';
+  return say('common.somethingWrong');
 }

@@ -16,18 +16,21 @@ import { errorMessage, post } from '@/lib/api';
 import { authClient } from '@/lib/auth-client';
 import { keys, useHealth, useMe, useMyCases, useServiceStatus } from '@/lib/queries';
 import { queryClient } from '@/lib/query-client';
-import { caseStatusLabels, documentLabels, options } from '@/features/profile/options';
+import { authErrorMessage } from '@/features/auth/login-code';
+import { options, useLabels } from '@/features/profile/options';
+import { formatDay } from '@/lib/format';
+import { say, useI18n } from '@/lib/i18n';
 
 export default function VerifyPage() {
+  const { t } = useI18n();
   return (
     <AppShell>
       <Link to="/" className="text-sm text-muted-foreground underline underline-offset-4">
-        ← Your profiles
+        {t('verify.back')}
       </Link>
       <div className="mt-6">
-        <PageTitle kicker="Verification" title="Your checks">
-          Needed before a profile you publish can be shown: your phone verified by SMS and your identity document reviewed by
-          our staff. Badges say “identity document reviewed”, nothing more.
+        <PageTitle kicker={t('verify.kicker')} title={t('verify.title')}>
+          {t('verify.intro')}
         </PageTitle>
         <div className="flex flex-col gap-6">
           <PhoneCheck />
@@ -47,18 +50,19 @@ function PhoneCheck() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const bot = useBotCheck();
+  const { t, rich } = useI18n();
   if (!me) return null;
 
   async function send(event: FormEvent) {
     event.preventDefault();
     const normalized = normalizePhone(phone);
-    if (!normalized) return setError('Enter the number with its country code, for example +94 77 123 4567.');
+    if (!normalized) return setError(t('verify.phone.formatHint'));
     setBusy(true);
     setError(null);
     const result = await authClient.phoneNumber.sendOtp({ phoneNumber: normalized, fetchOptions: { headers: bot.headers } });
     bot.reset();
     setBusy(false);
-    if (result.error) return setError(result.error.message ?? 'Could not send the code.');
+    if (result.error) return setError(authErrorMessage(result.error));
     setSentTo(normalized);
     setCode('');
   }
@@ -69,23 +73,23 @@ function PhoneCheck() {
     setError(null);
     const result = await authClient.phoneNumber.verify({ phoneNumber: sentTo, code, updatePhoneNumber: sentTo !== me?.phoneNumber });
     setBusy(false);
-    if (result.error) return setError(result.error.message ?? 'That code did not work.');
-    toast.success('Phone verified.');
+    if (result.error) return setError(authErrorMessage(result.error));
+    toast.success(say('verify.phone.done'));
     setSentTo(null);
     await queryClient.invalidateQueries();
   }
 
   return (
     <Card>
-      <h2 className="font-serif text-2xl">Phone</h2>
+      <h2 className="font-serif text-2xl">{t('verify.phone.title')}</h2>
       {me.phoneNumberVerified ? (
         <p className="mt-2 text-sm">
-          <strong>{me.phoneNumber}</strong> is verified.
+          {rich('verify.phone.isVerified', { strong: (words) => <strong>{words}</strong> }, { phone: me.phoneNumber ?? '' })}
         </p>
       ) : sms === false ? (
         <div className="mt-4">
-          <Notice tone="warning" title="SMS verification is not available yet">
-            We will add it as soon as our SMS service is set up. Until then profiles cannot be published.
+          <Notice tone="warning" title={t('verify.phone.smsUnavailable.title')}>
+            {t('verify.phone.smsUnavailable.body')}
           </Notice>
         </div>
       ) : (
@@ -93,24 +97,22 @@ function PhoneCheck() {
           {error && <Notice tone="error">{error}</Notice>}
           {!sentTo ? (
             <form onSubmit={send} className="flex flex-col gap-4">
-              <TextField label="Mobile number" type="tel" autoComplete="tel" placeholder="+94 77 123 4567" value={phone} onChange={setPhone} />
+              <TextField label={t('signIn.mobile')} type="tel" autoComplete="tel" placeholder="+94 77 123 4567" value={phone} onChange={setPhone} />
               {bot.widget}
               <Button type="submit" className="h-11 self-start" disabled={busy || !phone.trim() || !bot.ready}>
-                {busy ? 'Sending…' : 'Send code by SMS'}
+                {busy ? t('signIn.sending') : t('verify.phone.send')}
               </Button>
             </form>
           ) : (
             <form onSubmit={verify} className="flex flex-col gap-4">
-              <p className="text-sm">
-                We sent a code to <strong>{sentTo}</strong>.
-              </p>
-              <TextField label="Code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(value) => setCode(value.replace(/\D/g, ''))} />
+              <p className="text-sm">{rich('verify.phone.sent', { strong: (words) => <strong>{words}</strong> }, { phone: sentTo })}</p>
+              <TextField label={t('signIn.code')} inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(value) => setCode(value.replace(/\D/g, ''))} />
               <div className="flex flex-wrap gap-3">
                 <Button type="submit" className="h-11" disabled={busy || code.length !== 6}>
-                  Verify
+                  {t('verify.phone.verify')}
                 </Button>
                 <Button type="button" variant="outline" className="h-11" onClick={() => setSentTo(null)}>
-                  Change number
+                  {t('verify.phone.change')}
                 </Button>
               </div>
             </form>
@@ -126,6 +128,8 @@ function DocumentCheck() {
   const paused = Boolean(useServiceStatus().data?.documentSubmissionsPaused);
   const [type, setType] = useState<DocumentType | ''>('');
   const [file, setFile] = useState<File | null>(null);
+  const { t } = useI18n();
+  const { caseStatusLabels, documentLabels } = useLabels();
   const upload = useMutation({
     mutationFn: () => {
       const form = new FormData();
@@ -134,7 +138,7 @@ function DocumentCheck() {
       return post<VerificationCaseView>('/verification', form);
     },
     onSuccess: async () => {
-      toast.success('Document sent for review.');
+      toast.success(say('verify.document.sent'));
       setFile(null);
       setType('');
       await queryClient.invalidateQueries({ queryKey: keys.cases });
@@ -148,22 +152,22 @@ function DocumentCheck() {
 
   return (
     <Card>
-      <h2 className="font-serif text-2xl">Identity document</h2>
+      <h2 className="font-serif text-2xl">{t('verify.document.title')}</h2>
       {list.length > 0 && (
         <ul className="mt-4 divide-y text-sm">
           {list.map((c) => (
             <li key={c.id} className="py-3">
               <p className="font-semibold">
-                {documentLabels[c.documentType]}: {caseStatusLabels[c.status]}
+                {t('dashboard.verification.documentStatus', { document: documentLabels[c.documentType], status: caseStatusLabels[c.status] })}
               </p>
-              <p className="text-muted-foreground">Sent {new Date(c.submittedAt).toLocaleDateString()}</p>
-              {c.decisionReason && <p className="mt-1">Reason: {c.decisionReason}</p>}
+              <p className="text-muted-foreground">{t('verify.document.sentOn', { date: formatDay(c.submittedAt) })}</p>
+              {c.decisionReason && <p className="mt-1">{t('verify.document.reason', { reason: c.decisionReason })}</p>}
             </li>
           ))}
         </ul>
       )}
       {pending ? (
-        <p className="mt-4 text-sm text-muted-foreground">Our staff will review it. You can keep editing your profile meanwhile.</p>
+        <p className="mt-4 text-sm text-muted-foreground">{t('verify.document.pending')}</p>
       ) : approved ? null : (
         <form
           className="mt-5 flex flex-col gap-4"
@@ -173,15 +177,15 @@ function DocumentCheck() {
           }}
         >
           {paused && (
-            <Notice tone="warning" title="Document submissions are paused for now">
-              We are catching up on reviews. Please come back in a day or two; nothing you have done so far is lost.
+            <Notice tone="warning" title={t('verify.document.paused.title')}>
+              {t('verify.document.paused.body')}
             </Notice>
           )}
           {upload.isError && <Notice tone="error">{errorMessage(upload.error)}</Notice>}
-          <SelectField label="Document" value={type} onChange={setType} options={options(documentLabels)} />
+          <SelectField label={t('verify.document.type')} value={type} onChange={setType} options={options(documentLabels)} />
           <div className="flex flex-col gap-1.5">
             <label htmlFor="document-file" className="text-[13px] font-semibold">
-              Photo of the document
+              {t('verify.document.photo')}
             </label>
             <input
               id="document-file"
@@ -190,13 +194,10 @@ function DocumentCheck() {
               onChange={(event) => setFile(event.target.files?.[0] ?? null)}
               className="text-sm file:mr-3 file:min-h-10 file:rounded-[10px] file:border file:bg-card file:px-4 file:font-semibold"
             />
-            <p className="text-xs text-muted-foreground">
-              A clear JPEG, PNG or WebP photo, up to 5 MB. It is stored privately, seen only by our review staff, and deleted 90
-              days after the review.
-            </p>
+            <p className="text-xs text-muted-foreground">{t('verify.document.hint')}</p>
           </div>
           <Button type="submit" className="h-11 self-start" disabled={paused || upload.isPending || !type || !file}>
-            {upload.isPending ? 'Uploading…' : 'Send for review'}
+            {upload.isPending ? t('verify.document.uploading') : t('verify.document.submit')}
           </Button>
         </form>
       )}

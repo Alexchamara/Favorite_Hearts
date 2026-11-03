@@ -40,8 +40,8 @@ staff.get('/verification/:id/document', async (c) => {
   const { storage } = c.var.deps;
   const key = await withActor(c, async (tx) => {
     const [row] = await tx.select().from(verificationCase).where(eq(verificationCase.id, id));
-    if (!row) fail(404, 'NOT_FOUND', 'Verification case not found.');
-    if (!row.evidenceKey) fail(410, 'DOCUMENT_DELETED', 'The document was deleted under the 90-day retention rule.');
+    if (!row) fail(404, 'NOT_FOUND', 'api.staff.caseNotFound');
+    if (!row.evidenceKey) fail(410, 'DOCUMENT_DELETED', 'api.staff.documentDeleted');
     await audit(c, tx, { action: 'verification.document_viewed', entityType: 'verification_case', entityId: id });
     return row.evidenceKey;
   });
@@ -58,7 +58,7 @@ staff.post('/verification/:id/decision', async (c) => {
       .set({ status: input.decision, decisionReason: input.decision === 'rejected' ? input.reason : null })
       .where(and(eq(verificationCase.id, id), eq(verificationCase.status, 'pending')))
       .returning();
-    if (!row) fail(409, 'ALREADY_DECIDED', 'This case is not waiting for review.');
+    if (!row) fail(409, 'ALREADY_DECIDED', 'api.staff.caseDecided');
     await audit(c, tx, {
       action: `verification.${input.decision}`,
       entityType: 'verification_case',
@@ -149,9 +149,9 @@ staff.get('/reports/:id/content', async (c) => {
   const id = parse(z.uuid(), c.req.param('id'));
   const content = await withActor(c, async (tx): Promise<StaffReportContent> => {
     const [found] = await tx.select({ profileId: report.targetProfileId, photoId: report.targetPhotoId }).from(report).where(eq(report.id, id));
-    if (!found) fail(404, 'NOT_FOUND', 'Report not found.');
+    if (!found) fail(404, 'NOT_FOUND', 'api.staff.reportNotFound');
     const [row] = found.profileId ? await tx.select().from(profile).where(eq(profile.id, found.profileId)) : [];
-    if (!row) fail(410, 'CONTENT_DELETED', 'The reported profile no longer exists.');
+    if (!row) fail(410, 'CONTENT_DELETED', 'api.staff.reportedProfileGone');
     const view = await memberProfileView(c, tx, row);
     const photos = (await visiblePhotos(c, tx, [row.id])).get(row.id) ?? [];
     await audit(c, tx, { action: 'report.content_viewed', entityType: 'report', entityId: id });

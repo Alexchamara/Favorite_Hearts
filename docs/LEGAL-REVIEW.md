@@ -5,7 +5,10 @@ drafts are the website's [terms](../apps/website/src/pages/terms/index.astro) an
 [privacy policy](../apps/website/src/pages/privacy/index.astro) (live at `/terms/` and `/privacy/`, marked "Draft for
 legal review"), and the refund points members confirm at the payment step
 ([`labels.ts`](../apps/member/src/features/billing/labels.ts), version `refund-v1`). English is the official version
-(owner, 31 October 2026); the Sinhala translation follows in Stage 5c and also goes to the lawyer.
+(owner, 31 October 2026). Sinhala drafts of the legal wording inside the app are in the reviewer's spreadsheet
+(`npm run text:export`, rows noted "Legal wording": the manager's declaration, the self-declaration, the caste consent,
+the four refund points and the "cannot be undone" tick); they go to the lawyer with the Sinhala terms and privacy
+policy, which follow with the website in Stage 5d.
 
 ## To fill in
 
@@ -24,7 +27,7 @@ legal review"), and the refund points members confirm at the payment step
 | 2 | An unconfirmed candidate's details are shared on the manager's word after mutual acceptance; the candidate has a one-click takedown. | Terms §5 and §6; privacy §4. |
 | 3 | Retention: documents 90 days after the decision; after a deletion, payment records with receipts, plan history, reports, blocks, the staff audit trail and a keyed hash of the sign-in email and phone kept 6 months. Documents of a deleted account are deleted at once (§8 says they "follow the same limit"). | Privacy §7; the rules are in `apps/api/drizzle/0011_safety_rules.sql`. |
 | 4 | Caste and religion as sensitive data. The app's consent text: "I agree that this is shown on the profile to signed-in members and can be used in their filters." | Privacy §2, §4 and §8; the app's details form. |
-| 5 | The terms, the privacy policy and the four refund points at the payment step, in English and Sinhala. | Terms §7–§10; privacy; `labels.ts`. |
+| 5 | The terms, the privacy policy and the four refund points at the payment step, in English and Sinhala. | Terms §7–§10; privacy; the refund points are `billing.refundTerm.1`–`4` in `packages/shared/src/i18n/<language>/app.json`. |
 | 6 | Obligations when content involving a minor is reported; the staff procedure. | Terms §12 (a report about a minor hides the profile at once). |
 | 7 | Whether Sri Lanka's data protection law applies, and any registration or duties. | Privacy §8 points members to the data protection authority of their country; adjust once confirmed. |
 

@@ -6,7 +6,7 @@ import { useState, type FormEvent } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
-import { INVITATION_TTL_HOURS, type InvitationSent, type ProfileView } from '@fh/shared';
+import type { InvitationSent, ProfileView } from '@fh/shared';
 import { SelectField, TextField } from '@/components/form/fields';
 import { Card, Notice } from '@/components/layout';
 import { Confirm } from '@/components/confirm';
@@ -15,65 +15,66 @@ import { Switch } from '@/components/ui/switch';
 import { ApiError, errorMessage, patch, post } from '@/lib/api';
 import { keys, storeProfile, useHealth } from '@/lib/queries';
 import { queryClient } from '@/lib/query-client';
-import { relationshipLabels } from './options';
-
-const when = (value: string | Date) => new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+import { formatWhen as when } from '@/lib/format';
+import { say, useI18n } from '@/lib/i18n';
+import { useLabels } from './options';
 
 export function PeoplePanel({ profile }: { profile: ProfileView }) {
+  const { t } = useI18n();
   if (profile.me.role === 'manager') return <ManagerSide profile={profile} />;
   if (profile.management === 'manager') return <CandidateSide profile={profile} />;
   return (
     <Card>
-      <p>You manage this profile yourself.</p>
+      <p>{t('people.selfManaged')}</p>
     </Card>
   );
 }
 
 function ManagerSide({ profile }: { profile: ProfileView }) {
   const { candidate, invitation } = profile;
+  const { t, rich } = useI18n();
   return (
     <div className="flex flex-col gap-6">
       <Card>
-        <h2 className="font-serif text-2xl">The candidate</h2>
+        <h2 className="font-serif text-2xl">{t('people.candidate.title')}</h2>
         {candidate.joined ? (
           <>
             <p className="mt-2 text-sm">
-              {profile.fields.displayName ?? 'The candidate'} joined and confirmed this profile
-              {candidate.confirmedAt ? ` on ${when(candidate.confirmedAt)}` : ''}.
+              {candidate.confirmedAt
+                ? t('people.candidate.joinedOn', {
+                    name: profile.fields.displayName ?? t('deleteProfile.theCandidate'),
+                    date: when(candidate.confirmedAt),
+                  })
+                : t('people.candidate.joined', { name: profile.fields.displayName ?? t('deleteProfile.theCandidate') })}
             </p>
             {profile.manager && (
               <ul className="mt-4 flex flex-col gap-1 text-sm">
-                <li>{profile.manager.canEdit ? '✓ You may edit the profile' : '✗ You may not edit the profile'}</li>
-                <li>{profile.manager.canManageInterests ? '✓ You may manage interests' : '✗ You may not manage interests'}</li>
-                <li>
-                  {profile.manager.canViewPrivateDetails
-                    ? '✓ You may see connections’ shared details'
-                    : '✗ You may not see connections’ shared details'}
-                </li>
+                <li>{t(profile.manager.canEdit ? 'people.perm.edit.yes' : 'people.perm.edit.no')}</li>
+                <li>{t(profile.manager.canManageInterests ? 'people.perm.interests.yes' : 'people.perm.interests.no')}</li>
+                <li>{t(profile.manager.canViewPrivateDetails ? 'people.perm.details.yes' : 'people.perm.details.no')}</li>
               </ul>
             )}
           </>
         ) : candidate.objectedAt ? (
-          <Notice tone="warning" title="The candidate declined">
-            They asked for this profile not to be shown. It stays hidden, and no new invitations can be sent.
+          <Notice tone="warning" title={t('people.declined.title')}>
+            {t('people.declined.body')}
           </Notice>
         ) : (
-          <p className="mt-2 text-sm text-muted-foreground">
-            Invite the candidate to review the profile. They can accept and confirm it, decline it, or take it over. Until
-            they confirm, their details are shared on your word, and their phone shows as “not verified by candidate”.
-          </p>
+          <p className="mt-2 text-sm text-muted-foreground">{t('people.inviteIntro')}</p>
         )}
         {invitation && !candidate.joined && (
           <p className="mt-4 text-sm">
-            Latest invitation to <strong>{invitation.contact}</strong>:{' '}
-            {invitation.state === 'waiting'
-              ? `waiting, link valid until ${when(invitation.expiresAt)}`
-              : invitation.state === 'expired'
-                ? 'expired'
-                : invitation.state === 'replaced'
-                  ? 'replaced by a newer one'
-                  : 'used'}
-            .
+            {rich(
+              invitation.state === 'waiting'
+                ? 'people.invitation.waiting'
+                : invitation.state === 'expired'
+                  ? 'people.invitation.expired'
+                  : invitation.state === 'replaced'
+                    ? 'people.invitation.replaced'
+                    : 'people.invitation.used',
+              { strong: (words) => <strong>{words}</strong> },
+              { contact: invitation.contact, date: when(invitation.expiresAt) },
+            )}
           </p>
         )}
       </Card>
@@ -86,36 +87,37 @@ function ManagerSide({ profile }: { profile: ProfileView }) {
 /** A manager steps away from a profile whose candidate joined: the candidate runs it alone, as after a takeover. */
 function HandOverCard({ profile }: { profile: ProfileView }) {
   const navigate = useNavigate();
-  const name = profile.fields.displayName ?? 'the candidate';
-  const Name = profile.fields.displayName ?? 'The candidate';
+  const { t } = useI18n();
+  const name = profile.fields.displayName ?? t('account.dialog.theCandidate');
+  const Name = profile.fields.displayName ?? t('deleteProfile.theCandidate');
   const handOver = useMutation({
     mutationFn: () => post<void>(`/profiles/${profile.id}/hand-over`),
     onSuccess: async () => {
       queryClient.removeQueries({ queryKey: keys.profile(profile.id) });
       await queryClient.invalidateQueries({ queryKey: keys.profiles });
       navigate('/', { replace: true });
-      toast.success(`${Name} now runs the profile.`);
+      toast.success(say('handOver.done', { name: Name }));
     },
     onError: (error) => toast.error(errorMessage(error)),
   });
   return (
     <Card>
-      <h2 className="font-serif text-2xl">Hand the profile over</h2>
-      <p className="mt-2 text-sm text-muted-foreground">Stop managing this profile and let {name} run it alone.</p>
+      <h2 className="font-serif text-2xl">{t('handOver.title')}</h2>
+      <p className="mt-2 text-sm text-muted-foreground">{t('handOver.body', { name })}</p>
       <Confirm
         trigger={
           <Button variant="outline" className="mt-5 h-11" disabled={handOver.isPending}>
-            Hand over to {name}
+            {t('handOver.button', { name })}
           </Button>
         }
-        title={`Hand the profile over to ${name}?`}
-        action="Hand over"
+        title={t('handOver.confirm.title', { name })}
+        action={t('handOver.confirm.action')}
         onConfirm={() => handOver.mutate()}
       >
-        <p>You lose all access to this profile straight away, including its requests, connections and contact details.</p>
-        <p>Your own contact details are removed from it. Its plan stays with the profile until it ends.</p>
-        <p>If it is published, it pauses until {name}’s own identity document is reviewed and phone verified.</p>
-        <p>{Name} is told by email.</p>
+        <p>{t('handOver.confirm.access')}</p>
+        <p>{t('handOver.confirm.contacts')}</p>
+        <p>{t('handOver.confirm.paused', { name })}</p>
+        <p>{t('handOver.confirm.told', { name: Name })}</p>
       </Confirm>
     </Card>
   );
@@ -125,10 +127,11 @@ function InviteForm({ profile }: { profile: ProfileView }) {
   const sms = useHealth().data?.sms ?? false;
   const [channel, setChannel] = useState<'email' | 'phone'>('email');
   const [contact, setContact] = useState('');
+  const { t } = useI18n();
   const invite = useMutation({
     mutationFn: () => post<InvitationSent>(`/profiles/${profile.id}/invitations`, { channel, contact }),
     onSuccess: async (sent) => {
-      toast.success(`Invitation sent to ${sent.contact}.`);
+      toast.success(say('inviteForm.sent', { contact: sent.contact }));
       setContact('');
       await queryClient.invalidateQueries({ queryKey: keys.profile(profile.id) });
     },
@@ -140,11 +143,8 @@ function InviteForm({ profile }: { profile: ProfileView }) {
   }
   return (
     <Card>
-      <h2 className="font-serif text-2xl">{profile.invitation ? 'Send a new invitation' : 'Invite the candidate'}</h2>
-      <p className="mt-2 text-sm text-muted-foreground">
-        The link works once and expires in {INVITATION_TTL_HOURS} hours; a new one replaces the old. Use the candidate’s own
-        email or phone, not yours. Up to 3 invitations a day.
-      </p>
+      <h2 className="font-serif text-2xl">{t(profile.invitation ? 'inviteForm.newTitle' : 'inviteForm.title')}</h2>
+      <p className="mt-2 text-sm text-muted-foreground">{t('inviteForm.body')}</p>
       <form onSubmit={submit} className="mt-5 grid gap-5 sm:grid-cols-2">
         {failure && (
           <div className="sm:col-span-2">
@@ -152,24 +152,24 @@ function InviteForm({ profile }: { profile: ProfileView }) {
           </div>
         )}
         <SelectField
-          label="Send by"
+          label={t('inviteForm.sendBy')}
           value={channel}
           onChange={(next) => next && setChannel(next)}
           options={[
-            { value: 'email', label: 'Email' },
-            ...(sms ? [{ value: 'phone' as const, label: 'SMS' }] : []),
+            { value: 'email', label: t('signIn.channel.email') },
+            ...(sms ? [{ value: 'phone' as const, label: t('inviteForm.sms') }] : []),
           ]}
-          hint={sms ? undefined : 'SMS invitations are not available yet.'}
+          hint={sms ? undefined : t('inviteForm.smsUnavailable')}
         />
         <TextField
-          label={channel === 'email' ? 'Candidate’s email' : 'Candidate’s mobile number'}
+          label={t(channel === 'email' ? 'inviteForm.candidateEmail' : 'inviteForm.candidateMobile')}
           type={channel === 'email' ? 'email' : 'tel'}
           value={contact}
           onChange={setContact}
         />
         <div className="sm:col-span-2">
           <Button type="submit" className="h-11" disabled={invite.isPending || !contact.trim()}>
-            {invite.isPending ? 'Sending…' : 'Send invitation'}
+            {invite.isPending ? t('signIn.sending') : t('inviteForm.submit')}
           </Button>
         </div>
       </form>
@@ -179,17 +179,13 @@ function InviteForm({ profile }: { profile: ProfileView }) {
 
 function CandidateSide({ profile }: { profile: ProfileView }) {
   const manager = profile.manager;
+  const { t } = useI18n();
+  const { relationshipLabels } = useLabels();
   const act = useMutation({
     mutationFn: (path: 'take-over' | 'withdraw-consent' | 'restore-consent') => post<ProfileView>(`/profiles/${profile.id}/${path}`),
     onSuccess: async (updated, path) => {
       await storeProfile(updated);
-      toast.success(
-        path === 'take-over'
-          ? 'You now manage this profile yourself.'
-          : path === 'withdraw-consent'
-            ? 'The profile is hidden. Only you can change that.'
-            : 'Consent restored. The profile stays hidden until it is published again.',
-      );
+      toast.success(say(path === 'take-over' ? 'people.tookOver' : path === 'withdraw-consent' ? 'people.withdrawn' : 'people.restored'));
     },
     onError: (error) => toast.error(errorMessage(error)),
   });
@@ -205,17 +201,15 @@ function CandidateSide({ profile }: { profile: ProfileView }) {
       {manager && (
         <Card>
           <h2 className="font-serif text-2xl">
-            {manager.name} ({relationshipLabels[manager.relationship].toLowerCase()})
+            {t('people.manager.title', { name: manager.name, relationship: relationshipLabels[manager.relationship].toLowerCase() })}
           </h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Manages this profile since {when(manager.since)}. Changes take effect immediately.
-          </p>
+          <p className="mt-2 text-sm text-muted-foreground">{t('people.manager.since', { date: when(manager.since) })}</p>
           <ul className="mt-5 flex flex-col gap-4">
             {(
               [
-                ['canEdit', 'Edit the profile, photos and contacts'],
-                ['canManageInterests', 'Send, accept and decline interests'],
-                ['canViewPrivateDetails', 'See the contact details connections share'],
+                ['canEdit', t('people.perm.canEdit')],
+                ['canManageInterests', t('people.perm.canManageInterests')],
+                ['canViewPrivateDetails', t('people.perm.canViewPrivateDetails')],
               ] as const
             ).map(([key, label]) => (
               <li key={key} className="flex items-center justify-between gap-4">
@@ -233,29 +227,29 @@ function CandidateSide({ profile }: { profile: ProfileView }) {
       )}
 
       <Card>
-        <h2 className="font-serif text-2xl">Your consent</h2>
+        <h2 className="font-serif text-2xl">{t('consent.title')}</h2>
         {profile.candidate.objectedAt ? (
           <>
-            <p className="mt-2 text-sm">You asked for this profile not to be shown. It is hidden.</p>
+            <p className="mt-2 text-sm">{t('consent.objected')}</p>
             <Button className="mt-5 h-11" variant="outline" disabled={act.isPending} onClick={() => act.mutate('restore-consent')}>
-              Restore my consent
+              {t('consent.restore')}
             </Button>
           </>
         ) : (
           <>
-            <p className="mt-2 text-sm text-muted-foreground">You can take the profile down at any time; only you can bring it back.</p>
+            <p className="mt-2 text-sm text-muted-foreground">{t('consent.body')}</p>
             <Confirm
               trigger={
                 <Button className="mt-5 h-11" variant="outline" disabled={act.isPending}>
-                  Withdraw my consent
+                  {t('consent.withdraw')}
                 </Button>
               }
-              title="Withdraw your consent?"
-              action="Withdraw consent"
+              title={t('consent.confirm.title')}
+              action={t('consent.confirm.action')}
               destructive
               onConfirm={() => act.mutate('withdraw-consent')}
             >
-              <p>The profile is hidden from other members right away, and your manager cannot publish it again.</p>
+              <p>{t('consent.confirm.body')}</p>
             </Confirm>
           </>
         )}
@@ -263,21 +257,21 @@ function CandidateSide({ profile }: { profile: ProfileView }) {
 
       {manager && (
         <Card>
-          <h2 className="font-serif text-2xl">Take over this profile</h2>
-          <p className="mt-2 text-sm text-muted-foreground">Manage the profile yourself. There is no fee.</p>
+          <h2 className="font-serif text-2xl">{t('takeOver.title')}</h2>
+          <p className="mt-2 text-sm text-muted-foreground">{t('takeOver.body')}</p>
           <Confirm
             trigger={
               <Button className="mt-5 h-11" disabled={act.isPending}>
-                Take over
+                {t('takeOver.button')}
               </Button>
             }
-            title="Take over this profile?"
-            action="Take over"
+            title={t('takeOver.confirm.title')}
+            action={t('takeOver.button')}
             onConfirm={() => act.mutate('take-over')}
           >
-            <p>{manager.name} loses all access to this profile immediately, including its interests and contact details.</p>
-            <p>{manager.name}’s own contact details are removed from it. Any paid plan stays with the profile until it ends.</p>
-            <p>If the profile is published, it pauses until your own identity document is reviewed and your phone verified.</p>
+            <p>{t('takeOver.confirm.access', { name: manager.name })}</p>
+            <p>{t('takeOver.confirm.contacts', { name: manager.name })}</p>
+            <p>{t('takeOver.confirm.paused')}</p>
           </Confirm>
         </Card>
       )}

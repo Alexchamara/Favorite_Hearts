@@ -5,6 +5,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { env } from '@/lib/env';
+import { say } from '@/lib/i18n';
 import { useTheme } from '@/lib/theme';
 
 type TurnstileApi = {
@@ -26,10 +27,10 @@ function loadTurnstile(): Promise<TurnstileApi> {
     const script = document.createElement('script');
     script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
     script.async = true;
-    script.onload = () => (window.turnstile ? resolve(window.turnstile) : reject(new Error('The security check did not load.')));
+    script.onload = () => (window.turnstile ? resolve(window.turnstile) : reject(new Error(say('botCheck.notLoaded'))));
     script.onerror = () => {
       loading = null;
-      reject(new Error('The security check could not load. Check your connection and try again.'));
+      reject(new Error(say('botCheck.cannotLoad')));
     };
     document.head.appendChild(script);
   });
@@ -76,7 +77,7 @@ function BotCheck({ onToken }: { onToken: (token: string | null) => void }) {
           'expired-callback': () => onToken(null),
           'error-callback': () => {
             onToken(null);
-            setProblem('The security check did not pass. Please wait a moment and try again.');
+            setProblem(say('botCheck.failed'));
           },
         });
       })

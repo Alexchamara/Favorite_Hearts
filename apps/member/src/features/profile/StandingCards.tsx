@@ -19,13 +19,15 @@ import { keys, refreshRelations, storeProfile, useAccountDeletion, usePlan } fro
 import { queryClient } from '@/lib/query-client';
 import { RecentSignInNotice, RetentionList } from '@/features/account/retention';
 import { PlanSummary } from '@/features/billing/PlanPanel';
+import { say, useI18n } from '@/lib/i18n';
 
 /** `onOpenPlans`: switches to the profile's Plan tab. */
 export function PlanCard({ profile, onOpenPlans }: { profile: ProfileView; onOpenPlans: () => void }) {
   const plan = usePlan(profile.id);
+  const { t } = useI18n();
   return (
     <Card>
-      <h2 className="font-serif text-2xl">Plan</h2>
+      <h2 className="font-serif text-2xl">{t('profile.tab.plan')}</h2>
       {plan.isPending ? null : plan.isError ? (
         <div className="mt-3">
           <Notice tone="error">{errorMessage(plan.error)}</Notice>
@@ -35,13 +37,10 @@ export function PlanCard({ profile, onOpenPlans }: { profile: ProfileView; onOpe
           <PlanSummary usage={plan.data} />
         </div>
       ) : (
-        <p className="mt-2 text-sm text-muted-foreground">
-          No active plan. Publishing and receiving requests are free; a plan lets you send requests, see who is interested
-          and accept.
-        </p>
+        <p className="mt-2 text-sm text-muted-foreground">{t('standing.plan.none')}</p>
       )}
       <Button variant="outline" className="mt-4 h-11" onClick={onOpenPlans}>
-        {plan.data?.active ? 'Plans and payments' : 'See plans and prices'}
+        {t(plan.data?.active ? 'standing.plan.manage' : 'standing.plan.see')}
       </Button>
     </Card>
   );
@@ -49,12 +48,13 @@ export function PlanCard({ profile, onOpenPlans }: { profile: ProfileView; onOpe
 
 export function EngagedCard({ profile }: { profile: ProfileView }) {
   const plan = usePlan(profile.id);
+  const { t } = useI18n();
   const mark = useMutation({
     mutationFn: () => post<ProfileView>(`/profiles/${profile.id}/engaged`, { confirmForfeit: true }),
     onSuccess: async (updated) => {
       await storeProfile(updated);
       await refreshRelations();
-      toast.success('Congratulations. The profile is hidden and the plan has ended.');
+      toast.success(say('engaged.done'));
     },
     onError: (error) => toast.error(errorMessage(error)),
   });
@@ -62,28 +62,28 @@ export function EngagedCard({ profile }: { profile: ProfileView }) {
   if (!profile.me.canEdit && profile.me.role !== 'candidate') return null;
   return (
     <Card>
-      <h2 className="font-serif text-2xl">Found a match?</h2>
-      <p className="mt-2 text-sm text-muted-foreground">Marking the profile engaged or married hides it from everyone and ends its plan.</p>
+      <h2 className="font-serif text-2xl">{t('engaged.title')}</h2>
+      <p className="mt-2 text-sm text-muted-foreground">{t('engaged.body')}</p>
       <Confirm
-        title="Mark as engaged or married?"
-        action="Yes, mark engaged or married"
+        title={t('engaged.confirm.title')}
+        action={t('engaged.confirm.action')}
         destructive
         onConfirm={() => mark.mutate()}
         trigger={
           <Button variant="outline" className="mt-4 h-11" disabled={mark.isPending}>
-            Mark as engaged or married
+            {t('engaged.button')}
           </Button>
         }
       >
-        <p>The profile is hidden from everyone straight away.</p>
+        <p>{t('engaged.confirm.hidden')}</p>
         {plan.data?.active ? (
           <p>
-            <strong>The plan ends now. The remaining time until {new Date(plan.data.endsAt!).toLocaleDateString()} is lost and is not refunded.</strong>
+            <strong>{t('engaged.confirm.planEnds', { date: formatDay(plan.data.endsAt!) })}</strong>
           </p>
         ) : (
-          <p>There is no active plan to end.</p>
+          <p>{t('engaged.confirm.noPlan')}</p>
         )}
-        <p>Open requests close. Your connections stay on record.</p>
+        <p>{t('engaged.confirm.requests')}</p>
       </Confirm>
     </Card>
   );
@@ -95,27 +95,29 @@ export function EngagedCard({ profile }: { profile: ProfileView }) {
  */
 export function DeleteProfileCard({ profile }: { profile: ProfileView }) {
   const [open, setOpen] = useState(false);
-  const name = profile.fields.displayName ?? 'this profile';
+  const { t } = useI18n();
+  const name = profile.fields.displayName ?? t('deleteProfile.thisProfile');
   if (profile.me.role === 'manager' && profile.candidate.joined) {
     return (
       <Card>
-        <h2 className="font-serif text-2xl">Delete this profile</h2>
+        <h2 className="font-serif text-2xl">{t('deleteProfile.title')}</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          {profile.fields.displayName ?? 'The candidate'} joined this profile, so only they can delete it. You can hand it over
-          to them instead, under “Candidate”.
+          {t('deleteProfile.candidateDecides', {
+            name: profile.fields.displayName ?? t('deleteProfile.theCandidate'),
+            tab: t('profile.tab.candidate'),
+          })}
         </p>
       </Card>
     );
   }
   return (
     <Card>
-      <h2 className="font-serif text-2xl">Delete this profile</h2>
+      <h2 className="font-serif text-2xl">{t('deleteProfile.title')}</h2>
       <p className="mt-2 text-sm text-muted-foreground">
-        Removes {name} for good. {profile.status === 'published' ? 'To stop for a while, pause it instead. ' : ''}Your account
-        stays.
+        {t(profile.status === 'published' ? 'deleteProfile.removesPublished' : 'deleteProfile.removes', { name })}
       </p>
       <Button variant="outline" className="mt-4 h-11 text-destructive" onClick={() => setOpen(true)}>
-        Delete this profile
+        {t('deleteProfile.title')}
       </Button>
       <DeleteProfileDialog profile={profile} open={open} onClose={() => setOpen(false)} />
     </Card>
@@ -127,6 +129,7 @@ function DeleteProfileDialog({ profile, open, onClose }: { profile: ProfileView;
   const plan = usePlan(profile.id);
   const session = useAccountDeletion(open);
   const [understood, setUnderstood] = useState(false);
+  const { t } = useI18n();
   const remove = useMutation({
     mutationFn: () => post<void>(`/profiles/${profile.id}/delete`, { confirm: true }),
     onSuccess: async () => {
@@ -135,7 +138,7 @@ function DeleteProfileDialog({ profile, open, onClose }: { profile: ProfileView;
       await queryClient.invalidateQueries({ queryKey: keys.profiles });
       await refreshRelations();
       navigate('/', { replace: true });
-      toast.success('The profile was deleted.');
+      toast.success(say('deleteProfile.deleted'));
     },
   });
   const needsSignIn =
@@ -150,27 +153,25 @@ function DeleteProfileDialog({ profile, open, onClose }: { profile: ProfileView;
     <Dialog open={open} onOpenChange={(next) => !next && close()}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Delete {profile.fields.displayName ?? 'this profile'}?</DialogTitle>
-          <DialogDescription>This cannot be undone. The profile disappears for everyone straight away.</DialogDescription>
+          <DialogTitle>{t('deleteProfile.dialog.title', { name: profile.fields.displayName ?? t('deleteProfile.thisProfile') })}</DialogTitle>
+          <DialogDescription>{t('deleteProfile.dialog.body')}</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-4 text-sm">
           {needsSignIn && <RecentSignInNotice />}
           {plan.data?.active && plan.data.endsAt && (
-            <Notice tone="warning">
-              The plan ends too: the time left until {formatDay(plan.data.endsAt)} is lost and is not refunded.
-            </Notice>
+            <Notice tone="warning">{t('deleteProfile.dialog.planEnds', { date: formatDay(plan.data.endsAt) })}</Notice>
           )}
-          {manager && <p>{manager.name}, who manages it with you, will be told by email that it was deleted.</p>}
+          {manager && <p>{t('deleteProfile.dialog.managerTold', { name: manager.name })}</p>}
           <RetentionList months={session.data?.retentionMonths ?? RETENTION_MONTHS} />
           {remove.isError && !needsSignIn && <Notice tone="error">{errorMessage(remove.error)}</Notice>}
-          <CheckboxField checked={understood} onChange={setUnderstood} label="I understand that this cannot be undone." />
+          <CheckboxField checked={understood} onChange={setUnderstood} label={t('account.dialog.understand')} />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={close}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button variant="destructive" disabled={needsSignIn || !understood || remove.isPending} onClick={() => remove.mutate()}>
-            {remove.isPending ? 'Deleting…' : 'Delete the profile'}
+            {remove.isPending ? t('account.dialog.deleting') : t('deleteProfile.dialog.submit')}
           </Button>
         </DialogFooter>
       </DialogContent>

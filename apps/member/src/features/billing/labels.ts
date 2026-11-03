@@ -1,62 +1,46 @@
-/** Words for plans and payments, shared by the member and owner screens. English now; Sinhala in Stage 5. */
-import type { PAYMENT_CHANNELS, PAYMENT_STATUSES, REFUND_REASONS } from '@fh/shared';
-import { countries } from '@/features/profile/options';
+/** Words for plans and payments, shared by the member and owner screens, in the reader's language (lib/i18n.tsx). */
+import { useMemo } from 'react';
+import { PAYMENT_CHANNELS, PAYMENT_STATUSES, REFUND_REASONS } from '@fh/shared';
+import { countriesIn, countryNameIn, useCountries } from '@/features/profile/options';
+import { englishText, useI18n, type AppTextKey, type Translate } from '@/lib/i18n';
 
 export type PaymentChannel = (typeof PAYMENT_CHANNELS)[number];
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 export type RefundReason = (typeof REFUND_REASONS)[number];
 
-export const channelLabels: Record<PaymentChannel, string> = {
-  lkr_bank_transfer: 'Bank transfer in Sri Lanka',
-  usd_swift: 'International bank transfer (SWIFT)',
-  wise: 'Wise',
-  paypal: 'PayPal',
-};
-
-/** Inside a sentence: "Send exactly LKR 3,000 by bank transfer in Sri Lanka to:". */
-export const channelPhrases: Record<PaymentChannel, string> = {
-  lkr_bank_transfer: 'bank transfer in Sri Lanka',
-  usd_swift: 'international bank transfer (SWIFT)',
-  wise: 'Wise',
-  paypal: 'PayPal',
-};
-
-/** As the payer sees them. */
-export const paymentStatusLabels: Record<PaymentStatus, string> = {
-  awaiting_proof: 'Waiting for your receipt',
-  pending_review: 'Receipt received, being checked',
-  held: 'We need something more',
-  approved: 'Approved',
-  rejected: 'Not accepted',
-  refunded: 'Refunded',
-  cancelled: 'Cancelled',
-};
-
-export const refundReasonLabels: Record<RefundReason, string> = {
-  duplicate_payment: 'Duplicate payment',
-  mistaken_payment: 'Payment made by mistake',
-  our_failure: 'A failure on our side',
-};
+const each = <T extends string>(t: Translate, group: string, values: readonly T[]) =>
+  Object.fromEntries(values.map((value) => [value, t(`${group}.${value}` as AppTextKey)])) as Record<T, string>;
 
 /**
- * OWNER-DECISIONS section 9, shown at the payment step and confirmed by the member (refund terms version
- * `refund-v1`). Draft wording until the lawyer reviews the terms in Stage 5.
+ * OWNER-DECISIONS section 9, shown at the payment step and confirmed by the member (refund terms version `refund-v1`).
+ * Draft wording until the lawyer reviews the terms (docs/LEGAL-REVIEW.md); the Sinhala goes to the lawyer as well.
  */
-export const refundTerms = [
-  'A plan starts only after we find your payment in our bank, Wise or PayPal statement. We aim to check payments within 48 hours.',
-  'There are no refunds once a plan is active, except for a duplicate payment, a payment made by mistake, or a failure on our side.',
-  'If the profile is suspended for breaking the rules, the remaining time is lost.',
-  'If a payment is later reversed or disputed, the plan it paid for can be ended.',
-];
+const REFUND_TERMS = ['billing.refundTerm.1', 'billing.refundTerm.2', 'billing.refundTerm.3', 'billing.refundTerm.4'] as const;
 
-export const countryName = (code: string | null | undefined) =>
-  (code && countries.find((country) => country.code === code)?.name) || code || 'not given';
-
-/** "5 requests a day, 30 a month", or Premium's "unlimited (fair use: up to 30 a day)" (section 2). */
-export function limitsText(plan: { dailyRequestCap: number; monthlyRequestCap: number | null }): string {
-  return plan.monthlyRequestCap === null
-    ? `Unlimited requests (fair use applies: up to ${plan.dailyRequestCap} a day)`
-    : `${plan.dailyRequestCap} requests a day, ${plan.monthlyRequestCap} a month`;
+export function billingLabelsFor(t: Translate, countries: { code: string; name: string }[]) {
+  return {
+    channelLabels: each(t, 'billing.channel', PAYMENT_CHANNELS),
+    /** Inside a sentence: "Send exactly LKR 3,000 by bank transfer in Sri Lanka to:". */
+    channelPhrases: each(t, 'billing.channelPhrase', PAYMENT_CHANNELS),
+    /** As the payer sees them. */
+    paymentStatusLabels: each(t, 'billing.paymentStatus', PAYMENT_STATUSES),
+    refundReasonLabels: each(t, 'billing.refundReason', REFUND_REASONS),
+    refundTerms: REFUND_TERMS.map((key) => t(key)),
+    countryName: (code: string | null | undefined) => countryNameIn(countries, code) || t('billing.countryNotGiven'),
+    /** "5 requests a day, 30 a month", or Premium's "unlimited (fair use: up to 30 a day)" (section 2). */
+    limitsText: (plan: { dailyRequestCap: number; monthlyRequestCap: number | null }) =>
+      plan.monthlyRequestCap === null
+        ? t('billing.limits.unlimited', { daily: plan.dailyRequestCap })
+        : t('billing.limits.capped', { daily: plan.dailyRequestCap, monthly: plan.monthlyRequestCap }),
+    termText: (months: number) => t('billing.term', { count: months }),
+  };
 }
 
-export const termText = (months: number) => `${months} month${months === 1 ? '' : 's'}`;
+/** Staff screens only: the same words, always in English (owner, 3 Nov 2026). Members use useBillingLabels(). */
+export const ENGLISH_BILLING = billingLabelsFor(englishText, countriesIn('en'));
+
+export function useBillingLabels() {
+  const { t } = useI18n();
+  const countries = useCountries();
+  return useMemo(() => billingLabelsFor(t, countries), [t, countries]);
+}

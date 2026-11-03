@@ -8,6 +8,7 @@
 import { eq, sql } from 'drizzle-orm';
 import type { Config } from '../config.ts';
 import { user } from '../db/schema/auth.ts';
+import { memberAccount } from '../db/schema/members.ts';
 import { notificationOutbox } from '../db/schema/operations.ts';
 import type { Db } from '../db/types.ts';
 import { log } from '../lib/log.ts';
@@ -51,13 +52,18 @@ export async function sendNotifications(
   const finish = (id: string, values: Partial<typeof notificationOutbox.$inferInsert>) =>
     db.update(notificationOutbox).set(values).where(eq(notificationOutbox.id, id));
   for (const item of claimed) {
-    const [recipient] = await db.select({ email: user.email }).from(user).where(eq(user.id, item.recipient_user_id));
+    // Sent in the language the member chose in the app (member_account.locale), English otherwise.
+    const [recipient] = await db
+      .select({ email: user.email, locale: memberAccount.locale })
+      .from(user)
+      .leftJoin(memberAccount, eq(memberAccount.userId, user.id))
+      .where(eq(user.id, item.recipient_user_id));
     if (!recipient || recipient.email.endsWith(`@${PHONE_ONLY_EMAIL_DOMAIN}`)) {
       await finish(item.id, { status: 'cancelled', lastError: 'no email address (SMS not available yet)' });
       result.skipped += 1;
       continue;
     }
-    const message = notificationEmail(item.template, item.payload, config.memberAppUrl);
+    const message = notificationEmail(recipient.locale ?? 'en', item.template, item.payload, config.memberAppUrl);
     if (!message) {
       await finish(item.id, { status: 'failed', lastError: `unknown template ${item.template}` });
       result.failed += 1;

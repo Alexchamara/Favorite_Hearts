@@ -13,11 +13,13 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { del, errorMessage, post } from '@/lib/api';
 import { keys, usePhotos } from '@/lib/queries';
+import { say, useI18n } from '@/lib/i18n';
 import { queryClient } from '@/lib/query-client';
 
 export function PhotosPanel({ profile }: { profile: ProfileView }) {
   const photos = usePhotos(profile.id);
   const input = useRef<HTMLInputElement>(null);
+  const { t } = useI18n();
   const refresh = () =>
     Promise.all([
       queryClient.invalidateQueries({ queryKey: keys.photos(profile.id) }),
@@ -31,7 +33,7 @@ export function PhotosPanel({ profile }: { profile: ProfileView }) {
       return post(`/profiles/${profile.id}/photos`, form);
     },
     onSuccess: async () => {
-      toast.success('Photo added.');
+      toast.success(say('photos.added'));
       await refresh();
     },
     onError,
@@ -51,51 +53,46 @@ export function PhotosPanel({ profile }: { profile: ProfileView }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <Notice>
-        Other members see a blurred copy of your photos until you both accept. Your cover is shown unblurred only if you
-        switch that on below. Never include phone numbers or addresses in photos.
-      </Notice>
+      <Notice>{t('photos.notice')}</Notice>
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-serif text-2xl">Photos</h2>
-          <span className="text-sm text-muted-foreground">
-            {list.length} of {MAX_PHOTOS}
-          </span>
+          <h2 className="font-serif text-2xl">{t('photos.title')}</h2>
+          <span className="text-sm text-muted-foreground">{t('photos.count', { count: list.length })}</span>
         </div>
         {photos.isPending ? (
           <Loading />
         ) : photos.isError ? (
           <Notice tone="error">{errorMessage(photos.error)}</Notice>
         ) : list.length === 0 ? (
-          <p className="mt-2 text-sm text-muted-foreground">No photos yet.</p>
+          <p className="mt-2 text-sm text-muted-foreground">{t('photos.none')}</p>
         ) : (
           <ul className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
             {list.map((photo) => (
               <li key={photo.id} className="flex flex-col gap-2">
                 <div className="relative aspect-[3/4] overflow-hidden rounded-[12px] border bg-[var(--ui-soft)]">
-                  <img src={photo.url} alt={photo.isCover ? 'Cover photo' : `Photo ${photo.slot + 1}`} className="size-full object-cover" />
-                  {photo.isCover && <span className="absolute top-2 left-2 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white">Cover</span>}
+                  <img src={photo.url} alt={photo.isCover ? t('photos.coverAlt') : t('photos.photoAlt', { number: photo.slot + 1 })} className="size-full object-cover" />
+                  {photo.isCover && <span className="absolute top-2 left-2 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white">{t('photos.cover')}</span>}
                 </div>
-                {photo.hidden && <p className="text-xs text-destructive">Hidden after a report. Our staff will review it.</p>}
+                {photo.hidden && <p className="text-xs text-destructive">{t('photos.hidden')}</p>}
                 {canEdit && (
                   <div className="flex flex-wrap gap-2 text-sm">
                     {!photo.isCover && !photo.hidden && (
                       <button type="button" className="underline underline-offset-4" disabled={cover.isPending} onClick={() => cover.mutate(photo.id)}>
-                        Make cover
+                        {t('photos.makeCover')}
                       </button>
                     )}
                     <Confirm
-                      title="Delete this photo?"
-                      action="Delete"
+                      title={t('photos.delete.title')}
+                      action={t('photos.delete')}
                       destructive
                       onConfirm={() => remove.mutate(photo.id)}
                       trigger={
                         <button type="button" className="text-destructive underline underline-offset-4">
-                          Delete
+                          {t('photos.delete')}
                         </button>
                       }
                     >
-                      <p>It is removed from your profile and from our storage.</p>
+                      <p>{t('photos.delete.body')}</p>
                     </Confirm>
                   </div>
                 )}
@@ -118,26 +115,24 @@ export function PhotosPanel({ profile }: { profile: ProfileView }) {
             />
             <Button asChild variant="outline" className="h-11">
               <label htmlFor="photo-upload" className="cursor-pointer">
-                {upload.isPending ? 'Uploading…' : 'Add a photo'}
+                {upload.isPending ? t('photos.uploading') : t('photos.add')}
               </label>
             </Button>
-            <p className="mt-2 text-xs text-muted-foreground">JPEG, PNG or WebP, up to 5 MB.</p>
+            <p className="mt-2 text-xs text-muted-foreground">{t('photos.formats')}</p>
           </div>
         )}
       </Card>
       <Card>
         <label className="flex items-start justify-between gap-4">
           <span>
-            <span className="block font-semibold">Show my cover photo to members</span>
-            <span className="mt-1 block text-sm text-muted-foreground">
-              When off, members see a blurred copy until you both accept. Visitors who are not signed in never see photos.
-            </span>
+            <span className="block font-semibold">{t('photos.showCover')}</span>
+            <span className="mt-1 block text-sm text-muted-foreground">{t('photos.showCover.hint')}</span>
           </span>
           <Switch
             checked={profile.coverPublic}
             disabled={!canEdit || visibility.isPending}
             onCheckedChange={(checked) => visibility.mutate(checked)}
-            aria-label="Show my cover photo to members"
+            aria-label={t('photos.showCover')}
           />
         </label>
       </Card>

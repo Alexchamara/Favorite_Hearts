@@ -9,6 +9,7 @@ import { sql } from 'drizzle-orm';
 import type { Context, MiddlewareHandler } from 'hono';
 import type { Db } from '../db/types.ts';
 import type { AppEnv } from '../http.ts';
+import { requestLanguage, text } from '../text.ts';
 import { rows } from './profile-view.ts';
 
 export type RateRule = { window: number; max: number };
@@ -104,10 +105,7 @@ export const rateLimits: MiddlewareHandler<AppEnv> = async (c, next) => {
       const minutes = Math.ceil(result.retryAfter! / 60);
       c.header('Retry-After', String(result.retryAfter));
       return c.json(
-        {
-          code: 'RATE_LIMITED',
-          message: `Too many attempts. Please try again in ${minutes === 1 ? 'a minute' : `about ${minutes} minutes`}.`,
-        },
+        { code: 'RATE_LIMITED', message: text(requestLanguage(c), 'api.rateLimited', { count: minutes }) },
         429,
       );
     }

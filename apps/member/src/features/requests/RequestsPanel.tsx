@@ -9,15 +9,17 @@ import { Card, Loading, Notice } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { errorMessage, post } from '@/lib/api';
 import { refreshRelations, useReceived, useSent } from '@/lib/queries';
-import { interestStatusLabels } from '@/features/profile/options';
+import { useLabels } from '@/features/profile/options';
 import { MemberRow } from '@/features/browse/MemberCard';
-
-const day = (value: string | Date) => new Date(value).toLocaleDateString();
+import { formatDay as day } from '@/lib/format';
+import { say, useI18n } from '@/lib/i18n';
 
 export function RequestsPanel({ profile }: { profile: ProfileView }) {
   const canAct = profile.me.canManageInterests;
   const received = useReceived(profile.id);
   const sent = useSent(profile.id);
+  const { t } = useI18n();
+  const { interestStatusLabels } = useLabels();
   const act = useMutation({
     mutationFn: (path: string) => post(path),
     onSuccess: refreshRelations,
@@ -27,9 +29,9 @@ export function RequestsPanel({ profile }: { profile: ProfileView }) {
 
   return (
     <div className="flex flex-col gap-6">
-      {!canAct && <Notice>The candidate has not allowed you to manage requests for this profile. You can still see them.</Notice>}
+      {!canAct && <Notice>{t('requests.cannotManage')}</Notice>}
       <Card>
-        <h2 className="font-serif text-2xl">Received</h2>
+        <h2 className="font-serif text-2xl">{t('requests.received')}</h2>
         {received.isPending ? (
           <Loading />
         ) : received.isError ? (
@@ -37,25 +39,31 @@ export function RequestsPanel({ profile }: { profile: ProfileView }) {
         ) : !received.data.identified ? (
           <>
             <div className="mt-3">
-              <Notice title="A plan shows who sent them">
-                With a plan you see who is interested and can accept. Buying a plan opens in a later update.
-              </Notice>
+              <Notice title={t('requests.planShows.title')}>{t('requests.planShows.body')}</Notice>
             </div>
             {received.data.previews.length === 0 ? (
-              <p className="mt-3 text-sm text-muted-foreground">No requests yet.</p>
+              <p className="mt-3 text-sm text-muted-foreground">{t('requests.none')}</p>
             ) : (
               <ul className="mt-3 divide-y text-sm">
                 {received.data.previews.map((preview) => (
                   <li key={preview.id} className="py-3">
-                    Someone{preview.senderAge !== null && `, ${preview.senderAge}`}
-                    {preview.senderOccupation && `, ${preview.senderOccupation}`}, sent a request on {day(preview.receivedAt)}.
+                    {t(
+                      preview.senderAge !== null && preview.senderOccupation
+                        ? 'requests.preview.full'
+                        : preview.senderAge !== null
+                          ? 'requests.preview.age'
+                          : preview.senderOccupation
+                            ? 'requests.preview.occupation'
+                            : 'requests.preview.plain',
+                      { age: preview.senderAge ?? '', occupation: preview.senderOccupation ?? '', date: day(preview.receivedAt) },
+                    )}
                   </li>
                 ))}
               </ul>
             )}
           </>
         ) : received.data.interests.length === 0 ? (
-          <p className="mt-2 text-sm text-muted-foreground">No requests waiting.</p>
+          <p className="mt-2 text-sm text-muted-foreground">{t('requests.noneWaiting')}</p>
         ) : (
           <ul className="mt-2 divide-y">
             {received.data.interests.map((item) => (
@@ -66,12 +74,12 @@ export function RequestsPanel({ profile }: { profile: ProfileView }) {
                       <Button
                         className="h-10"
                         disabled={act.isPending}
-                        onClick={() => act.mutate(`/interests/${item.id}/accept`, { onSuccess: () => toast.success('Accepted. You are now connected.') })}
+                        onClick={() => act.mutate(`/interests/${item.id}/accept`, { onSuccess: () => toast.success(say('requests.accepted')) })}
                       >
-                        Accept
+                        {t('requests.accept')}
                       </Button>
                       <Button variant="outline" className="h-10" disabled={act.isPending} onClick={() => act.mutate(`/interests/${item.id}/decline`)}>
-                        Decline
+                        {t('requests.decline')}
                       </Button>
                     </>
                   )}
@@ -83,13 +91,13 @@ export function RequestsPanel({ profile }: { profile: ProfileView }) {
       </Card>
 
       <Card>
-        <h2 className="font-serif text-2xl">Sent</h2>
+        <h2 className="font-serif text-2xl">{t('requests.sent')}</h2>
         {sent.isPending ? (
           <Loading />
         ) : sent.isError ? (
           <Notice tone="error">{errorMessage(sent.error)}</Notice>
         ) : sent.data.length === 0 ? (
-          <p className="mt-2 text-sm text-muted-foreground">You have not sent any requests yet.</p>
+          <p className="mt-2 text-sm text-muted-foreground">{t('requests.noneSent')}</p>
         ) : (
           <ul className="mt-2 divide-y">
             {sent.data.map((item) => (
@@ -98,12 +106,12 @@ export function RequestsPanel({ profile }: { profile: ProfileView }) {
                   <span className="text-sm">
                     {interestStatusLabels[item.status]}
                     {item.cooldownUntil && new Date(item.cooldownUntil) > new Date() && (
-                      <span className="block text-xs text-muted-foreground">New request possible from {day(item.cooldownUntil)}</span>
+                      <span className="block text-xs text-muted-foreground">{t('requests.cooldown', { date: day(item.cooldownUntil) })}</span>
                     )}
                   </span>
                   {item.status === 'pending' && canAct && (
                     <Button variant="outline" className="h-10" disabled={act.isPending} onClick={() => act.mutate(`/interests/${item.id}/withdraw`)}>
-                      Withdraw
+                      {t('requests.withdraw')}
                     </Button>
                   )}
                 </MemberRow>

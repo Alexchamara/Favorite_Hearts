@@ -28,6 +28,8 @@ import {
 
 export const MIN_AGE = 18;
 export const MAX_AGE = 100;
+export const MIN_HEIGHT_CM = 100;
+export const MAX_HEIGHT_CM = 230;
 
 /** Whole years between an ISO date (YYYY-MM-DD) and `today`. */
 export function ageOn(birthDate: string, today: Date = new Date()): number {
@@ -37,20 +39,16 @@ export function ageOn(birthDate: string, today: Date = new Date()): number {
   return age;
 }
 
-// Messages are shown to members as-is, next to the field.
-const text = (min: number, max: number) =>
-  z
-    .string()
-    .trim()
-    .min(min, min === 1 ? 'Required.' : `Write at least ${min} characters.`)
-    .max(max, `Keep it to ${max} characters or fewer.`);
-const optionalText = (max: number) => z.string().trim().max(max, `Keep it to ${max} characters or fewer.`).nullable();
-const choice = <T extends readonly [string, ...string[]]>(values: T) => z.enum(values, { error: 'Choose one of the options.' });
-const upTo = <T extends z.ZodType>(item: T, max: number) => z.array(item).max(max, `Choose up to ${max}.`);
+// Messages are catalogue keys (text.ts). A limit without its own message gets one per kind of problem, with the limit
+// filled in ("Keep it to 80 characters or fewer."), in the reader's language.
+const text = (min: number, max: number) => z.string().trim().min(min).max(max);
+const optionalText = (max: number) => z.string().trim().max(max).nullable();
+const choice = <T extends readonly [string, ...string[]]>(values: T) => z.enum(values, { error: 'validation.chooseOption' });
+const upTo = <T extends z.ZodType>(item: T, max: number) => z.array(item).max(max);
 const birthDate = z.iso.date().refine((value) => {
   const age = ageOn(value);
   return age >= MIN_AGE && age <= MAX_AGE;
-}, `The candidate must be between ${MIN_AGE} and ${MAX_AGE}.`);
+}, 'validation.candidateAge');
 
 export const profileCreateSchema = z.discriminatedUnion('management', [
   z.object({ management: z.literal('self'), adultDeclared: z.literal(true) }),
@@ -73,16 +71,16 @@ export const profileFieldsSchema = z
       .string()
       .trim()
       .toUpperCase()
-      .regex(/^[A-Z]{2}$/, 'Choose a country.'),
+      .regex(/^[A-Z]{2}$/, 'validation.country'),
     region: optionalText(80),
     city: text(1, 80),
     occupation: text(1, 100),
     education: text(1, 200),
     heightCm: z
-      .number({ error: 'Enter the height in centimetres.' })
-      .int('Enter whole centimetres.')
-      .min(100, 'Enter a height between 100 and 230 cm.')
-      .max(230, 'Enter a height between 100 and 230 cm.'),
+      .number({ error: 'validation.heightNumber' })
+      .int('validation.heightWhole')
+      .min(MIN_HEIGHT_CM, 'validation.heightRange')
+      .max(MAX_HEIGHT_CM, 'validation.heightRange'),
     maritalStatus: choice(MARITAL_STATUSES),
     religion: choice(RELIGIONS),
     languages: upTo(text(1, 40), 10),
@@ -111,7 +109,7 @@ export const profileFieldsSchema = z
     caste: z
       .object({
         value: text(1, 80),
-        consent: z.literal(true, { error: 'Caste is saved only with your explicit consent.' }),
+        consent: z.literal(true, { error: 'validation.casteConsent' }),
       })
       .nullable(),
     /** The self-managed candidate's own 18+ declaration (managers declare when creating). */
@@ -166,7 +164,7 @@ export const contactSchema = z
     else if (contact.kind === 'email') value = normalizeEmail(contact.value);
     else value = contact.platform ? normalizeSocial(contact.platform, contact.value) : null;
     if (!value) {
-      ctx.addIssue({ code: 'custom', path: ['value'], message: `Enter a valid ${contact.kind === 'social' ? 'link or username' : contact.kind}.` });
+      ctx.addIssue({ code: 'custom', path: ['value'], message: contact.kind === 'social' ? 'validation.socialLink' : contact.kind === 'phone' ? 'validation.phone' : 'validation.email' });
       return z.NEVER;
     }
     return { ...contact, platform: contact.kind === 'social' ? contact.platform : undefined, value };
@@ -180,17 +178,17 @@ export const invitationCreateSchema = z
   .transform((input, ctx) => {
     const contact = input.channel === 'email' ? normalizeEmail(input.contact) : normalizePhone(input.contact);
     if (!contact) {
-      ctx.addIssue({ code: 'custom', path: ['contact'], message: `Enter the candidate's ${input.channel === 'email' ? 'email' : 'phone number'}.` });
+      ctx.addIssue({ code: 'custom', path: ['contact'], message: input.channel === 'email' ? 'validation.candidateEmail' : 'validation.candidatePhone' });
       return z.NEVER;
     }
     return { channel: input.channel, contact };
   });
 
 /** The invitation token from the link: 43 URL-safe characters (32 random bytes). */
-export const invitationTokenSchema = z.string().regex(/^[A-Za-z0-9_-]{43}$/, 'This invitation link is not valid.');
+export const invitationTokenSchema = z.string().regex(/^[A-Za-z0-9_-]{43}$/, 'validation.invitationLink');
 export const invitationCodeSchema = z.object({
   token: invitationTokenSchema,
-  code: z.string().trim().regex(/^\d{6}$/, 'Enter the 6-digit code.'),
+  code: z.string().trim().regex(/^\d{6}$/, 'validation.code'),
 });
 
 export const managerPermissionsSchema = z

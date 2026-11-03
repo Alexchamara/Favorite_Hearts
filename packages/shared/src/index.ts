@@ -9,3 +9,4 @@ export * from './profile.ts';
 export * from './requests.ts';
 export * from './safety.ts';
 export * from './schemas.ts';
+export * from './text.ts';

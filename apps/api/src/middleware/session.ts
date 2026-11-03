@@ -6,6 +6,7 @@ import { memberAccount } from '../db/schema/members.ts';
 import { operationsFlag } from '../db/schema/operations.ts';
 import { staffMember } from '../db/schema/staff.ts';
 import { fail, withActor, type AppEnv } from '../http.ts';
+import { requestLanguage } from '../text.ts';
 
 /**
  * Loads the Better-Auth session (if any) and decides the actor that row-level security sees.
@@ -33,7 +34,7 @@ export const loadSession = createMiddleware<AppEnv>(async (c, next) => {
 
 /** 401 unless signed in. */
 export const requireUser = createMiddleware<AppEnv>(async (c, next) => {
-  if (!c.var.user) fail(401, 'UNAUTHENTICATED', 'Please sign in.');
+  if (!c.var.user) fail(401, 'UNAUTHENTICATED', 'api.signIn');
   await next();
 });
 
@@ -43,18 +44,19 @@ export const requireUser = createMiddleware<AppEnv>(async (c, next) => {
  */
 export const requireMember = createMiddleware<AppEnv>(async (c, next) => {
   const user = c.var.user;
-  if (!user) fail(401, 'UNAUTHENTICATED', 'Please sign in.');
-  if (c.var.staffRole) fail(403, 'STAFF_ACCOUNT', 'Staff accounts cannot use the member app.');
+  if (!user) fail(401, 'UNAUTHENTICATED', 'api.signIn');
+  if (c.var.staffRole) fail(403, 'STAFF_ACCOUNT', 'api.staff.memberAppForbidden');
   const account = await withActor(c, async (tx) => {
     const [existing] = await tx.select().from(memberAccount).where(eq(memberAccount.userId, user.id));
     if (existing) return existing;
     const [paused] = await tx.select().from(operationsFlag).where(eq(operationsFlag.key, 'signups_paused'));
-    if (paused?.enabled) fail(403, 'SIGNUPS_PAUSED', 'New sign-ups are paused for now. Please try again later.');
-    await tx.insert(memberAccount).values({ userId: user.id });
+    if (paused?.enabled) fail(403, 'SIGNUPS_PAUSED', 'api.signupsPaused');
+    // A new account starts in the language the member signed up in; emails follow it.
+    await tx.insert(memberAccount).values({ userId: user.id, locale: requestLanguage(c) });
     const [created] = await tx.select().from(memberAccount).where(eq(memberAccount.userId, user.id));
     return created!;
   });
-  if (account.status !== 'active') fail(403, 'ACCOUNT_SUSPENDED', 'This account is not active. Please contact support.');
+  if (account.status !== 'active') fail(403, 'ACCOUNT_SUSPENDED', 'api.accountInactive');
   await next();
 });
 
@@ -65,9 +67,9 @@ export const requireMember = createMiddleware<AppEnv>(async (c, next) => {
 export function requireStaff(...roles: StaffRole[]) {
   return createMiddleware<AppEnv>(async (c, next) => {
     const user = c.var.user;
-    if (!user) fail(401, 'UNAUTHENTICATED', 'Please sign in.');
-    if (!c.var.staffRole || !roles.includes(c.var.staffRole)) fail(403, 'FORBIDDEN', 'Not allowed.');
-    if (!user.twoFactorEnabled) fail(403, 'TWO_FACTOR_REQUIRED', 'Two-step login is required for staff.');
+    if (!user) fail(401, 'UNAUTHENTICATED', 'api.signIn');
+    if (!c.var.staffRole || !roles.includes(c.var.staffRole)) fail(403, 'FORBIDDEN', 'api.staff.notAllowed');
+    if (!user.twoFactorEnabled) fail(403, 'TWO_FACTOR_REQUIRED', 'api.staff.twoFactorRequired');
     await next();
   });
 }
@@ -83,6 +85,6 @@ export function recentSignIn(c: Context<AppEnv>): boolean {
 
 export function requireRecentSignIn(c: Context<AppEnv>): void {
   if (!recentSignIn(c)) {
-    fail(403, 'RECENT_SIGN_IN_REQUIRED', `For your safety, please sign in again first. Then you have ${RECENT_SIGN_IN_MINUTES} minutes to delete.`);
+    fail(403, 'RECENT_SIGN_IN_REQUIRED', 'api.recentSignIn');
   }
 }

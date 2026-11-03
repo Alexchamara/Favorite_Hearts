@@ -40,7 +40,7 @@ export async function operatedProfile(tx: Tx, id: string): Promise<ProfileRow> {
     .select()
     .from(profile)
     .where(and(eq(profile.id, id), sql`app.operates_profile(${profile.id})`));
-  if (!row) fail(404, 'NOT_FOUND', 'Profile not found.');
+  if (!row) fail(404, 'NOT_FOUND', 'api.profile.notFound');
   return row;
 }
 

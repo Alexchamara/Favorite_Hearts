@@ -15,14 +15,15 @@ import { Switch } from '@/components/ui/switch';
 import { ApiError, del, errorMessage, patch, post } from '@/lib/api';
 import { keys } from '@/lib/queries';
 import { queryClient } from '@/lib/query-client';
-import { options, platformLabels } from './options';
-
-const kindLabels = { phone: 'Phone', email: 'Email', social: 'Social link' } as const;
+import { issueMessage, say, useI18n } from '@/lib/i18n';
+import { options, useLabels } from './options';
 
 export function ContactsPanel({ profile }: { profile: ProfileView }) {
   const managed = profile.management === 'manager';
   const sharingIsTheCandidates = profile.candidate.joined && profile.me.role !== 'candidate';
   const refresh = () => queryClient.invalidateQueries({ queryKey: keys.profile(profile.id) });
+  const { t } = useI18n();
+  const { contactKindLabels, platformLabels } = useLabels();
   const share = useMutation({
     mutationFn: (contact: ContactView) =>
       patch<ContactView>(`/profiles/${profile.id}/contacts/${contact.id}`, { shareWithConnections: !contact.shareWithConnections }),
@@ -37,16 +38,15 @@ export function ContactsPanel({ profile }: { profile: ProfileView }) {
 
   const groups = managed
     ? ([
-        ['candidate', 'Candidate'],
-        ['manager', 'Manager'],
+        ['candidate', t('contacts.candidate')],
+        ['manager', t('contacts.manager')],
       ] as const)
-    : ([['candidate', 'Contacts']] as const);
+    : ([['candidate', t('contacts.contacts')]] as const);
 
   return (
     <div className="flex flex-col gap-6">
       <Notice>
-        Contact details are never shown on the profile. After both sides accept, they are shared with that member only while
-        their plan is active. {sharingIsTheCandidates && 'The candidate decides which of them are shared.'}
+        {t('contacts.notice')} {sharingIsTheCandidates && t('contacts.candidateDecides')}
       </Notice>
       {groups.map(([person, title]) => {
         const contacts = profile.contacts.filter((contact) => contact.person === person);
@@ -54,18 +54,18 @@ export function ContactsPanel({ profile }: { profile: ProfileView }) {
           <Card key={person}>
             <h2 className="font-serif text-2xl">{title}</h2>
             {contacts.length === 0 ? (
-              <p className="mt-2 text-sm text-muted-foreground">None yet.</p>
+              <p className="mt-2 text-sm text-muted-foreground">{t('contacts.none')}</p>
             ) : (
               <ul className="mt-4 divide-y">
                 {contacts.map((contact) => (
                   <li key={contact.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                     <div className="min-w-0">
                       <p className="text-xs font-semibold text-muted-foreground uppercase">
-                        {contact.kind === 'social' && contact.platform ? platformLabels[contact.platform] : kindLabels[contact.kind]}
+                        {contact.kind === 'social' && contact.platform ? platformLabels[contact.platform] : contactKindLabels[contact.kind]}
                       </p>
                       <p className="break-all">{contact.value}</p>
                       <p className="text-xs text-muted-foreground">
-                        {contact.verified ? 'Verified' : contact.notVerifiedByCandidate ? 'Not verified by candidate' : 'Not verified'}
+                        {t(contact.verified ? 'contacts.verified' : contact.notVerifiedByCandidate ? 'contacts.notVerifiedByCandidate' : 'contacts.notVerified')}
                       </p>
                     </div>
                     <div className="flex items-center gap-3">
@@ -74,12 +74,12 @@ export function ContactsPanel({ profile }: { profile: ProfileView }) {
                           checked={contact.shareWithConnections}
                           disabled={sharingIsTheCandidates || share.isPending}
                           onCheckedChange={() => share.mutate(contact)}
-                          aria-label={`Share ${contact.value} with connections`}
+                          aria-label={t('contacts.shareWith', { value: contact.value })}
                         />
-                        Share
+                        {t('contacts.share')}
                       </label>
                       {profile.me.canEdit && (
-                        <Button variant="ghost" size="icon" aria-label={`Remove ${contact.value}`} disabled={remove.isPending} onClick={() => remove.mutate(contact)}>
+                        <Button variant="ghost" size="icon" aria-label={t('contacts.remove', { value: contact.value })} disabled={remove.isPending} onClick={() => remove.mutate(contact)}>
                           <Trash2 />
                         </Button>
                       )}
@@ -102,12 +102,14 @@ function AddContact({ profile }: { profile: ProfileView }) {
   const [platform, setPlatform] = useState<NonNullable<ContactInput['platform']> | ''>('');
   const [value, setValue] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const { t } = useI18n();
+  const { contactKindLabels, platformLabels } = useLabels();
   const add = useMutation({
     mutationFn: (input: ContactInput) => post<ContactView>(`/profiles/${profile.id}/contacts`, input),
     onSuccess: async () => {
       setValue('');
       setErrors({});
-      toast.success('Contact added.');
+      toast.success(say('contacts.added'));
       await queryClient.invalidateQueries({ queryKey: keys.profile(profile.id) });
     },
     onError: (error) => setErrors(error instanceof ApiError ? { ...error.fields, _: error.code === 'VALIDATION' ? '' : error.message } : { _: errorMessage(error) }),
@@ -117,14 +119,18 @@ function AddContact({ profile }: { profile: ProfileView }) {
     const input = { person, kind, value, ...(kind === 'social' && platform ? { platform } : {}) };
     const checked = contactSchema.safeParse(input);
     if (!checked.success) {
-      setErrors(Object.fromEntries(checked.error.issues.map((issue) => [issue.path.join('.') || '_', issue.message])));
+      setErrors(
+        Object.fromEntries(
+          checked.error.issues.map((issue) => [issue.path.join('.') || '_', issueMessage(issue as Parameters<typeof issueMessage>[0])]),
+        ),
+      );
       return;
     }
     add.mutate(input);
   }
   return (
     <Card>
-      <h2 className="font-serif text-2xl">Add a contact</h2>
+      <h2 className="font-serif text-2xl">{t('contacts.add.title')}</h2>
       <form onSubmit={submit} className="mt-5 grid gap-5 sm:grid-cols-2">
         {errors._ && (
           <div className="sm:col-span-2">
@@ -133,32 +139,32 @@ function AddContact({ profile }: { profile: ProfileView }) {
         )}
         {profile.management === 'manager' && (
           <SelectField
-            label="Whose contact"
+            label={t('contacts.add.whose')}
             value={person}
             onChange={(next) => next && setPerson(next)}
             options={[
-              { value: 'candidate', label: 'The candidate’s' },
-              { value: 'manager', label: 'Mine (the manager)' },
+              { value: 'candidate', label: t('contacts.add.candidates') },
+              { value: 'manager', label: t('contacts.add.mine') },
             ]}
           />
         )}
-        <SelectField label="Type" value={kind} onChange={(next) => next && setKind(next)} options={options(kindLabels)} />
+        <SelectField label={t('contacts.add.type')} value={kind} onChange={(next) => next && setKind(next)} options={options(contactKindLabels)} />
         {kind === 'social' && (
-          <SelectField label="Platform" value={platform} onChange={setPlatform} options={options(platformLabels)} error={errors.platform} />
+          <SelectField label={t('contacts.add.platform')} value={platform} onChange={setPlatform} options={options(platformLabels)} error={errors.platform} />
         )}
         <TextField
           className="sm:col-span-2"
-          label={kind === 'phone' ? 'Phone number' : kind === 'email' ? 'Email address' : 'Username or link'}
+          label={t(kind === 'phone' ? 'contacts.add.phone' : kind === 'email' ? 'contacts.add.email' : 'contacts.add.social')}
           type={kind === 'email' ? 'email' : kind === 'phone' ? 'tel' : 'text'}
           placeholder={kind === 'phone' ? '+94 77 123 4567' : undefined}
           value={value}
           onChange={setValue}
           error={errors.value}
-          hint={person === 'candidate' && profile.me.role === 'manager' && kind === 'phone' ? 'Shown as “not verified by candidate” until the candidate confirms it.' : undefined}
+          hint={person === 'candidate' && profile.me.role === 'manager' && kind === 'phone' ? t('contacts.add.phoneHint') : undefined}
         />
         <div className="sm:col-span-2">
           <Button type="submit" className="h-11" disabled={add.isPending || !value.trim()}>
-            {add.isPending ? 'Adding…' : 'Add contact'}
+            {add.isPending ? t('contacts.add.adding') : t('contacts.add.submit')}
           </Button>
         </div>
       </form>

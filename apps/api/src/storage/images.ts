@@ -6,11 +6,17 @@
  *   a viewer who is not allowed to see it.
  */
 import sharp, { type Metadata } from 'sharp';
+import type { ApiTextKey } from '../text.ts';
 
 export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // 5 MiB, as in the demo (spec 5.3)
 const ALLOWED_FORMATS = new Set(['jpeg', 'png', 'webp']);
 
-export class InvalidImageError extends Error {}
+/** Says what is wrong with the file, as a catalogue key the route answers with. */
+export class InvalidImageError extends Error {
+  constructor(public key: ApiTextKey) {
+    super(key);
+  }
+}
 
 export type ProcessedPhoto = {
   original: Buffer; // re-encoded JPEG, metadata stripped, max 1600px
@@ -20,16 +26,16 @@ export type ProcessedPhoto = {
 };
 
 export async function processPhoto(input: Buffer): Promise<ProcessedPhoto> {
-  if (input.byteLength > MAX_UPLOAD_BYTES) throw new InvalidImageError('Photos must be 5 MB or smaller.');
+  if (input.byteLength > MAX_UPLOAD_BYTES) throw new InvalidImageError('api.image.photoTooLarge');
 
   let meta: Metadata;
   try {
     meta = await sharp(input, { limitInputPixels: 40_000_000 }).metadata();
   } catch {
-    throw new InvalidImageError('This file is not a supported image.');
+    throw new InvalidImageError('api.image.photoUnreadable');
   }
   if (!meta.format || !ALLOWED_FORMATS.has(meta.format)) {
-    throw new InvalidImageError('Please upload a JPEG, PNG or WebP photo.');
+    throw new InvalidImageError('api.image.photoWrongType');
   }
 
   const { data: original, info } = await sharp(input)
@@ -47,7 +53,7 @@ export async function processPhoto(input: Buffer): Promise<ProcessedPhoto> {
 
 export type ProcessedDocument = { image: Buffer; width: number; height: number };
 
-type Wording = { tooLarge: string; unreadable: string; wrongType: string };
+type Wording = { tooLarge: ApiTextKey; unreadable: ApiTextKey; wrongType: ApiTextKey };
 
 /** Decoding is the real file check, and re-encoding drops EXIF/GPS metadata. Large enough to stay legible. */
 async function reencodeLegible(input: Buffer, wording: Wording): Promise<ProcessedDocument> {
@@ -70,17 +76,17 @@ async function reencodeLegible(input: Buffer, wording: Wording): Promise<Process
 /** Identity document photos (NIC, passport, driving licence), kept legible for the reviewer. */
 export function processDocument(input: Buffer): Promise<ProcessedDocument> {
   return reencodeLegible(input, {
-    tooLarge: 'Documents must be 5 MB or smaller.',
-    unreadable: 'This file is not a supported image. Please upload a photo of the document.',
-    wrongType: 'Please upload a JPEG, PNG or WebP photo of the document.',
+    tooLarge: 'api.image.documentTooLarge',
+    unreadable: 'api.image.documentUnreadable',
+    wrongType: 'api.image.documentWrongType',
   });
 }
 
 /** Payment receipts (owner decision, 29 Oct 2026): photos or screenshots only, no PDF. */
 export function processReceipt(input: Buffer): Promise<ProcessedDocument> {
   return reencodeLegible(input, {
-    tooLarge: 'Receipts must be 5 MB or smaller.',
-    unreadable: 'This file is not a supported image. Please upload a photo or screenshot of the receipt.',
-    wrongType: 'Please upload a JPEG, PNG or WebP photo or screenshot of the receipt (PDF is not accepted).',
+    tooLarge: 'api.image.receiptTooLarge',
+    unreadable: 'api.image.receiptUnreadable',
+    wrongType: 'api.image.receiptWrongType',
   });
 }

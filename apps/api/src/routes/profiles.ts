@@ -35,6 +35,7 @@ import { cleanUpSoon } from '../lib/storage-cleanup.ts';
 import { SmsUnavailableError } from '../messaging/messenger.ts';
 import { invitationEmail, invitationSms } from '../messaging/templates.ts';
 import { requireMember, requireRecentSignIn } from '../middleware/session.ts';
+import { requestLanguage } from '../text.ts';
 
 /** Invitations a manager may send per profile in 24 hours (§5: "with a limit on resends"). */
 export const MAX_INVITATIONS_PER_DAY = 3;
@@ -102,12 +103,12 @@ profiles.patch('/:id', async (c) => {
         403,
         'CANNOT_EDIT',
         row.candidateUserId === userId
-          ? 'Take over the profile to edit it yourself.'
-          : 'The candidate has not allowed you to edit this profile.',
+          ? 'api.profile.takeOverToEdit'
+          : 'api.profile.editNotAllowed',
       );
     }
     if (adultDeclared && row.management !== 'self') {
-      fail(400, 'VALIDATION', 'The manager declared the candidate is 18 or over when creating this profile.');
+      fail(400, 'VALIDATION', 'api.profile.managerDeclaredAge');
     }
     const updated = await tx
       .update(profile)
@@ -118,7 +119,7 @@ profiles.patch('/:id', async (c) => {
       })
       .where(and(eq(profile.id, id), eq(profile.version, version)))
       .returning({ id: profile.id });
-    if (!updated.length) fail(409, 'VERSION_CONFLICT', 'This profile was changed elsewhere. Reload it and try again.');
+    if (!updated.length) fail(409, 'VERSION_CONFLICT', 'api.profile.versionConflict');
     return ownProfileView(tx, id, userId);
   });
   return c.json(view);
@@ -130,30 +131,25 @@ profiles.post('/:id/publish', async (c) => {
   const userId = c.var.user!.id;
   const view = await withActor(c, async (tx) => {
     const row = await operatedProfile(tx, id);
-    if (!(await actorRights(tx, id)).canEdit) fail(403, 'CANNOT_EDIT', 'You cannot publish this profile.');
-    if (row.status === 'suspended') fail(403, 'SUSPENDED', 'This profile is suspended. Please contact support.');
+    if (!(await actorRights(tx, id)).canEdit) fail(403, 'CANNOT_EDIT', 'api.profile.cannotPublish');
+    if (row.status === 'suspended') fail(403, 'SUSPENDED', 'api.profile.suspended');
     const contacts = await tx.select().from(privateContact).where(eq(privateContact.profileId, id));
     const missing = missingForPublication(row, contacts);
     if (missing.length) {
-      fail(400, 'PROFILE_INCOMPLETE', 'Complete the profile before publishing.', Object.fromEntries(missing.map((key) => [key, 'Required'])));
+      fail(400, 'PROFILE_INCOMPLETE', 'api.profile.incomplete', Object.fromEntries(missing.map((key) => [key, 'validation.required' as const])));
     }
     if (row.candidateObjectionAt) {
-      fail(409, 'CANDIDATE_OBJECTED', 'The candidate has asked for this profile not to be shown. Only they can change that.');
+      fail(409, 'CANDIDATE_OBJECTED', 'api.profile.candidateObjected');
     }
     const [{ verified } = { verified: false }] = rows<{ verified: boolean }>(
       await tx.execute(sql`select app.publisher_verified(${id}) as verified`),
     );
     if (!verified) {
       const publisher = (await profilePeople(tx, id)).publisher;
-      const needs = [
-        ...(publisher?.phoneVerified ? [] : ['a phone number verified by SMS code']),
-        ...(publisher?.documentStatus === 'approved' ? [] : ['an approved identity document']),
-      ];
-      fail(
-        403,
-        'VERIFICATION_REQUIRED',
-        `Before publishing, ${publisher?.isMe ? 'you need' : 'the profile manager needs'} ${needs.join(' and ') || 'verification'}.`,
-      );
+      const phone = !publisher?.phoneVerified;
+      const document = publisher?.documentStatus !== 'approved';
+      const needs = phone && document ? 'both' : phone ? 'phone' : document ? 'document' : 'verification';
+      fail(403, 'VERIFICATION_REQUIRED', `api.publish.${publisher?.isMe ? 'you' : 'manager'}.${needs}`);
     }
     await tx.update(profile).set({ status: 'published' }).where(eq(profile.id, id));
     return ownProfileView(tx, id, userId);
@@ -167,8 +163,8 @@ profiles.post('/:id/pause', async (c) => {
   const userId = c.var.user!.id;
   const view = await withActor(c, async (tx) => {
     const row = await operatedProfile(tx, id);
-    if (!(await actorRights(tx, id)).canEdit) fail(403, 'CANNOT_EDIT', 'You cannot change this profile.');
-    if (row.status !== 'published') fail(409, 'NOT_PUBLISHED', 'Only a published profile can be paused.');
+    if (!(await actorRights(tx, id)).canEdit) fail(403, 'CANNOT_EDIT', 'api.profile.cannotChange');
+    if (row.status !== 'published') fail(409, 'NOT_PUBLISHED', 'api.profile.pauseNotPublished');
     await tx.update(profile).set({ status: 'paused' }).where(eq(profile.id, id));
     return ownProfileView(tx, id, userId);
   });
@@ -182,13 +178,13 @@ profiles.post('/:id/contacts', async (c) => {
   const input = parse(contactSchema, await readJson(c));
   const contact = await withActor(c, async (tx) => {
     const row = await operatedProfile(tx, id);
-    if (!(await actorRights(tx, id)).canEdit) fail(403, 'CANNOT_EDIT', 'You cannot change this profile’s contacts.');
+    if (!(await actorRights(tx, id)).canEdit) fail(403, 'CANNOT_EDIT', 'api.contacts.cannotChange');
     if (input.kind === 'social') {
       const [socials] = await tx
         .select({ n: count() })
         .from(privateContact)
         .where(and(eq(privateContact.profileId, id), eq(privateContact.kind, 'social')));
-      if ((socials?.n ?? 0) >= MAX_SOCIAL_LINKS) fail(409, 'TOO_MANY_SOCIALS', `Add up to ${MAX_SOCIAL_LINKS} social links.`);
+      if ((socials?.n ?? 0) >= MAX_SOCIAL_LINKS) fail(409, 'TOO_MANY_SOCIALS', 'api.contacts.tooManySocials');
     }
     const [created] = await tx
       .insert(privateContact)
@@ -211,7 +207,7 @@ profiles.patch('/:id/contacts/:contactId', async (c) => {
       .set(input)
       .where(and(eq(privateContact.id, contactId), eq(privateContact.profileId, id)))
       .returning();
-    if (!updated) fail(404, 'NOT_FOUND', 'Contact not found.');
+    if (!updated) fail(404, 'NOT_FOUND', 'api.contacts.notFound');
     return contactView(updated, row.management);
   });
   return c.json(contact);
@@ -222,12 +218,12 @@ profiles.delete('/:id/contacts/:contactId', async (c) => {
   const contactId = idParam(c.req.param('contactId'));
   await withActor(c, async (tx) => {
     await operatedProfile(tx, id);
-    if (!(await actorRights(tx, id)).canEdit) fail(403, 'CANNOT_EDIT', 'You cannot change this profile’s contacts.');
+    if (!(await actorRights(tx, id)).canEdit) fail(403, 'CANNOT_EDIT', 'api.contacts.cannotChange');
     const removed = await tx
       .delete(privateContact)
       .where(and(eq(privateContact.id, contactId), eq(privateContact.profileId, id)))
       .returning({ id: privateContact.id });
-    if (!removed.length) fail(404, 'NOT_FOUND', 'Contact not found.');
+    if (!removed.length) fail(404, 'NOT_FOUND', 'api.contacts.notFound');
   });
   return c.body(null, 204);
 });
@@ -241,13 +237,13 @@ profiles.patch('/:id/manager', async (c) => {
   const userId = c.var.user!.id;
   const view = await withActor(c, async (tx) => {
     const row = await operatedProfile(tx, id);
-    if (row.candidateUserId !== userId) fail(403, 'CANDIDATE_ONLY', 'Only the candidate sets the manager’s permissions.');
+    if (row.candidateUserId !== userId) fail(403, 'CANDIDATE_ONLY', 'api.candidate.onlyPermissions');
     const updated = await tx
       .update(profileManager)
       .set(input)
       .where(and(eq(profileManager.profileId, id), isNull(profileManager.revokedAt)))
       .returning({ id: profileManager.id });
-    if (!updated.length) fail(404, 'NO_MANAGER', 'This profile has no manager.');
+    if (!updated.length) fail(404, 'NO_MANAGER', 'api.candidate.noManager');
     return ownProfileView(tx, id, userId);
   });
   return c.json(view);
@@ -264,8 +260,8 @@ async function candidateAction(
     const [{ result } = { result: { status: 'forbidden' } }] = rows<{ result: { status: string } }>(
       await tx.execute(sql`select app.${sql.raw(fn)}(${id}) as result`),
     );
-    if (result.status === 'forbidden') fail(403, 'CANDIDATE_ONLY', 'Only the candidate can do this.');
-    if (result.status === 'already_self_managed') fail(409, 'ALREADY_SELF_MANAGED', 'You already manage this profile.');
+    if (result.status === 'forbidden') fail(403, 'CANDIDATE_ONLY', 'api.candidate.only');
+    if (result.status === 'already_self_managed') fail(409, 'ALREADY_SELF_MANAGED', 'api.candidate.alreadySelfManaged');
     return ownProfileView(tx, id, userId);
   });
 }
@@ -315,20 +311,20 @@ profiles.post('/:id/invitations', async (c) => {
   const { config, messenger } = c.var.deps;
   const user = c.var.user!;
   if (input.channel === 'phone' && !messenger.smsEnabled) {
-    fail(503, 'SMS_UNAVAILABLE', 'SMS invitations are not available yet. Please invite by email.');
+    fail(503, 'SMS_UNAVAILABLE', 'api.invite.smsUnavailable');
   }
   const sent = await withActor(c, async (tx) => {
     const row = await operatedProfile(tx, id);
     // One invitation at a time per profile, so the daily limit cannot be raced.
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${'invitation:' + id}))`);
-    if (row.management !== 'manager' || row.candidateUserId) fail(409, 'CANDIDATE_JOINED', 'The candidate has already joined.');
-    if (row.candidateObjectionAt) fail(409, 'CANDIDATE_OBJECTED', 'The candidate declined this profile.');
+    if (row.management !== 'manager' || row.candidateUserId) fail(409, 'CANDIDATE_JOINED', 'api.invite.candidateJoined');
+    if (row.candidateObjectionAt) fail(409, 'CANDIDATE_OBJECTED', 'api.invite.candidateDeclined');
     const [recent] = await tx
       .select({ n: count() })
       .from(invitation)
       .where(and(eq(invitation.profileId, id), gt(invitation.createdAt, sql`now() - interval '24 hours'`)));
     if ((recent?.n ?? 0) >= MAX_INVITATIONS_PER_DAY) {
-      fail(429, 'INVITATION_LIMIT', `You can send up to ${MAX_INVITATIONS_PER_DAY} invitations a day for this profile.`);
+      fail(429, 'INVITATION_LIMIT', { key: 'api.invite.dailyLimit', vars: { max: MAX_INVITATIONS_PER_DAY } });
     }
     const token = newInvitationToken();
     const [created] = await tx
@@ -342,19 +338,21 @@ profiles.post('/:id/invitations', async (c) => {
         resendNumber: recent?.n ?? 0,
       })
       .returning();
+    // The invitation goes out in the language the manager is using (proposed; the candidate has no account yet).
+    const language = requestLanguage(c);
     const wording = {
-      managerName: user.name || 'A family member',
+      managerName: user.name || null,
       candidateName: row.displayName,
       link: invitationLink(config.memberAppUrl, token),
       hours: INVITATION_TTL_HOURS,
     };
     // Sending inside the transaction: if delivery fails, the invitation is not kept.
     try {
-      if (input.channel === 'email') await messenger.sendEmail({ to: input.contact, ...invitationEmail(wording) });
-      else await messenger.sendSms({ to: input.contact, body: invitationSms(wording) });
+      if (input.channel === 'email') await messenger.sendEmail({ to: input.contact, ...invitationEmail(language, wording) });
+      else await messenger.sendSms({ to: input.contact, body: invitationSms(language, wording) });
     } catch (err) {
-      if (err instanceof SmsUnavailableError) fail(503, 'SMS_UNAVAILABLE', err.message);
-      fail(502, 'SEND_FAILED', 'The invitation could not be sent. Please check the address and try again.');
+      if (err instanceof SmsUnavailableError) fail(503, 'SMS_UNAVAILABLE', 'api.sms.unavailable');
+      fail(502, 'SEND_FAILED', 'api.invite.sendFailed');
     }
     return created!;
   });

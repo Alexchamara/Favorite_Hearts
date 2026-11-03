@@ -11,14 +11,17 @@ import { Button } from '@/components/ui/button';
 import { del, errorMessage, post } from '@/lib/api';
 import { refreshRelations, useBlocks, useConnections } from '@/lib/queries';
 import { ContactList, MemberRow } from '@/features/browse/MemberCard';
+import { formatDay } from '@/lib/format';
+import { say, useI18n } from '@/lib/i18n';
 
 export function ConnectionsPanel({ profile }: { profile: ProfileView }) {
   const connections = useConnections(profile.id);
   const blocks = useBlocks(profile.id);
+  const { t } = useI18n();
   const end = useMutation({
     mutationFn: (id: string) => post(`/connections/${id}/end`),
     onSuccess: async () => {
-      toast.success('Connection ended.');
+      toast.success(say('connections.ended'));
       await refreshRelations();
     },
     onError: (error) => toast.error(errorMessage(error)),
@@ -26,7 +29,7 @@ export function ConnectionsPanel({ profile }: { profile: ProfileView }) {
   const unblock = useMutation({
     mutationFn: (id: string) => del(`/profiles/${profile.id}/blocks/${id}`),
     onSuccess: async () => {
-      toast.success('Unblocked. You can see each other again.');
+      toast.success(say('connections.unblocked'));
       await refreshRelations();
     },
     onError: (error) => toast.error(errorMessage(error)),
@@ -35,43 +38,41 @@ export function ConnectionsPanel({ profile }: { profile: ProfileView }) {
   return (
     <div className="flex flex-col gap-6">
       <Card>
-        <h2 className="font-serif text-2xl">Connections</h2>
+        <h2 className="font-serif text-2xl">{t('connections.title')}</h2>
         {connections.isPending ? (
           <Loading />
         ) : connections.isError ? (
           <Notice tone="error">{errorMessage(connections.error)}</Notice>
         ) : connections.data.length === 0 ? (
-          <p className="mt-2 text-sm text-muted-foreground">No connections yet. A connection starts when both sides accept.</p>
+          <p className="mt-2 text-sm text-muted-foreground">{t('connections.none')}</p>
         ) : (
           <ul className="mt-2 divide-y">
             {connections.data.map((item) => {
-              const name = item.profile?.displayName ?? 'this member';
+              const name = item.profile?.displayName ?? t('connections.thisMember');
               return (
                 <li key={item.id} className="py-2">
                   <MemberRow card={item.profile} href={item.profile ? `/members/${item.profileId}?as=${profile.id}` : undefined}>
                     <Confirm
-                      title={`End the connection with ${name}?`}
-                      action="End connection"
+                      title={t('connections.end.title', { name })}
+                      action={t('connections.end')}
                       destructive
                       onConfirm={() => end.mutate(item.id)}
                       trigger={
                         <Button variant="outline" className="h-10">
-                          End connection
+                          {t('connections.end')}
                         </Button>
                       }
                     >
-                      <p>From now on neither of you sees the other’s contact details or unblurred photos.</p>
-                      <p>A new request between you can be sent after 7 days.</p>
+                      <p>{t('connections.end.details')}</p>
+                      <p>{t('connections.end.cooldown')}</p>
                     </Confirm>
                   </MemberRow>
-                  <p className="text-xs text-muted-foreground">Connected since {new Date(item.acceptedAt).toLocaleDateString()}</p>
+                  <p className="text-xs text-muted-foreground">{t('connections.since', { date: formatDay(item.acceptedAt) })}</p>
                   {item.contacts ? (
                     <ContactList contacts={item.contacts} />
                   ) : (
                     <p className="mt-2 text-sm text-muted-foreground">
-                      {item.contactsHidden === 'plan_needed'
-                        ? 'This profile’s plan has ended, so contact details are hidden. They come back on renewal.'
-                        : 'The candidate has not allowed you to see the contact details connections share.'}
+                      {t(item.contactsHidden === 'plan_needed' ? 'connections.hidden.plan' : 'connections.hidden.candidate')}
                     </p>
                   )}
                 </li>
@@ -82,23 +83,23 @@ export function ConnectionsPanel({ profile }: { profile: ProfileView }) {
       </Card>
 
       <Card>
-        <h2 className="font-serif text-2xl">Blocked</h2>
+        <h2 className="font-serif text-2xl">{t('blocks.title')}</h2>
         {blocks.isPending ? (
           <Loading />
         ) : blocks.isError ? (
           <Notice tone="error">{errorMessage(blocks.error)}</Notice>
         ) : blocks.data.length === 0 ? (
-          <p className="mt-2 text-sm text-muted-foreground">You have not blocked anyone.</p>
+          <p className="mt-2 text-sm text-muted-foreground">{t('blocks.none')}</p>
         ) : (
           <ul className="mt-2 divide-y text-sm">
             {blocks.data.map((item) => (
               <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                 <span>
-                  {item.displayName ?? 'A member'}
-                  <span className="block text-xs text-muted-foreground">Blocked on {new Date(item.blockedAt).toLocaleDateString()}</span>
+                  {item.displayName ?? t('blocks.aMember')}
+                  <span className="block text-xs text-muted-foreground">{t('blocks.since', { date: formatDay(item.blockedAt) })}</span>
                 </span>
                 <Button variant="outline" className="h-10" disabled={unblock.isPending} onClick={() => unblock.mutate(item.id)}>
-                  Unblock
+                  {t('blocks.unblock')}
                 </Button>
               </li>
             ))}

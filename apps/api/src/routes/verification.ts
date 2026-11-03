@@ -35,28 +35,28 @@ verification.get('/', async (c) => {
 verification.post('/', async (c) => {
   const { storage } = c.var.deps;
   const userId = c.var.user!.id;
-  const form = await c.req.parseBody().catch(() => fail(400, 'BAD_FORM', 'Send the document as a form upload.'));
+  const form = await c.req.parseBody().catch(() => fail(400, 'BAD_FORM', 'api.upload.documentForm'));
   const documentType = parse(documentTypeSchema, form.documentType);
   const file = form.file;
-  if (!(file instanceof File)) fail(400, 'VALIDATION', 'Choose a photo of the document.', { file: 'Required' });
+  if (!(file instanceof File)) fail(400, 'VALIDATION', 'api.verification.chooseDocument', { file: 'validation.required' });
 
   // Friendly answers before the upload; the database enforces both again on insert.
   await withActor(c, async (tx) => {
     const [paused] = await tx.select().from(operationsFlag).where(eq(operationsFlag.key, 'document_submissions_paused'));
-    if (paused?.enabled) fail(403, 'DOCUMENTS_PAUSED', 'Document submissions are paused for now. Please try again later.');
+    if (paused?.enabled) fail(403, 'DOCUMENTS_PAUSED', 'api.verification.paused');
     const [pending] = await tx
       .select({ id: verificationCase.id })
       .from(verificationCase)
       .where(and(eq(verificationCase.subjectUserId, userId), eq(verificationCase.status, 'pending')));
-    if (pending) fail(409, 'VERIFICATION_PENDING', 'Your document is already waiting for review.');
+    if (pending) fail(409, 'VERIFICATION_PENDING', 'api.verification.pending');
   });
-  if (!storage.configured) fail(503, 'STORAGE_UNAVAILABLE', 'Document upload is not available yet.');
+  if (!storage.configured) fail(503, 'STORAGE_UNAVAILABLE', 'api.verification.uploadUnavailable');
 
   let image: Buffer;
   try {
     image = (await processDocument(Buffer.from(await file.arrayBuffer()))).image;
   } catch (err) {
-    if (err instanceof InvalidImageError) fail(400, 'INVALID_DOCUMENT', err.message);
+    if (err instanceof InvalidImageError) fail(400, 'INVALID_DOCUMENT', err.key);
     throw err;
   }
   const key = newObjectKey('documents');

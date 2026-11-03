@@ -20,7 +20,7 @@ without output.
 | 2 Accounts and verification (codes, invites, takeover, badges, staff 2FA, documents) | **done (2a server, 2b screens), awaiting owner review.** SMS **BLOCKED** until a provider is chosen; evidence below. |
 | 3 Requests, connections and privacy | **done (3a server, 3b screens), awaiting owner review.** Evidence below. |
 | 4 Plans, payments, email, Turnstile | **done (4a server, 4b screens), awaiting owner review.** Real payment details, Turnstile keys and email to members are **BLOCKED** on the owner; evidence below. |
-| 5 Content, safety and quality | **5a (safety) and 5b (website text and SEO) done, awaiting owner review.** The terms and privacy policy wait for the owner's lawyer (`docs/LEGAL-REVIEW.md`). 5c (Sinhala and accessibility) not started. Evidence below. |
+| 5 Content, safety and quality | **5a (safety), 5b (website text and SEO) and 5c (English and Sinhala in the app, emails and the reviewer's spreadsheet) done, awaiting owner review.** The terms and privacy policy wait for the owner's lawyer (`docs/LEGAL-REVIEW.md`); all Sinhala waits for the owner's reviewer. 5d (the website in Sinhala) and 5e (accessibility) not started. Evidence below. |
 | 6 Test, harden and hand over | not started |
 
 ## Decisions recorded during setup
@@ -106,6 +106,16 @@ without output.
 | 2026-10-31 | Astro pinned to 7.4.0, the newest release at least two weeks old; the website then has no audit findings. Node 22.22 or newer, as Astro 7.4.0 requires. | Engineering |
 | 2026-10-31 | `npm run build:site` ends with the site check (`scripts/check-site.mjs`): an SEO mistake, a broken link or a sitemap that misses a page fails the build. | Engineering |
 | 2026-10-31 | The member app shows the support channels from the website's `site.config.json`, so the two never disagree (audit X06). | Engineering |
+| 2026-11-03 | The rest of Stage 5 in three parts: 5c English and Sinhala in the member app, the API's messages, emails and texts, with the reviewer's spreadsheet; 5d the website in Sinhala; 5e accessibility. | Owner |
+| 2026-11-03 | Sinhala website pages get their own addresses (`/si/…`); the visitor's choice follows them into the app, and the app saves it on the account so emails and texts use it. | Owner |
+| 2026-11-03 | The reviewer works in an Excel file (.xlsx), which opens in Excel, Google Sheets and Numbers; one command reads it back. | Owner |
+| 2026-11-03 | Staff screens (owner and backup reviewer) stay in English. | Owner |
+| 2026-11-03 | A language chosen on a device wins over the account's and is saved to it; a device where nobody chose takes the account's language. The API answers in the request's language; emails use the saved one. | Proposed — confirm |
+| 2026-11-03 | An invitation goes out in the inviting manager's language (the candidate has no account yet). | Proposed — confirm |
+| 2026-11-03 | Sinhala month names are drafted in the everyday form (ජනවාරි … දෙසැම්බර්), dates as "2026 දෙසැම්බර් 3"; the reviewer may choose the traditional names (දුරුතු … උඳුවප්) instead. Country names are drafted from the Unicode CLDR list. | Proposed — confirm |
+| 2026-11-03 | Sinhala uses the phone's or computer's own Sinhala font (no web font is downloaded). | Proposed — confirm |
+| 2026-11-03 | Plan names stay exactly as the owner types them in both languages (the owner may write both, e.g. "Premium 3 months / ප්‍රීමියම් මාස 3"). Members' own words and names are never translated. | Proposed — confirm |
+| 2026-11-03 | Texts live in catalogues in `packages/shared/src/i18n` (English the source, a missing translation falls back to English); the spreadsheet tools need no dependency; dates and country names come from the catalogues, not the browser. | Engineering |
 
 ## Step 5 evidence
 
@@ -616,11 +626,24 @@ Open:
   (operator, governing law, liability, SMS provider and API host): `docs/LEGAL-REVIEW.md` (W08–W11).
 - [ ] **Owner action:** the Facebook, Instagram and TikTok addresses, if the owner wants them shown.
 
-5c, Sinhala and accessibility:
+5c, English and Sinhala in the app, emails and the spreadsheet (done):
 
-- [ ] English and Sinhala with Tamil hidden (W14, P27); a spreadsheet of all text (English and Sinhala columns) for the
-  owner's reviewer, read back into the app and website.
-- [ ] Accessibility fixes on the website and the member app.
+- [x] English and Sinhala with Tamil hidden (P27) in the member app, the API's messages, emails and text messages:
+  every text in catalogues, a language switch, the account's saved language, Sinhala drafts of everything members see.
+- [x] A spreadsheet of all text (key, where, English, Sinhala, the reviewer's Sinhala, status, notes) for the owner's
+  reviewer, read back with `npm run text:import` (OWNER-DECISIONS section 10: "the reviewer never touches code").
+- [ ] **Owner action:** the native-speaker reviewer goes through the spreadsheet (1,272 texts); the lawyer reviews the
+  rows marked "Legal wording".
+
+5d, the website in Sinhala:
+
+- [ ] Sinhala pages at `/si/…` with Tamil hidden, the language dialog's "Website content is currently in English"
+  removed (W14), the website's text in the spreadsheet, and the Sinhala terms and privacy policy for the lawyer.
+
+5e, accessibility:
+
+- [ ] Accessibility fixes on the website and the member app (spec 10.4: keyboard-only use, visible focus, contrast,
+  labels and errors, reduced motion, modals that scroll, safe mobile heights, 200% zoom).
 
 **Stage 6: Harden and hand over.** Unchanged from spec 17.1.
 
@@ -2170,3 +2193,164 @@ catalogue of the §2 plans). The owner's sandbox on 8788/5174 was not touched.
 - `@hono/node-server` 2.x, which fixes an advisory this API cannot reach: proposed as its own change, with the API
   tests.
 - Migrations 0008–0011 on Neon dev and pushing to GitHub: on request, as before.
+
+## Stage 5c evidence (3 Nov 2026): English and Sinhala in the app, emails and the reviewer's spreadsheet
+
+Scope (Part 3 "Stage 5": "Implement English and Sinhala with Tamil hidden, and export all text to a spreadsheet for my
+reviewer"), for the member app, the API's messages, emails and text messages. The website in Sinhala is 5d;
+accessibility is 5e.
+
+### Owner decisions taken at the start
+
+- The rest of Stage 5 in three parts: 5c (this), 5d website in Sinhala, 5e accessibility.
+- Sinhala website pages at their own addresses (`/si/…`); the choice follows the visitor into the app and is saved on
+  the account, so emails and texts use it.
+- The reviewer's spreadsheet is an Excel file.
+- Staff screens stay in English.
+
+### What was built
+
+- **Catalogues** (`packages/shared/src/i18n`): every text members see, in five areas (app 1,022 texts including 249
+  country names; shared 27 month and date texts; API messages 156, of which 126 members can see; form checks 61, of
+  which 37; emails and text messages 60). Sinhala drafts for all 1,272 member-facing texts; Tamil hidden with the 5
+  words the demo had translated, and the demo's 80 phrases kept in `glossary.json`.
+- **Shared** (`packages/shared/src/text.ts`): languages (English and Sinhala offered, Tamil hidden), Accept-Language
+  parsing, placeholders and plural forms, limits filled from the rules (`TEXT_CONSTANTS`), Zod problems as keys
+  (`issueText`), and dates on the Sri Lanka clock from the catalogue (`formatDate`). Every schema message is a key.
+- **API:** errors, field messages, the database rule answers, image checks, the rate-limit answer and Better-Auth's
+  hook refusals in the request's language; codes, invitations and queued emails in the right language (see
+  ARCHITECTURE "Languages"); a new member account starts in the sign-up's language; `PUT /api/v1/me/language`.
+- **Member app:** `lib/i18n.tsx` (provider, `t`, `rich`, the language switch, the account's language, `EnglishOnly`
+  for staff), every member screen and shared component on catalogue keys (36 files), value lists through `useLabels()`, dates
+  and countries from the catalogue, `<html lang>` and `Accept-Language` on every request.
+- **Spreadsheet tools** (`scripts/text/`, `npm run text:export`, `text:import`, `text:status`), with no dependency.
+
+### `npm test`: 152 tests, all passing
+
+144 API tests (131 before, and 13 new in `apps/api/test/text.test.ts`) and 8 spreadsheet tests
+(`scripts/text/text.test.mjs`, now part of the root `npm test`):
+
+```text
+▶ text catalogues
+  ✔ every translation exists in English, keeps its placeholders and tags, and members see nothing untranslated
+  ✔ each catalogue keeps to its own keys, and staff texts are only in English
+  ✔ every value the app shows from a list has a label, and so does every language the switch offers
+  ✔ limits named in the texts come from the rules themselves
+  ✔ dates read the Sri Lanka clock and use the catalogue’s month names and order, not the browser’s
+  ✔ every country has a name in both languages
+  ✔ the best offered language is picked from Accept-Language; Tamil is hidden
+  ✔ plural forms and the English fallback
+▶ the API in Sinhala
+  ✔ errors come in the language the request asks for, English otherwise
+  ✔ field messages are translated, with the limit filled in
+  ✔ a new account starts in the sign-up language; the member can change it, but not to hidden Tamil
+  ✔ sign-in codes are emailed in the language of the screen that asked
+  ✔ queued emails use the language the member saved; plan names stay as the owner wrote them
+ℹ tests 144
+ℹ suites 49
+ℹ pass 144
+ℹ fail 0
+
+▶ xlsx
+  ✔ zip and unzip round trip, with Unicode names and contents
+  ✔ what the writer writes, the reader reads back exactly
+  ✔ a file openpyxl saved (inline strings, rich text, empty cells) reads correctly
+  ✔ Excel’s layout (shared strings, rich text, phonetic hints, numbers, an empty string) reads correctly
+▶ export and import
+  ✔ the export has one row per text members see, with status and what to keep
+  ✔ corrections and approvals come back in; broken rows are refused with a reason
+  ✔ a dry run reports without writing, and Excel’s layout imports the same way
+  ✔ when the English changes after a review, the text is a draft again and old rows are skipped
+ℹ tests 8
+ℹ pass 8
+ℹ fail 0
+```
+
+### Mutation check: every deliberate break caught
+
+```text
+CAUGHT api answers ignore Accept-Language
+CAUGHT queued emails ignore the saved language
+CAUGHT new accounts lose the sign-up language
+CAUGHT codes always emailed in English
+CAUGHT field messages lose their key
+CAUGHT dates on the wrong clock
+CAUGHT plural forms ignored
+CAUGHT a Sinhala text missing
+CAUGHT a Sinhala text drops a placeholder
+CAUGHT hidden Tamil can be chosen
+CAUGHT import skips the placeholder check
+CAUGHT import ignores changed English
+CAUGHT staff texts exported
+CAUGHT rich text read as its first run only
+14/14 caught
+```
+
+### The spreadsheet
+
+`npm run text:export` → `dist/text/favorite-hearts-text-si-2026-11-03.xlsx` (102 KB): "1272 texts: 1272 translated, 0
+approved, 0 with changed English." Python's `zipfile` and XML parser read every part; macOS Quick Look rendered it,
+Sinhala included; `openpyxl` 3.1.5 (installed only in a scratch folder) opened it. Acting as the reviewer, `openpyxl`
+then corrected three rows, approved two, marked one "Needs discussion", broke one placeholder and changed one English
+cell, and saved; the import (on a copy of the catalogues) reported:
+
+```text
+corrected: common.cancel, signIn.sent, api.signIn   approved: common.loading, email.code.intro
+discuss: layout.help (“උදව්” හෝ “සහාය”?)          unchanged: 988
+problem: App row 5 (common.close): the English has changed since this file was made, so the row was skipped.
+problem: App row 253 (dashboard.kicker): the text must keep {name} as in the English; it has none. Not imported.
+```
+
+`npm run text:status` now:
+
+```text
+Language: si
+  app         1022 texts  1022 translated     0 approved
+  shared        27 texts    27 translated     0 approved
+  api          126 texts   126 translated     0 approved
+  validation    37 texts    37 translated     0 approved
+  email         60 texts    60 translated     0 approved
+  all         1272 texts  1272 translated     0 approved
+```
+
+### Browser walkthrough
+
+The built site (ports 8099/8799, the sandbox's synthetic members, Cloudflare's test keys). The owner's sandbox was not
+touched.
+
+| Checked | Result |
+| --- | --- |
+| Sign-in page, switch to සිංහල | `<html lang="si">`, "අර්ථවත් ආරම්භයක්.", the choice saved in `fh-visitor-preferences`; the button then offers "English". |
+| Code email | The sandbox printed "Subject: ඔබේ Favorite Hearts පිවිසුම් කේතය" and the Sinhala body. |
+| Signed in as Bina | The switch saved Sinhala to the account (`memberAccount.locale: si`); clearing the browser's choice and reloading (a new device) came back in Sinhala from the account. |
+| Profile, all 7 tabs | No English left but the owner's plan name "Starter"; dates "2026 දෙසැ 2, 10:55 (ශ්‍රී ලංකා වේලාව)". |
+| Browse and another member's profile | No English left except the members' own words; countries in Sinhala ("ශ්‍රී ලංකාව"), sorted by their Sinhala names. |
+| Phones (375 px) | No sideways scrolling on the dashboard, profile, browse and verification pages; the header wraps to two rows. |
+| Staff sign-in | Stays English (`lang="en"`, no language switch, no help footer) while the browser's choice stays Sinhala; back in the member app it is Sinhala again. |
+
+### Problems found while building and walking through, all fixed
+
+- After signing in, the app switched to the account's English although the visitor had just chosen Sinhala. A choice
+  made on the device now wins and is saved to the account.
+- The browser used here has no Sinhala calendar or country data and quietly showed "Dec" and English country names.
+  Dates and countries now come from the catalogues.
+- Two screens still said buying a plan "opens in a later update"; they now point to the Plan tab.
+- A badly typed address on the sign-in page would have shown Zod's raw error; it now shows the translated message.
+- The toasts' screen-reader label was English ("Notifications"); now translated.
+
+### `npm run typecheck` and `npm run build:site`
+
+- `npm run typecheck`: exit 0 (`astro check` 0 errors, 0 warnings, 0 hints).
+- `npm run build:site`: exit 0; the site check found "No problems found." The member app's main chunk is 710.01 kB
+  (210.90 kB compressed; 551.36 kB in 5b): both languages' texts, country names included, are in it. Loading Sinhala
+  only when chosen is noted for Stage 6.
+
+### Not done in 5c
+
+- **Owner action:** the native-speaker reviewer reviews the 1,272 Sinhala drafts in the spreadsheet; the lawyer reviews
+  the rows marked "Legal wording" (also listed in `docs/LEGAL-REVIEW.md`).
+- 5d: the website in Sinhala at `/si/…`, its text in the spreadsheet, the Sinhala terms and privacy policy (W14).
+- 5e: accessibility. Seen while walking through: the sign-in email field is announced by its placeholder.
+- Opening the spreadsheet in Microsoft Excel itself was not tried (it would open Excel on the owner's Mac); files saved
+  by `openpyxl` and Excel's own layout are covered by tests.
+- Pushing to GitHub and Neon migrations 0008–0011: on request, as before (5c adds no migration).

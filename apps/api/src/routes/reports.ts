@@ -9,6 +9,7 @@ import { reportSchema } from '@fh/shared';
 import { parse, readJson, withActor, type AppEnv } from '../http.ts';
 import { rows } from '../lib/profile-view.ts';
 import { requireMember } from '../middleware/session.ts';
+import { requestLanguage, text } from '../text.ts';
 
 export const reports = new Hono<AppEnv>().use(requireMember);
 
@@ -24,5 +25,5 @@ reports.post('/', async (c) => {
     return row!.id;
   });
   // The reporter learns only that the report was received, never whether it hid anything.
-  return c.json({ id, message: 'Thank you. Our staff will review it.' }, 201);
+  return c.json({ id, message: text(requestLanguage(c), 'api.reports.received') }, 201);
 });

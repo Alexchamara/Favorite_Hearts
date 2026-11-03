@@ -13,6 +13,7 @@ import { rows } from '../lib/profile-view.ts';
 import { SmsUnavailableError } from '../messaging/messenger.ts';
 import { codeEmail, codeSms } from '../messaging/templates.ts';
 import { requireMember } from '../middleware/session.ts';
+import { requestLanguage } from '../text.ts';
 
 /** Codes a link can request (each lasts 10 minutes and allows 5 tries). */
 export const MAX_CODES_PER_INVITATION = 3;
@@ -28,18 +29,18 @@ async function call(c: Context<AppEnv>, query: ReturnType<typeof sql>): Promise<
 function codeProblem(status: string): never {
   switch (status) {
     case 'wrong_code':
-      fail(400, 'WRONG_CODE', 'That code is not right. Check the latest code and try again.');
+      fail(400, 'WRONG_CODE', 'api.invitation.wrongCode');
     case 'code_expired':
-      fail(400, 'CODE_EXPIRED', 'That code has expired or was tried too many times. Ask for a new code.');
+      fail(400, 'CODE_EXPIRED', 'api.invitation.codeExpired');
     case 'unauthenticated':
-      fail(401, 'UNAUTHENTICATED', 'Please sign in to accept.');
+      fail(401, 'UNAUTHENTICATED', 'api.invitation.signInToAccept');
     case 'is_manager':
-      fail(409, 'IS_MANAGER', 'The profile manager cannot accept on the candidate’s behalf.');
+      fail(409, 'IS_MANAGER', 'api.invitation.isManager');
     case 'already_candidate':
-      fail(409, 'ALREADY_CANDIDATE', 'This account already has its own profile.');
+      fail(409, 'ALREADY_CANDIDATE', 'api.invitation.alreadyCandidate');
     default:
       // One answer for every unusable link, so the token reveals nothing about the invitation.
-      fail(404, 'INVITATION_INVALID', 'This invitation link can no longer be used: it has expired, been replaced by a newer one, or already been answered.');
+      fail(404, 'INVITATION_INVALID', 'api.invitation.invalid');
   }
 }
 
@@ -77,15 +78,15 @@ invitations.post('/code', async (c) => {
       ),
     );
     const result = row!.result;
-    if (result.status === 'limit') fail(429, 'CODE_LIMIT', 'Too many codes were requested for this invitation. Ask for a new invitation.');
+    if (result.status === 'limit') fail(429, 'CODE_LIMIT', 'api.invitation.codeLimit');
     if (result.status !== 'sent') codeProblem(result.status);
     // Sent inside the transaction: if delivery fails, the code is not counted.
     try {
-      if (result.channel === 'email') await messenger.sendEmail({ to: result.contact!, ...codeEmail('invitation', code, CODE_MINUTES) });
-      else await messenger.sendSms({ to: result.contact!, body: codeSms(code, CODE_MINUTES) });
+      if (result.channel === 'email') await messenger.sendEmail({ to: result.contact!, ...codeEmail(requestLanguage(c), 'invitation', code, CODE_MINUTES) });
+      else await messenger.sendSms({ to: result.contact!, body: codeSms(requestLanguage(c), code, CODE_MINUTES) });
     } catch (err) {
-      if (err instanceof SmsUnavailableError) fail(503, 'SMS_UNAVAILABLE', 'SMS codes are not available yet.');
-      fail(502, 'SEND_FAILED', 'The code could not be sent. Please try again shortly.');
+      if (err instanceof SmsUnavailableError) fail(503, 'SMS_UNAVAILABLE', 'api.invitation.smsUnavailable');
+      fail(502, 'SEND_FAILED', 'api.invitation.sendFailed');
     }
     return result;
   });

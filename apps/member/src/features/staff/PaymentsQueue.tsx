@@ -16,7 +16,9 @@ import { api, del, errorMessage, patch, post } from '@/lib/api';
 import { formatMoney, formatWhen, waitedFor } from '@/lib/format';
 import { useOwnerPayment, useOwnerPayments, useOwnerPlans, useOwnerProfilePlan } from '@/lib/queries';
 import { queryClient } from '@/lib/query-client';
-import { channelLabels, countryName, refundReasonLabels, termText, type PaymentStatus, type RefundReason } from '@/features/billing/labels';
+import { ENGLISH_BILLING, type PaymentStatus, type RefundReason } from '@/features/billing/labels';
+
+const { channelLabels, countryName, refundReasonLabels, termText } = ENGLISH_BILLING;
 
 /** As the owner sees them. */
 const statusLabels: Record<PaymentStatus, string> = {

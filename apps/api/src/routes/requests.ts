@@ -25,7 +25,7 @@ import { cardsById, scalar, sharedContacts } from '../lib/member-view.ts';
 import { operatedProfile, ownProfileView, rows } from '../lib/profile-view.ts';
 import { requireMember } from '../middleware/session.ts';
 
-const idParam = (value: string | undefined) => parse(z.uuid({ error: 'Not found.' }), value);
+const idParam = (value: string | undefined) => parse(z.uuid({ error: 'api.notFound' }), value);
 
 /** The other profile of a pair. */
 const other = (pair: { profileLow: string; profileHigh: string }, mine: string) => (pair.profileLow === mine ? pair.profileHigh : pair.profileLow);
@@ -50,7 +50,7 @@ profileRequests.post('/:id/interests', async (c) => {
 
 profileRequests.get('/:id/interests', async (c) => {
   const id = idParam(c.req.param('id'));
-  const box = parse(z.enum(['received', 'sent'], { error: 'Choose received or sent.' }).default('received'), c.req.query('box'));
+  const box = parse(z.enum(['received', 'sent'], { error: 'validation.chooseOption' }).default('received'), c.req.query('box'));
   const result = await withActor(c, async (tx): Promise<ReceivedInterests | { interests: SentInterestView[] }> => {
     await operatedProfile(tx, id);
     if (box === 'sent') return { interests: await sentInterests(c, tx, id) };
@@ -175,7 +175,7 @@ profileRequests.delete('/:id/blocks/:blockId', async (c) => {
       .set({ revokedAt: new Date() })
       .where(and(eq(block.id, blockId), eq(block.blockerProfileId, id), isNull(block.revokedAt)))
       .returning({ id: block.id });
-    if (!lifted.length) fail(404, 'NOT_FOUND', 'Block not found.');
+    if (!lifted.length) fail(404, 'NOT_FOUND', 'api.blocks.notFound');
   });
   return c.body(null, 204);
 });
@@ -255,19 +255,19 @@ interests.post('/:id/accept', async (c) => {
 /** Declining needs the receiver's plan, like accepting (section 1); withdrawing is for the sender. */
 async function closeInterest(tx: Tx, id: string, status: 'declined' | 'withdrawn') {
   const [found] = await tx.select().from(interest).where(eq(interest.id, id));
-  if (!found) fail(404, 'NOT_FOUND', 'Request not found.');
+  if (!found) fail(404, 'NOT_FOUND', 'api.requests.notFound');
   const side = status === 'declined' ? found.receiverProfileId : found.senderProfileId;
-  if (!(await scalar<boolean>(tx, sql`app.can_manage_interests(${side})`))) fail(404, 'NOT_FOUND', 'Request not found.');
-  if (found.status !== 'pending') fail(409, 'REQUEST_CLOSED', 'This request was already answered or withdrawn.');
+  if (!(await scalar<boolean>(tx, sql`app.can_manage_interests(${side})`))) fail(404, 'NOT_FOUND', 'api.requests.notFound');
+  if (found.status !== 'pending') fail(409, 'REQUEST_CLOSED', 'api.requests.closed');
   if (status === 'declined' && !(await scalar<boolean>(tx, sql`app.has_active_entitlement(${side})`))) {
-    fail(403, 'PLAN_REQUIRED', 'A plan is needed to see and answer requests.');
+    fail(403, 'PLAN_REQUIRED', 'api.requests.planRequired');
   }
   const changed = await tx
     .update(interest)
     .set({ status })
     .where(and(eq(interest.id, id), eq(interest.status, 'pending')))
     .returning({ id: interest.id });
-  if (!changed.length) fail(409, 'REQUEST_CLOSED', 'This request was already answered or withdrawn.');
+  if (!changed.length) fail(409, 'REQUEST_CLOSED', 'api.requests.closed');
 }
 
 interests.post('/:id/decline', async (c) => {

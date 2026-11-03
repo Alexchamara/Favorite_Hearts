@@ -27,7 +27,9 @@ import { errorMessage, post } from '@/lib/api';
 import { keys, useMe } from '@/lib/queries';
 import { queryClient } from '@/lib/query-client';
 import { SignIn } from '@/features/auth/SignIn';
-import { relationshipLabels } from '@/features/profile/options';
+import { useLabels } from '@/features/profile/options';
+import { formatWhen } from '@/lib/format';
+import { say, useI18n } from '@/lib/i18n';
 
 export default function InvitePage() {
   const token = useLocation().hash.slice(1);
@@ -37,22 +39,25 @@ export default function InvitePage() {
     enabled: token.length > 0,
     retry: false,
   });
+  const { t, rich } = useI18n();
   return (
     <AppShell>
       {!token ? (
-        <Notice tone="error">This invitation link is incomplete. Open the full link from your message.</Notice>
+        <Notice tone="error">{t('invite.incomplete')}</Notice>
       ) : preview.isPending ? (
         <Loading />
       ) : preview.isError ? (
         <>
-          <PageTitle title="This invitation cannot be used" />
+          <PageTitle title={t('invite.unusable.title')} />
           <Notice tone="warning">{errorMessage(preview.error)}</Notice>
           <p className="mt-4 text-sm text-muted-foreground">
-            If you accepted it,{' '}
-            <Link to="/" className="text-brand underline underline-offset-4">
-              sign in
-            </Link>{' '}
-            to see the profile. If the link has expired, ask the person who invited you for a new one.
+            {rich('invite.unusable.help', {
+              link: (words) => (
+                <Link to="/" className="text-brand underline underline-offset-4">
+                  {words}
+                </Link>
+              ),
+            })}
           </p>
         </>
       ) : (
@@ -69,8 +74,12 @@ function Invitation({ token, preview }: { token: string; preview: InvitationPrev
   const [codeSentTo, setCodeSentTo] = useState<string | null>(null);
   const [wantsToAccept, setWantsToAccept] = useState(false);
   const [declined, setDeclined] = useState(false);
-  const manager = preview.managerName ?? 'A family member';
-  const who = preview.relationship ? `${manager} (${relationshipLabels[preview.relationship].toLowerCase()})` : manager;
+  const { t, rich } = useI18n();
+  const { relationshipLabels } = useLabels();
+  const manager = preview.managerName ?? t('invite.someone');
+  const who = preview.relationship
+    ? t('invite.who', { manager, relationship: relationshipLabels[preview.relationship].toLowerCase() })
+    : manager;
 
   const bot = useBotCheck();
   const sendCode = useMutation({
@@ -81,7 +90,7 @@ function Invitation({ token, preview }: { token: string; preview: InvitationPrev
   const accept = useMutation({
     mutationFn: () => post<{ profileId: string }>('/invitations/accept', { token, code }),
     onSuccess: async ({ profileId }) => {
-      toast.success('You have confirmed the profile.');
+      toast.success(say('invite.confirmed'));
       await queryClient.invalidateQueries({ queryKey: keys.profiles });
       navigate(`/profiles/${profileId}`);
     },
@@ -94,68 +103,66 @@ function Invitation({ token, preview }: { token: string; preview: InvitationPrev
   if (declined) {
     return (
       <>
-        <PageTitle title="You declined" />
-        <Notice title="The profile has been taken down">
-          It will not be shown, and {manager} cannot publish it or invite you again. Thank you for letting us know.
-        </Notice>
+        <PageTitle title={t('invite.declined.title')} />
+        <Notice title={t('invite.declined.notice.title')}>{t('invite.declined.notice.body', { manager })}</Notice>
       </>
     );
   }
 
   return (
     <>
-      <PageTitle kicker="An invitation for you" title={`${who} has started a matrimony profile${preview.candidateName ? ` for ${preview.candidateName}` : ''}.`}>
-        Review it, then accept and confirm it, or decline. Nothing is decided without you. After accepting you can also take
-        the profile over and manage it yourself.
+      <PageTitle
+        kicker={t('invite.kicker')}
+        title={preview.candidateName ? t('invite.titleFor', { who, candidate: preview.candidateName }) : t('invite.title', { who })}
+      >
+        {t('invite.intro')}
       </PageTitle>
       <Card>
         {!codeSentTo ? (
           <div className="flex flex-col gap-4">
             <p className="text-sm">
-              To confirm it is you, we will send a code to <strong>{preview.contactHint}</strong>, the {preview.channel === 'email' ? 'email' : 'number'} {manager} entered for
-              you. The link expires on {new Date(preview.expiresAt).toLocaleString()}.
+              {rich(
+                preview.channel === 'email' ? 'invite.codeWillGo.email' : 'invite.codeWillGo.sms',
+                { strong: (words) => <strong>{words}</strong> },
+                { contact: preview.contactHint, manager, expires: formatWhen(preview.expiresAt) },
+              )}
             </p>
             {sendCode.isError && <Notice tone="error">{errorMessage(sendCode.error)}</Notice>}
             {bot.widget}
             <Button className="h-11 self-start" disabled={sendCode.isPending || !bot.ready} onClick={() => sendCode.mutate()}>
-              {sendCode.isPending ? 'Sending…' : 'Send me a code'}
+              {sendCode.isPending ? t('signIn.sending') : t('signIn.send')}
             </Button>
           </div>
         ) : (
           <div className="flex flex-col gap-4">
-            <p className="text-sm">
-              We sent a 6-digit invitation code to <strong>{codeSentTo}</strong>. It expires in 10 minutes.
-            </p>
-            <TextField label="Invitation code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(value) => setCode(value.replace(/\D/g, ''))} />
+            <p className="text-sm">{rich('invite.codeSent', { strong: (words) => <strong>{words}</strong> }, { contact: codeSentTo })}</p>
+            <TextField label={t('invite.codeLabel')} inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(value) => setCode(value.replace(/\D/g, ''))} />
             {(accept.isError || decline.isError) && <Notice tone="error">{errorMessage(accept.error ?? decline.error)}</Notice>}
             <div className="flex flex-wrap gap-3">
               <Button className="h-11" disabled={code.length !== 6 || accept.isPending} onClick={() => (me.data ? accept.mutate() : setWantsToAccept(true))}>
-                Accept and confirm
+                {t('invite.accept')}
               </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="outline" className="h-11" disabled={code.length !== 6 || decline.isPending}>
-                    Decline
+                    {t('invite.decline')}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Decline this profile?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      The profile is taken down and {manager} cannot publish it or invite you again. You do not need an
-                      account for this.
-                    </AlertDialogDescription>
+                    <AlertDialogTitle>{t('invite.declineDialog.title')}</AlertDialogTitle>
+                    <AlertDialogDescription>{t('invite.declineDialog.body', { manager })}</AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                     <AlertDialogAction variant="destructive" onClick={() => decline.mutate()}>
-                      Decline
+                      {t('invite.decline')}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
               <Button variant="ghost" className="h-11" disabled={sendCode.isPending || !bot.ready} onClick={() => sendCode.mutate()}>
-                Send a new code
+                {t('signIn.resend')}
               </Button>
             </div>
             {bot.widget}
@@ -164,10 +171,10 @@ function Invitation({ token, preview }: { token: string; preview: InvitationPrev
       </Card>
       {wantsToAccept && !me.data && (
         <Card className="mt-6">
-          <h2 className="font-serif text-2xl">Sign in to accept</h2>
+          <h2 className="font-serif text-2xl">{t('invite.signInTitle')}</h2>
           <div className="mt-4">
             <SignIn
-              intro="Accepting needs your own account. We will send you a separate sign-in code; if you are new, it also creates your account."
+              intro={t('invite.signInIntro')}
               onSignedIn={() => accept.mutate()}
             />
           </div>

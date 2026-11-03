@@ -42,7 +42,7 @@ export const turnstileGuard = createMiddleware<AppEnv>(async (c, next) => {
   const { turnstile } = c.var.deps;
   if (!turnstile) return next();
   const token = c.req.header('x-captcha-response')?.trim();
-  if (!token || token.length > 2048) fail(403, 'CAPTCHA_REQUIRED', 'Please complete the security check and try again.');
-  if (!(await turnstile.verify(token))) fail(403, 'CAPTCHA_FAILED', 'The security check did not pass. Please try again.');
+  if (!token || token.length > 2048) fail(403, 'CAPTCHA_REQUIRED', 'api.captchaRequired');
+  if (!(await turnstile.verify(token))) fail(403, 'CAPTCHA_FAILED', 'api.captchaFailed');
   await next();
 });

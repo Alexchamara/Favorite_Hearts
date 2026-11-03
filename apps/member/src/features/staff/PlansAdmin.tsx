@@ -15,7 +15,9 @@ import { ApiError, del, errorMessage, patch, post } from '@/lib/api';
 import { formatDay, formatMoney, moneyInput, parseMoney } from '@/lib/format';
 import { useOwnerPlans } from '@/lib/queries';
 import { queryClient } from '@/lib/query-client';
-import { limitsText, termText } from '@/features/billing/labels';
+import { ENGLISH_BILLING } from '@/features/billing/labels';
+
+const { limitsText, termText } = ENGLISH_BILLING;
 
 type Tier = (typeof PLAN_TIERS)[number];
 type Currency = (typeof CURRENCIES)[number];

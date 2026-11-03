@@ -14,8 +14,10 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { api, errorMessage, post } from '@/lib/api';
 import { keys } from '@/lib/queries';
 import { queryClient } from '@/lib/query-client';
-import { reportCategoryLabels } from '@/features/profile/options';
-import { PhotoFrame, placeOf } from '@/features/browse/MemberCard';
+import { ENGLISH_LABELS } from '@/features/profile/options';
+import { englishPlaceOf as placeOf, PhotoFrame } from '@/features/browse/MemberCard';
+
+const { reportCategoryLabels } = ENGLISH_LABELS;
 
 const statusNames: Record<(typeof REPORT_STATUSES)[number], string> = { open: 'Open', upheld: 'Upheld', dismissed: 'Dismissed' };
 

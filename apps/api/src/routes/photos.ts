@@ -16,14 +16,14 @@ import { actorRights, operatedProfile } from '../lib/profile-view.ts';
 import { InvalidImageError, processPhoto } from '../storage/images.ts';
 import { newObjectKey } from '../storage/storage.ts';
 
-const idParam = (value: string | undefined) => parse(z.uuid({ error: 'Not found.' }), value);
+const idParam = (value: string | undefined) => parse(z.uuid({ error: 'api.notFound' }), value);
 
 /** Mounted under /profiles, after the profiles router, whose requireMember also covers these routes. */
 export const profilePhotos = new Hono<AppEnv>();
 
 async function requireEditor(tx: Tx, id: string) {
   await operatedProfile(tx, id);
-  if (!(await actorRights(tx, id)).canEdit) fail(403, 'CANNOT_EDIT', 'You cannot change this profile’s photos.');
+  if (!(await actorRights(tx, id)).canEdit) fail(403, 'CANNOT_EDIT', 'api.photos.cannotChange');
 }
 
 async function ownPhotos(c: Parameters<typeof visiblePhotos>[0], tx: Tx, id: string): Promise<PhotoView[]> {
@@ -42,23 +42,23 @@ profilePhotos.get('/:id/photos', async (c) => {
 profilePhotos.post('/:id/photos', async (c) => {
   const id = idParam(c.req.param('id'));
   const { storage } = c.var.deps;
-  const form = await c.req.parseBody().catch(() => fail(400, 'BAD_FORM', 'Send the photo as a form upload.'));
+  const form = await c.req.parseBody().catch(() => fail(400, 'BAD_FORM', 'api.upload.photoForm'));
   const file = form.file;
-  if (!(file instanceof File)) fail(400, 'VALIDATION', 'Choose a photo.', { file: 'Required' });
+  if (!(file instanceof File)) fail(400, 'VALIDATION', 'validation.choosePhoto', { file: 'validation.required' });
 
   // Friendly answer before processing; the database enforces the limit again (slots 0–4).
   await withActor(c, async (tx) => {
     await requireEditor(tx, id);
     const [{ count } = { count: 0 }] = await tx.select({ count: sql<number>`count(*)::int` }).from(photo).where(eq(photo.profileId, id));
-    if (count >= MAX_PHOTOS) fail(409, 'PHOTO_LIMIT', `A profile can have up to ${MAX_PHOTOS} photos.`);
+    if (count >= MAX_PHOTOS) fail(409, 'PHOTO_LIMIT', 'api.photos.limit');
   });
-  if (!storage.configured) fail(503, 'STORAGE_UNAVAILABLE', 'Photo upload is not available yet.');
+  if (!storage.configured) fail(503, 'STORAGE_UNAVAILABLE', 'api.photos.uploadUnavailable');
 
   let processed: Awaited<ReturnType<typeof processPhoto>>;
   try {
     processed = await processPhoto(Buffer.from(await file.arrayBuffer()));
   } catch (err) {
-    if (err instanceof InvalidImageError) fail(400, 'INVALID_PHOTO', err.message);
+    if (err instanceof InvalidImageError) fail(400, 'INVALID_PHOTO', err.key);
     throw err;
   }
   const originalKey = newObjectKey('photos');
@@ -73,7 +73,7 @@ profilePhotos.post('/:id/photos', async (c) => {
       await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${id}::text, 0))`);
       const taken = await tx.select({ slot: photo.slot, isCover: photo.isCover }).from(photo).where(eq(photo.profileId, id));
       const slot = [0, 1, 2, 3, 4].find((s) => !taken.some((t) => t.slot === s));
-      if (slot === undefined) fail(409, 'PHOTO_LIMIT', `A profile can have up to ${MAX_PHOTOS} photos.`);
+      if (slot === undefined) fail(409, 'PHOTO_LIMIT', 'api.photos.limit');
       const [created] = await tx
         .insert(photo)
         .values({ profileId: id, slot, isCover: !taken.some((t) => t.isCover), blurredKey, width: processed.width, height: processed.height })
@@ -99,7 +99,7 @@ profilePhotos.delete('/:id/photos/:photoId', async (c) => {
       .delete(photo)
       .where(and(eq(photo.id, photoId), eq(photo.profileId, id)))
       .returning({ blurredKey: photo.blurredKey, isCover: photo.isCover });
-    if (!gone) fail(404, 'NOT_FOUND', 'Photo not found.');
+    if (!gone) fail(404, 'NOT_FOUND', 'api.photos.notFound');
     if (gone.isCover) {
       // The next photo in order becomes the cover.
       const [next] = await tx.select({ id: photo.id }).from(photo).where(eq(photo.profileId, id)).orderBy(asc(photo.slot)).limit(1);
@@ -122,7 +122,7 @@ profilePhotos.post('/:id/photos/:photoId/cover', async (c) => {
   const photos = await withActor(c, async (tx) => {
     await requireEditor(tx, id);
     const [target] = await tx.select({ id: photo.id }).from(photo).where(and(eq(photo.id, photoId), eq(photo.profileId, id)));
-    if (!target) fail(404, 'NOT_FOUND', 'Photo not found.');
+    if (!target) fail(404, 'NOT_FOUND', 'api.photos.notFound');
     await tx.update(photo).set({ isCover: false }).where(and(eq(photo.profileId, id), eq(photo.isCover, true)));
     await tx.update(photo).set({ isCover: true }).where(eq(photo.id, photoId));
     return ownPhotos(c, tx, id);

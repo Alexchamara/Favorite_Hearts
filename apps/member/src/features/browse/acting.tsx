@@ -5,6 +5,7 @@
 import { useSearchParams } from 'react-router';
 import type { ProfileView } from '@fh/shared';
 import { SelectField } from '@/components/form/fields';
+import { useI18n } from '@/lib/i18n';
 import { useProfiles } from '@/lib/queries';
 
 export function useActingProfile() {
@@ -27,15 +28,16 @@ export function useActingProfile() {
 
 /** "Acting as …" when the account runs more than one profile. */
 export function ActingPicker({ profiles, acting, onChoose }: { profiles: ProfileView[]; acting: ProfileView | null; onChoose: (id: string) => void }) {
+  const { t } = useI18n();
   if (profiles.length < 2 || !acting) return null;
   return (
     <div className="max-w-sm">
       <SelectField
-        label="Acting for"
-        hint="Requests are sent from this profile."
+        label={t('acting.label')}
+        hint={t('acting.hint')}
         value={acting.id}
         onChange={(id) => id && onChoose(id)}
-        options={profiles.map((p) => ({ value: p.id, label: p.fields.displayName ?? 'Untitled profile' }))}
+        options={profiles.map((p) => ({ value: p.id, label: p.fields.displayName ?? t('card.untitled') }))}
       />
     </div>
   );

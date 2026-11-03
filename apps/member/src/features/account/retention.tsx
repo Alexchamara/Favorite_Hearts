@@ -3,31 +3,32 @@
  * account and for one profile. Deleting needs a recent sign-in: RecentSignInNotice signs out and back to sign-in.
  */
 import { useNavigate } from 'react-router';
-import { RECENT_SIGN_IN_MINUTES } from '@fh/shared';
 import { Notice } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { authClient } from '@/lib/auth-client';
+import { useI18n } from '@/lib/i18n';
 import { resetSession } from '@/lib/queries';
 
 export function RetentionList({ months, account = false }: { months: number; account?: boolean }) {
+  const { t } = useI18n();
   return (
     <>
       <section>
-        <h3 className="font-semibold text-foreground">Deleted now</h3>
+        <h3 className="font-semibold text-foreground">{t('retention.deletedNow')}</h3>
         <ul className="mt-1 list-disc pl-5 text-muted-foreground">
-          {account && <li>Your name, sign-in email and phone number. You are signed out everywhere.</li>}
-          <li>Profile details, photos, contact details and social handles.</li>
-          <li>Requests, connections and shortlists. Details already shared with connections cannot be taken back.</li>
-          {account && <li>Your identity document. Only the review decision is kept, as below.</li>}
+          {account && <li>{t('retention.account.identity')}</li>}
+          <li>{t('retention.profileDetails')}</li>
+          <li>{t('retention.relations')}</li>
+          {account && <li>{t('retention.account.document')}</li>}
         </ul>
       </section>
       <section>
-        <h3 className="font-semibold text-foreground">Kept for {months} months, then deleted</h3>
+        <h3 className="font-semibold text-foreground">{t('retention.kept', { months })}</h3>
         <ul className="mt-1 list-disc pl-5 text-muted-foreground">
-          <li>Payment records and receipts.</li>
-          <li>Reports and blocks.</li>
-          <li>Our staff’s record of what they did{account ? ', including the review of your document' : ''}.</li>
-          {account && <li>A scrambled form of your email and phone number, used only to stop banned accounts joining again.</li>}
+          <li>{t('retention.payments')}</li>
+          <li>{t('retention.reports')}</li>
+          <li>{t(account ? 'retention.account.staffRecord' : 'retention.staffRecord')}</li>
+          {account && <li>{t('retention.account.hashes')}</li>}
         </ul>
       </section>
     </>
@@ -36,16 +37,17 @@ export function RetentionList({ months, account = false }: { months: number; acc
 
 export function RecentSignInNotice() {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const signInAgain = async () => {
     await authClient.signOut();
     await resetSession();
     navigate('/', { replace: true });
   };
   return (
-    <Notice tone="warning" title="Please sign in again first">
-      <p>For your safety, deleting is possible for {RECENT_SIGN_IN_MINUTES} minutes after you sign in.</p>
+    <Notice tone="warning" title={t('recentSignIn.title')}>
+      <p>{t('recentSignIn.body')}</p>
       <Button variant="outline" className="mt-3 h-10" onClick={() => void signInAgain()}>
-        Sign out and sign in again
+        {t('recentSignIn.button')}
       </Button>
     </Notice>
   );

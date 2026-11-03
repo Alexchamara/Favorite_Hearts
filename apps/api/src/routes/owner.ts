@@ -46,7 +46,7 @@ import { requireStaff } from '../middleware/session.ts';
 
 export const owner = new Hono<AppEnv>().use(requireStaff('owner'));
 
-const idParam = (value: string | undefined) => parse(z.uuid({ error: 'Not found.' }), value);
+const idParam = (value: string | undefined) => parse(z.uuid({ error: 'api.notFound' }), value);
 const planIdParam = (value: string | undefined) => parse(z.string().min(1).max(40), value);
 
 // --- Plans and prices --------------------------------------------------------------------------------------
@@ -78,7 +78,7 @@ async function ownerPlans(tx: Tx): Promise<OwnerPlanView[]> {
 
 const onePlan = async (tx: Tx, id: string) => {
   const found = (await ownerPlans(tx)).find((p) => p.id === id);
-  if (!found) fail(404, 'NOT_FOUND', 'Plan not found.');
+  if (!found) fail(404, 'NOT_FOUND', 'api.staff.planNotFound');
   return found;
 };
 
@@ -103,7 +103,7 @@ owner.patch('/plans/:id', async (c) => {
   const changes = parse(planUpdateSchema, await readJson(c));
   const updated = await withActor(c, async (tx) => {
     const [before] = await tx.select().from(plan).where(eq(plan.id, id));
-    if (!before) fail(404, 'NOT_FOUND', 'Plan not found.');
+    if (!before) fail(404, 'NOT_FOUND', 'api.staff.planNotFound');
     await tx.update(plan).set(changes).where(eq(plan.id, id));
     const keys = Object.keys(changes) as (keyof typeof changes)[];
     await audit(c, tx, {
@@ -165,7 +165,7 @@ owner.get('/payment-settings', async (c) => {
 
 /** Changing where members send money is sensitive: the audit keeps the details before and after. */
 owner.put('/payment-settings/:channel', async (c) => {
-  const channel = parse(z.enum(PAYMENT_CHANNELS, { error: 'Not found.' }), c.req.param('channel'));
+  const channel = parse(z.enum(PAYMENT_CHANNELS, { error: 'api.notFound' }), c.req.param('channel'));
   const input = parse(paymentSettingSchema, await readJson(c));
   const saved = await withActor(c, async (tx) => {
     const [before] = await tx.select().from(paymentChannelSetting).where(eq(paymentChannelSetting.channel, channel));
@@ -174,7 +174,7 @@ owner.put('/payment-settings/:channel', async (c) => {
       .set({ enabled: input.enabled, instructions: input.instructions, updatedByUserId: c.var.user!.id, updatedAt: new Date() })
       .where(eq(paymentChannelSetting.channel, channel))
       .returning();
-    if (!row) fail(404, 'NOT_FOUND', 'Payment method not found.');
+    if (!row) fail(404, 'NOT_FOUND', 'api.staff.paymentMethodNotFound');
     await audit(c, tx, {
       action: 'payment_settings.updated',
       entityType: 'payment_channel_setting',
@@ -214,7 +214,7 @@ owner.put('/operations/:key', async (c) => {
       .set({ enabled: input.enabled, reason: input.reason || null, updatedByUserId: c.var.user!.id, updatedAt: new Date() })
       .where(eq(operationsFlag.key, key))
       .returning();
-    if (!row) fail(404, 'NOT_FOUND', 'Switch not found.');
+    if (!row) fail(404, 'NOT_FOUND', 'api.staff.switchNotFound');
     await audit(c, tx, {
       action: row.enabled ? 'operations.paused' : 'operations.resumed',
       entityType: 'operations_flag',
@@ -245,7 +245,7 @@ async function ownerPayments(tx: Tx, filter: { status?: string; query?: string; 
 
 async function onePayment(tx: Tx, id: string): Promise<OwnerPaymentItem> {
   const [item] = await ownerPayments(tx, { paymentId: id });
-  if (!item) fail(404, 'NOT_FOUND', 'Payment not found.');
+  if (!item) fail(404, 'NOT_FOUND', 'api.payment.notFound');
   return item;
 }
 
@@ -303,7 +303,7 @@ owner.get('/payments/:id/proofs/:proofId', async (c) => {
       .select()
       .from(paymentProof)
       .where(and(eq(paymentProof.id, proofId), eq(paymentProof.paymentId, id)));
-    if (!proof) fail(404, 'NOT_FOUND', 'Receipt not found.');
+    if (!proof) fail(404, 'NOT_FOUND', 'api.staff.receiptNotFound');
     await audit(c, tx, { action: 'payment.proof_viewed', entityType: 'payment_submission', entityId: id, metadata: { proofId } });
     return proof.objectKey;
   });

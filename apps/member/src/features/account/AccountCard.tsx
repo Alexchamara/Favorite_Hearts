@@ -14,29 +14,28 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ApiError, download, errorMessage, post } from '@/lib/api';
 import { formatDay } from '@/lib/format';
+import { say, useI18n } from '@/lib/i18n';
 import { resetSession, useAccountDeletion } from '@/lib/queries';
 import { RecentSignInNotice, RetentionList } from './retention';
 
 export function AccountCard() {
   const [deleting, setDeleting] = useState(false);
+  const { t } = useI18n();
   const exportData = useMutation({
     mutationFn: () => download('/account/export', 'favorite-hearts-data.zip'),
-    onSuccess: () => toast.success('Your data is downloading as a ZIP file.'),
+    onSuccess: () => toast.success(say('account.downloadStarted')),
     onError: (error) => toast.error(errorMessage(error)),
   });
   return (
     <Card className="mt-6">
-      <h2 className="font-serif text-2xl">Your account</h2>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Download a copy of everything your account holds: profiles, contact details, photos, requests, connections and
-        payments. Or delete the account.
-      </p>
+      <h2 className="font-serif text-2xl">{t('account.title')}</h2>
+      <p className="mt-2 text-sm text-muted-foreground">{t('account.body')}</p>
       <div className="mt-5 flex flex-wrap gap-3">
         <Button variant="outline" className="h-11" disabled={exportData.isPending} onClick={() => exportData.mutate()}>
-          {exportData.isPending ? 'Preparing your file…' : 'Download my data'}
+          {exportData.isPending ? t('account.preparing') : t('account.download')}
         </Button>
         <Button variant="outline" className="h-11 text-destructive" onClick={() => setDeleting(true)}>
-          Delete my account
+          {t('account.delete')}
         </Button>
       </div>
       <DeleteAccountDialog open={deleting} onClose={() => setDeleting(false)} />
@@ -48,13 +47,14 @@ function DeleteAccountDialog({ open, onClose }: { open: boolean; onClose: () => 
   const navigate = useNavigate();
   const preview = useAccountDeletion(open);
   const [understood, setUnderstood] = useState(false);
+  const { t, rich } = useI18n();
   const remove = useMutation({
     mutationFn: () => post<AccountDeletionResult>('/account/delete', { confirm: true }),
     onSuccess: async () => {
       onClose();
       await resetSession();
       navigate('/', { replace: true });
-      toast.success('Your account has been deleted.');
+      toast.success(say('account.deleted'));
     },
   });
   const needsSignIn =
@@ -68,8 +68,8 @@ function DeleteAccountDialog({ open, onClose }: { open: boolean; onClose: () => 
     <Dialog open={open} onOpenChange={(next) => !next && close()}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Delete your account?</DialogTitle>
-          <DialogDescription>This cannot be undone. Here is exactly what happens.</DialogDescription>
+          <DialogTitle>{t('account.dialog.title')}</DialogTitle>
+          <DialogDescription>{t('account.dialog.body')}</DialogDescription>
         </DialogHeader>
         {preview.isPending ? (
           <Loading />
@@ -79,19 +79,20 @@ function DeleteAccountDialog({ open, onClose }: { open: boolean; onClose: () => 
           <div className="flex flex-col gap-4 text-sm">
             {needsSignIn && <RecentSignInNotice />}
             <section>
-              <h3 className="font-semibold text-foreground">Your profiles</h3>
+              <h3 className="font-semibold text-foreground">{t('account.dialog.profiles')}</h3>
               {preview.data.profiles.length === 0 ? (
-                <p className="mt-1 text-muted-foreground">You have no profiles.</p>
+                <p className="mt-1 text-muted-foreground">{t('account.dialog.noProfiles')}</p>
               ) : (
                 <ul className="mt-1 flex flex-col gap-2">
                   {preview.data.profiles.map((p) => (
                     <li key={p.profileId}>
-                      <strong>{p.displayName ?? 'Untitled profile'}</strong>
-                      {p.outcome === 'handed_over'
-                        ? ` passes to ${p.candidateName ?? 'the candidate'}, who joined it. They run it alone from now on, and its plan stays with it.`
-                        : ' is deleted now.'}
+                      {rich(
+                        p.outcome === 'handed_over' ? 'account.dialog.handedOver' : 'account.dialog.deletedNow',
+                        { strong: (words) => <strong>{words}</strong> },
+                        { name: p.displayName ?? t('card.untitled'), candidate: p.candidateName ?? t('account.dialog.theCandidate') },
+                      )}
                       {p.outcome === 'deleted' && p.planActive && p.planEndsAt
-                        ? ` Its plan ends too: the time left until ${formatDay(p.planEndsAt)} is lost and is not refunded.`
+                        ? ` ${t('account.dialog.planLost', { date: formatDay(p.planEndsAt) })}`
                         : ''}
                     </li>
                   ))}
@@ -99,22 +100,19 @@ function DeleteAccountDialog({ open, onClose }: { open: boolean; onClose: () => 
               )}
             </section>
             {preview.data.paymentsUnderReview > 0 && (
-              <Notice tone="warning">
-                A payment you sent is still being checked. It stays with us as a payment record. If you want to ask about it,
-                contact us before you delete.
-              </Notice>
+              <Notice tone="warning">{t('account.dialog.paymentUnderReview')}</Notice>
             )}
             <RetentionList months={preview.data.retentionMonths} account />
             {remove.isError && !needsSignIn && <Notice tone="error">{errorMessage(remove.error)}</Notice>}
-            <CheckboxField checked={understood} onChange={setUnderstood} label="I understand that this cannot be undone." />
+            <CheckboxField checked={understood} onChange={setUnderstood} label={t('account.dialog.understand')} />
           </div>
         )}
         <DialogFooter>
           <Button variant="outline" onClick={close}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button variant="destructive" disabled={!preview.data || needsSignIn || !understood || remove.isPending} onClick={() => remove.mutate()}>
-            {remove.isPending ? 'Deleting…' : 'Delete my account'}
+            {remove.isPending ? t('account.dialog.deleting') : t('account.delete')}
           </Button>
         </DialogFooter>
       </DialogContent>

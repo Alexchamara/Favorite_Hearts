@@ -19,8 +19,7 @@ import { hasherFor, isBannedAddress } from './lib/identity-hash.ts';
 import { authRateLimitStorage, consume } from './lib/rate-limit.ts';
 import { PHONE_ONLY_EMAIL_DOMAIN, type Messenger } from './messaging/messenger.ts';
 import { codeEmail, codeSms } from './messaging/templates.ts';
-
-const minutes = Math.round(CODE_TTL_SECONDS / 60);
+import { headersLanguage, text } from './text.ts';
 
 /** The endpoints that send a code, and where the address is in their body. */
 const CODE_SENDS: Record<string, 'email' | 'phoneNumber'> = {
@@ -29,7 +28,6 @@ const CODE_SENDS: Record<string, 'email' | 'phoneNumber'> = {
 };
 /** Codes sent to one address (proposed): a person sending to many addresses still meets the per-IP limit below. */
 const CODES_PER_ADDRESS = { window: 60 * 60, max: 5 };
-const BANNED_MESSAGE = 'This email or phone number cannot be used for a new account. Contact us if you think this is a mistake.';
 
 export function createAuth({ db, config, messenger }: { db: Db; config: Config; messenger: Messenger }) {
   const hash = hasherFor(config.authSecret);
@@ -79,13 +77,15 @@ export function createAuth({ db, config, messenger }: { db: Db; config: Config; 
         const field = CODE_SENDS[ctx.path];
         const address = field ? (ctx.body as Record<string, unknown> | undefined)?.[field] : undefined;
         if (typeof address !== 'string' || !address.trim()) return;
-        if (await isBannedAddress(db, hash, address)) throw new APIError('FORBIDDEN', { message: BANNED_MESSAGE });
+        // Messages here are in the language the request asks for (text.ts), like the API's own answers.
+        const language = headersLanguage(ctx.headers);
+        if (await isBannedAddress(db, hash, address)) {
+          throw new APIError('FORBIDDEN', { code: 'ADDRESS_BANNED', message: text(language, 'api.addressBanned') });
+        }
         if (!config.rateLimit) return;
         const result = await consume(db, `code-to:${hash(address)}`, CODES_PER_ADDRESS);
         if (!result.allowed) {
-          throw new APIError('TOO_MANY_REQUESTS', {
-            message: 'Too many codes were sent to this address. Please wait an hour and try again.',
-          });
+          throw new APIError('TOO_MANY_REQUESTS', { code: 'CODES_PER_ADDRESS', message: text(language, 'api.codesPerAddress') });
         }
       }),
     },
@@ -99,15 +99,18 @@ export function createAuth({ db, config, messenger }: { db: Db; config: Config; 
             if (!ctx) return;
             const phone = (newUser as { phoneNumber?: string | null }).phoneNumber;
             const addresses = [newUser.email.endsWith(`@${PHONE_ONLY_EMAIL_DOMAIN}`) ? null : newUser.email, phone ?? null];
+            const language = headersLanguage(ctx.headers);
             for (const address of addresses) {
-              if (address && (await isBannedAddress(db, hash, address))) throw new APIError('FORBIDDEN', { message: BANNED_MESSAGE });
+              if (address && (await isBannedAddress(db, hash, address))) {
+                throw new APIError('FORBIDDEN', { code: 'ADDRESS_BANNED', message: text(language, 'api.addressBanned') });
+              }
             }
             const [flag] = await db
               .select({ enabled: operationsFlag.enabled })
               .from(operationsFlag)
               .where(eq(operationsFlag.key, 'signups_paused'));
             if (flag?.enabled) {
-              throw new APIError('FORBIDDEN', { message: 'New sign-ups are paused for now. Please try again later.' });
+              throw new APIError('FORBIDDEN', { code: 'SIGNUPS_PAUSED', message: text(language, 'api.signupsPaused') });
             }
           },
         },
@@ -119,9 +122,9 @@ export function createAuth({ db, config, messenger }: { db: Db; config: Config; 
         otpLength: CODE_LENGTH,
         expiresIn: CODE_TTL_SECONDS,
         allowedAttempts: 5,
-        async sendVerificationOTP({ email, otp, type }) {
-          const { subject, html, text } = codeEmail(type, otp, minutes);
-          await messenger.sendEmail({ to: email, subject, html, text });
+        // The code goes out in the language of the screen that asked for it (no account may exist yet).
+        async sendVerificationOTP({ email, otp, type }, ctx) {
+          await messenger.sendEmail({ to: email, ...codeEmail(headersLanguage(ctx?.headers), type, otp) });
         },
       }),
       phoneNumber({
@@ -129,8 +132,8 @@ export function createAuth({ db, config, messenger }: { db: Db; config: Config; 
         expiresIn: CODE_TTL_SECONDS,
         allowedAttempts: 5,
         phoneNumberValidator: (value) => normalizePhone(value) === value,
-        async sendOTP({ phoneNumber: to, code }) {
-          await messenger.sendSms({ to, body: codeSms(code, minutes) });
+        async sendOTP({ phoneNumber: to, code }, ctx) {
+          await messenger.sendSms({ to, body: codeSms(headersLanguage(ctx?.headers), code) });
         },
         signUpOnVerification: {
           // Phone-only members get an undeliverable placeholder email (.invalid TLD) that is never emailed.

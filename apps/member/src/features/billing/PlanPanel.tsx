@@ -2,6 +2,7 @@
  * The "Plan" tab (OWNER-DECISIONS sections 2, 3 and 9): the plan in force, what each plan would do now
  * (upgrade, renewal, or not yet), paying by manual transfer with a unique reference and the owner's own
  * account details, receipt images, and the payments made so far. The server decides every rule again.
+ * Plan names and the owner's payment instructions are the owner's own words and are shown as written.
  */
 import { useRef, useState, type FormEvent } from 'react';
 import { useMutation } from '@tanstack/react-query';
@@ -9,7 +10,6 @@ import { Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   MAX_PAYMENT_PROOFS,
-  RENEWAL_GRACE_DAYS,
   RENEWAL_WINDOW_DAYS,
   type BillingOverview,
   type PaymentView,
@@ -24,63 +24,57 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { errorMessage, post } from '@/lib/api';
 import { formatDay, formatMoney, formatWhen } from '@/lib/format';
+import { say, useI18n, type Translate } from '@/lib/i18n';
 import { refreshBilling, useBilling, usePlan } from '@/lib/queries';
-import { countries } from '@/features/profile/options';
-import { channelLabels, channelPhrases, limitsText, paymentStatusLabels, refundReasonLabels, refundTerms, termText, type PaymentChannel } from './labels';
+import { useCountries } from '@/features/profile/options';
+import { useBillingLabels, type PaymentChannel } from './labels';
 
 const OPEN = ['awaiting_proof', 'pending_review', 'held'];
 const DAY = 86_400_000;
 
 /** Section 3: a clear warning before the plan ends, with the date and what will be hidden. */
 export function ExpiryNotice({ usage }: { usage: PlanUsage }) {
+  const { t } = useI18n();
   if (!usage.active || !usage.endsAt) return null;
   if (usage.inGrace) {
     return (
-      <Notice tone="warning" title={`Your plan ended on ${formatWhen(usage.endsAt)}`}>
-        We are checking your renewal payment, so you keep access until {formatWhen(usage.graceEndsAt!)} (up to{' '}
-        {RENEWAL_GRACE_DAYS} days). If we cannot confirm it, contact details and social handles are hidden until you renew.
+      <Notice tone="warning" title={t('plan.grace.title', { date: formatWhen(usage.endsAt) })}>
+        {t('plan.grace.body', { date: formatWhen(usage.graceEndsAt!) })}
       </Notice>
     );
   }
   if (new Date(usage.endsAt).getTime() - Date.now() > RENEWAL_WINDOW_DAYS * DAY) return null;
   return (
-    <Notice tone="warning" title={`Your plan ends on ${formatWhen(usage.endsAt)}`}>
-      After that you will no longer see the contact details or social handles of anyone, including your connections.
-      Your connections stay, and their details come back when you renew. You can renew now, in the last{' '}
-      {RENEWAL_WINDOW_DAYS} days of the plan.
+    <Notice tone="warning" title={t('plan.ending.title', { date: formatWhen(usage.endsAt) })}>
+      {t('plan.ending.body')}
     </Notice>
   );
 }
 
 /** The plan in force: its end, the expiry warning, and what is left of its request limits (section 2). */
 export function PlanSummary({ usage }: { usage: PlanUsage }) {
+  const { t } = useI18n();
   return (
     <div className="text-sm">
-      <p>
-        {usage.planName ?? 'Active plan'}, until {formatWhen(usage.endsAt!)}.
-      </p>
+      <p>{t('plan.until', { plan: usage.planName ?? t('plan.active'), date: formatWhen(usage.endsAt!) })}</p>
       <div className="mt-3">
         <ExpiryNotice usage={usage} />
       </div>
       <dl className="mt-3 grid gap-3 sm:grid-cols-2">
         {usage.daily && (
           <div>
-            <dt className="text-xs font-semibold text-muted-foreground uppercase">Requests today</dt>
-            <dd>
-              {usage.daily.used} of {usage.daily.cap}
-            </dd>
+            <dt className="text-xs font-semibold text-muted-foreground uppercase">{t('plan.today')}</dt>
+            <dd>{t('plan.usage', { used: usage.daily.used, cap: usage.daily.cap })}</dd>
           </div>
         )}
         {usage.monthly && (
           <div>
-            <dt className="text-xs font-semibold text-muted-foreground uppercase">This month of your plan</dt>
-            <dd>
-              {usage.monthly.used} of {usage.monthly.cap}
-            </dd>
+            <dt className="text-xs font-semibold text-muted-foreground uppercase">{t('plan.thisMonth')}</dt>
+            <dd>{t('plan.usage', { used: usage.monthly.used, cap: usage.monthly.cap })}</dd>
           </div>
         )}
       </dl>
-      <p className="mt-3 text-xs text-muted-foreground">A new day starts at midnight, Sri Lanka time.</p>
+      <p className="mt-3 text-xs text-muted-foreground">{t('plan.midnight')}</p>
     </div>
   );
 }
@@ -89,6 +83,7 @@ export function PlanPanel({ profile }: { profile: ProfileView }) {
   const billing = useBilling(profile.id);
   const usage = usePlan(profile.id);
   const [choosing, setChoosing] = useState<PlanOption | null>(null);
+  const { t } = useI18n();
   if (billing.isPending) return <Loading />;
   if (billing.isError) return <Notice tone="error">{errorMessage(billing.error)}</Notice>;
   const overview = billing.data;
@@ -98,7 +93,7 @@ export function PlanPanel({ profile }: { profile: ProfileView }) {
     <div className="flex flex-col gap-6">
       {usage.data?.active && (
         <Card>
-          <h2 className="font-serif text-2xl">Your plan</h2>
+          <h2 className="font-serif text-2xl">{t('plan.yours')}</h2>
           <div className="mt-2">
             <PlanSummary usage={usage.data} />
           </div>
@@ -108,15 +103,12 @@ export function PlanPanel({ profile }: { profile: ProfileView }) {
       <section aria-labelledby="plans-heading" className="flex flex-col gap-4">
         <div>
           <h2 id="plans-heading" className="font-serif text-2xl">
-            Plans
+            {t('plan.plans')}
           </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Each profile has its own plan. Publishing and receiving requests stay free; a plan lets this profile send
-            requests, see who is interested and accept. There is no automatic renewal.
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">{t('plan.plans.intro')}</p>
         </div>
         {overview.options.length === 0 ? (
-          <Notice>No plans are on sale right now.</Notice>
+          <Notice>{t('plan.none')}</Notice>
         ) : (
           overview.options.map((option) => (
             <PlanChoice key={option.id} option={option} blockedByOpen={Boolean(open)} onChoose={() => setChoosing(option)} />
@@ -129,30 +121,30 @@ export function PlanPanel({ profile }: { profile: ProfileView }) {
   );
 }
 
-function changeText(option: PlanOption): string {
+function changeText(t: Translate, option: PlanOption): string {
   const { change } = option;
-  const lost = change.lostDays === 1 ? '1 unused day' : `${change.lostDays} unused days`;
+  const lost = t('change.lostDays', { count: change.lostDays });
   switch (change.kind) {
     case 'new':
-      return 'Starts on the day we approve your payment.';
+      return t('change.new');
     case 'upgrade':
-      return `An upgrade: it replaces your current plan on the day we approve the payment, and the ${lost} of your current plan are lost.`;
+      return t('change.upgrade', { lost });
     case 'renewal':
-      return change.lostDays > 0
-        ? `A renewal: the new term starts on the day we approve it, and the ${lost} left on your current plan are lost.`
-        : 'A renewal: the new term starts on the day we approve it.';
+      return change.lostDays > 0 ? t('change.renewalLost', { lost }) : t('change.renewal');
     default:
       if (change.reason === 'renewal_window' && change.renewalOpensAt) {
-        return `You can renew from ${formatWhen(change.renewalOpensAt)}, in the last ${RENEWAL_WINDOW_DAYS} days of your plan.`;
+        return t('change.renewFrom', { date: formatWhen(change.renewalOpensAt) });
       }
-      if (change.reason === 'downgrade') return 'Not available while your current plan is active. You can choose it once that plan has ended.';
-      return 'Not on sale.';
+      if (change.reason === 'downgrade') return t('change.downgrade');
+      return t('change.notOnSale');
   }
 }
 
 function PlanChoice({ option, blockedByOpen, onChoose }: { option: PlanOption; blockedByOpen: boolean; onChoose: () => void }) {
+  const { t } = useI18n();
+  const { limitsText, termText } = useBillingLabels();
   const blocked = option.change.kind === 'blocked';
-  const action = option.change.kind === 'upgrade' ? 'Upgrade' : option.change.kind === 'renewal' ? 'Renew' : 'Choose';
+  const action = t(option.change.kind === 'upgrade' ? 'plan.action.upgrade' : option.change.kind === 'renewal' ? 'plan.action.renew' : 'plan.action.choose');
   return (
     <Card>
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
@@ -163,12 +155,12 @@ function PlanChoice({ option, blockedByOpen, onChoose }: { option: PlanOption; b
         {termText(option.termMonths)} · {limitsText(option)}
       </p>
       {option.description && <p className="mt-2 text-sm">{option.description}</p>}
-      <p className="mt-3 text-sm">{changeText(option)}</p>
+      <p className="mt-3 text-sm">{changeText(t, option)}</p>
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <Button className="h-11" disabled={blocked || blockedByOpen} onClick={onChoose}>
           {action}
         </Button>
-        {blockedByOpen && !blocked && <p className="text-xs text-muted-foreground">Finish or cancel the payment in progress first.</p>}
+        {blockedByOpen && !blocked && <p className="text-xs text-muted-foreground">{t('plan.finishOpen')}</p>}
       </div>
     </Card>
   );
@@ -189,6 +181,9 @@ function CheckoutDialog({
   const [channel, setChannel] = useState<PaymentChannel | ''>('');
   const [termsRead, setTermsRead] = useState(false);
   const [daysLost, setDaysLost] = useState(false);
+  const { t, rich } = useI18n();
+  const { channelLabels, refundTerms, termText } = useBillingLabels();
+  const countries = useCountries();
   const start = useMutation({
     mutationFn: () =>
       post<PaymentView>(`/profiles/${profile.id}/payments`, {
@@ -200,7 +195,7 @@ function CheckoutDialog({
       }),
     onSuccess: async () => {
       await refreshBilling();
-      toast.success('Your payment details are ready.');
+      toast.success(say('checkout.ready'));
       close();
     },
   });
@@ -227,15 +222,13 @@ function CheckoutDialog({
       <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <form onSubmit={submit} className="flex flex-col gap-4">
           <DialogHeader>
-            <DialogTitle>
-              {option.name}: {termText(option.termMonths)}
-            </DialogTitle>
-            <DialogDescription>{changeText(option)}</DialogDescription>
+            <DialogTitle>{t('checkout.title', { plan: option.name, term: termText(option.termMonths) })}</DialogTitle>
+            <DialogDescription>{changeText(t, option)}</DialogDescription>
           </DialogHeader>
           {start.isError && <Notice tone="error">{errorMessage(start.error)}</Notice>}
           <SelectField
-            label="Where do you live?"
-            hint="Sri Lanka pays in LKR, anywhere else in USD. We compare this with how you pay."
+            label={t('checkout.country')}
+            hint={t('checkout.country.hint')}
             value={country}
             onChange={(value) => {
               setCountry(value || 'LK');
@@ -245,13 +238,17 @@ function CheckoutDialog({
           />
           {price ? (
             <p className="text-sm">
-              Price: <strong>{formatMoney(price.amountMinor, price.currency)}</strong> for {termText(option.termMonths)}.
+              {rich(
+                'checkout.price',
+                { strong: (words) => <strong>{words}</strong> },
+                { price: formatMoney(price.amountMinor, price.currency), term: termText(option.termMonths) },
+              )}
             </p>
           ) : (
-            <Notice>This plan has no {currency} price yet.</Notice>
+            <Notice>{t('checkout.noPrice', { currency })}</Notice>
           )}
           <fieldset className="flex flex-col gap-2">
-            <legend className="mb-1 text-[13px] font-semibold">How will you pay?</legend>
+            <legend className="mb-1 text-[13px] font-semibold">{t('checkout.how')}</legend>
             {methods.map((method) => (
               <label
                 key={method.channel}
@@ -268,36 +265,36 @@ function CheckoutDialog({
                 />
                 <span>
                   {channelLabels[method.channel]}
-                  {!method.available && <span className="text-muted-foreground"> (not set up yet)</span>}
+                  {!method.available && <span className="text-muted-foreground"> {t('checkout.notSetUp')}</span>}
                 </span>
               </label>
             ))}
             {methods.every((method) => !method.available) && (
-              <p className="text-xs text-muted-foreground">Payments in {currency} are not set up yet. Please try again later.</p>
+              <p className="text-xs text-muted-foreground">{t('checkout.noneSetUp', { currency })}</p>
             )}
           </fieldset>
           <div className="rounded-[12px] border bg-[var(--ui-soft)] p-4 text-sm">
-            <p className="font-semibold">Refund terms</p>
+            <p className="font-semibold">{t('checkout.refundTerms')}</p>
             <ul className="mt-2 list-disc space-y-1 pl-5">
               {refundTerms.map((line) => (
                 <li key={line}>{line}</li>
               ))}
             </ul>
           </div>
-          <CheckboxField checked={termsRead} onChange={setTermsRead} label="I have read the refund terms." />
+          <CheckboxField checked={termsRead} onChange={setTermsRead} label={t('checkout.termsRead')} />
           {lostDays > 0 && (
             <CheckboxField
               checked={daysLost}
               onChange={setDaysLost}
-              label={`I understand the ${lostDays === 1 ? '1 unused day' : `${lostDays} unused days`} of the current plan will be lost.`}
+              label={t('checkout.lostDays', { lost: t('change.lostDays', { count: lostDays }) })}
             />
           )}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={close}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button type="submit" disabled={!ready || start.isPending}>
-              {start.isPending ? 'Preparing…' : 'Get payment details'}
+              {start.isPending ? t('checkout.preparing') : t('checkout.submit')}
             </Button>
           </DialogFooter>
         </form>
@@ -307,11 +304,13 @@ function CheckoutDialog({
 }
 
 function OpenPayment({ payment }: { payment: PaymentView }) {
+  const { t, rich } = useI18n();
+  const { channelPhrases, paymentStatusLabels } = useBillingLabels();
   const cancel = useMutation({
     mutationFn: () => post<PaymentView>(`/payments/${payment.id}/cancel`),
     onSuccess: async () => {
       await refreshBilling();
-      toast.success('Payment cancelled.');
+      toast.success(say('open.cancelled'));
     },
     onError: (error) => toast.error(errorMessage(error)),
   });
@@ -319,58 +318,52 @@ function OpenPayment({ payment }: { payment: PaymentView }) {
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(payment.reference);
-      toast.success('Reference copied.');
+      toast.success(say('open.copied'));
     } catch {
-      toast.error('Could not copy. Please write the reference down.');
+      toast.error(say('open.copyFailed'));
     }
   };
   return (
     <Card className="border-[var(--ui-accent)]">
-      <p className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">Payment in progress</p>
-      <h2 className="mt-1 font-serif text-2xl">
-        {payment.planName ?? 'Plan'}: {amount}
-      </h2>
+      <p className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">{t('open.kicker')}</p>
+      <h2 className="mt-1 font-serif text-2xl">{t('open.title', { plan: payment.planName ?? t('open.plan'), amount })}</h2>
       <p className="mt-1 text-sm text-muted-foreground">{paymentStatusLabels[payment.status]}</p>
 
       {payment.status === 'held' && payment.message && (
         <div className="mt-4">
-          <Notice tone="warning" title="We need something more">
+          <Notice tone="warning" title={t('open.held')}>
             {payment.message}
           </Notice>
         </div>
       )}
       {payment.status === 'pending_review' && (
         <p className="mt-4 text-sm">
-          We have your receipt{payment.proofSubmittedAt ? ` from ${formatWhen(payment.proofSubmittedAt)}` : ''}. We now look for the
-          transfer in our statement, usually within 48 hours, and the plan starts when we approve it.
+          {payment.proofSubmittedAt ? t('open.pendingFrom', { date: formatWhen(payment.proofSubmittedAt) }) : t('open.pending')}
         </p>
       )}
 
       <ol className="mt-5 flex list-decimal flex-col gap-4 pl-5 text-sm">
         <li>
-          <p>
-            Send exactly <strong>{amount}</strong> by {channelPhrases[payment.channel]} to:
-          </p>
+          <p>{rich('open.send', { strong: (words) => <strong>{words}</strong> }, { amount, channel: channelPhrases[payment.channel] })}</p>
           {payment.instructions ? (
             <pre className="mt-2 rounded-[10px] border bg-[var(--ui-soft)] p-3 font-sans text-sm whitespace-pre-wrap">{payment.instructions}</pre>
           ) : (
-            <p className="mt-2 text-muted-foreground">These payment details are no longer available. Cancel this payment and choose another method.</p>
+            <p className="mt-2 text-muted-foreground">{t('open.detailsGone')}</p>
           )}
         </li>
         <li>
-          <p>Put this reference on the transfer, so we can match it to this profile:</p>
+          <p>{t('open.reference')}</p>
           <p className="mt-2 flex flex-wrap items-center gap-3">
             <span className="rounded-[10px] border bg-card px-3 py-2 font-mono text-lg font-semibold tracking-wider">{payment.reference}</span>
             <Button type="button" variant="outline" size="sm" onClick={() => void copy()}>
               <Copy aria-hidden="true" />
-              Copy
+              {t('open.copy')}
             </Button>
           </p>
         </li>
         <li>
           <p>
-            Upload a photo or screenshot of the receipt.{' '}
-            {payment.proofCount > 0 && `${payment.proofCount} sent so far; send another only if we ask, or if the first was unclear.`}
+            {t('open.upload')} {payment.proofCount > 0 && t('open.sentSoFar', { count: payment.proofCount })}
           </p>
           <ReceiptUpload payment={payment} />
         </li>
@@ -379,18 +372,18 @@ function OpenPayment({ payment }: { payment: PaymentView }) {
       {payment.status === 'awaiting_proof' && (
         <div className="mt-6 border-t pt-4">
           <Confirm
-            title="Cancel this payment?"
-            action="Cancel payment"
+            title={t('open.cancel.title')}
+            action={t('open.cancel.action')}
             destructive
             onConfirm={() => cancel.mutate()}
             trigger={
               <Button variant="ghost" className="h-11" disabled={cancel.isPending}>
-                Cancel this payment
+                {t('open.cancel.button')}
               </Button>
             }
           >
-            <p>Only cancel if you have not sent the money. The reference {payment.reference} stays on record.</p>
-            <p>If you already paid, upload the receipt instead.</p>
+            <p>{t('open.cancel.notPaid', { reference: payment.reference })}</p>
+            <p>{t('open.cancel.paid')}</p>
           </Confirm>
         </div>
       )}
@@ -402,6 +395,7 @@ function ReceiptUpload({ payment }: { payment: PaymentView }) {
   const input = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
+  const { t } = useI18n();
   const upload = useMutation({
     mutationFn: () => {
       const form = new FormData();
@@ -412,21 +406,21 @@ function ReceiptUpload({ payment }: { payment: PaymentView }) {
       await refreshBilling();
       setFile(null);
       if (input.current) input.current.value = '';
-      toast.success('Receipt sent. We will check it soon.');
+      toast.success(say('receipt.sent'));
     },
   });
   if (payment.proofCount >= MAX_PAYMENT_PROOFS) {
-    return <p className="mt-2 text-muted-foreground">You have sent {MAX_PAYMENT_PROOFS} receipts, the most a payment can have. Contact us if we need more.</p>;
+    return <p className="mt-2 text-muted-foreground">{t('receipt.max')}</p>;
   }
   function choose(chosen: File | null) {
     setProblem(null);
     upload.reset();
     if (chosen && !['image/jpeg', 'image/png', 'image/webp'].includes(chosen.type)) {
-      setProblem('Please choose a photo or screenshot (JPEG, PNG or WebP). PDF is not accepted.');
+      setProblem(t('receipt.wrongType'));
       return setFile(null);
     }
     if (chosen && chosen.size > 5 * 1024 * 1024) {
-      setProblem('The file must be 5 MB or smaller.');
+      setProblem(t('receipt.tooLarge'));
       return setFile(null);
     }
     setFile(chosen);
@@ -437,36 +431,42 @@ function ReceiptUpload({ payment }: { payment: PaymentView }) {
         ref={input}
         type="file"
         accept="image/jpeg,image/png,image/webp"
-        aria-label="Receipt photo or screenshot"
+        aria-label={t('receipt.label')}
         onChange={(event) => choose(event.target.files?.[0] ?? null)}
         className="text-sm file:mr-3 file:min-h-10 file:rounded-[10px] file:border file:bg-card file:px-3 file:text-sm file:font-semibold"
       />
       {(problem || upload.isError) && <Notice tone="error">{problem ?? errorMessage(upload.error)}</Notice>}
       <Button className="h-11 self-start" disabled={!file || upload.isPending} onClick={() => upload.mutate()}>
-        {upload.isPending ? 'Sending…' : 'Send receipt'}
+        {upload.isPending ? t('signIn.sending') : t('receipt.submit')}
       </Button>
     </div>
   );
 }
 
 function PaymentHistory({ payments }: { payments: PaymentView[] }) {
+  const { t, rich } = useI18n();
+  const { paymentStatusLabels, refundReasonLabels } = useBillingLabels();
   return (
     <section aria-labelledby="history-heading">
       <h2 id="history-heading" className="font-serif text-2xl">
-        Your payments
+        {t('history.title')}
       </h2>
       <ul className="mt-3 flex flex-col gap-2">
         {payments.map((payment) => (
           <li key={payment.id} className="rounded-[12px] border bg-card p-4 text-sm">
             <div className="flex flex-wrap items-baseline justify-between gap-x-4">
               <p className="font-semibold">
-                {payment.planName ?? 'Plan'} · {formatMoney(payment.amountMinor, payment.currency)}
+                {payment.planName ?? t('open.plan')} · {formatMoney(payment.amountMinor, payment.currency)}
               </p>
               <p className="text-muted-foreground">{formatDay(payment.createdAt)}</p>
             </div>
             <p className="mt-1 text-muted-foreground">
-              Reference <span className="font-mono">{payment.reference}</span> · {paymentStatusLabels[payment.status]}
-              {payment.refundReason && ` (${refundReasonLabels[payment.refundReason].toLowerCase()})`}
+              {rich(
+                'history.line',
+                { mono: (words) => <span className="font-mono">{words}</span> },
+                { reference: payment.reference, status: paymentStatusLabels[payment.status] },
+              )}
+              {payment.refundReason && t('history.refund', { reason: refundReasonLabels[payment.refundReason].toLowerCase() })}
             </p>
             {payment.message && !OPEN.includes(payment.status) && <p className="mt-1">{payment.message}</p>}
           </li>

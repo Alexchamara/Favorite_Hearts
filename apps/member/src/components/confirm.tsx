@@ -11,6 +11,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { useI18n } from '@/lib/i18n';
 
 export function Confirm({
   trigger,
@@ -27,6 +28,7 @@ export function Confirm({
   onConfirm: () => void;
   destructive?: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
@@ -38,7 +40,7 @@ export function Confirm({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
           <AlertDialogAction variant={destructive ? 'destructive' : 'default'} onClick={onConfirm}>
             {action}
           </AlertDialogAction>

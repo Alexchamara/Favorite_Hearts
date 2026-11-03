@@ -415,6 +415,53 @@ and the privacy policy are drafts for the owner's lawyer, and what the lawyer mu
   `/app/` without `noindex`. Titles over 70 and descriptions over 160 characters, which search results may shorten,
   are listed as notes.
 
+## Languages (Stage 5c)
+
+English and Sinhala in the member app, the API's messages, emails and text messages (OWNER-DECISIONS section 10).
+Tamil is prepared but hidden; staff screens stay in English (owner, 3 Nov 2026). The website's Sinhala pages follow
+in 5d.
+
+- **Catalogues** (`packages/shared/src/i18n/<language>/<area>.json`, English the source): `app` (member app),
+  `shared` (month names and the order of a date, used by the app and emails), `api` (the API's messages),
+  `validation` (form checks, used by both) and `email` (emails and text messages). A text is a flat key
+  (`signIn.title`) with `{placeholders}`; plural texts are `key_one` / `key_other`, chosen with the language's plural
+  rules (Sinhala counts 0 as one); `<strong>…</strong>`-style tags mark words the app renders in bold or as a link.
+  Limits named in texts (ages, code length, days) are filled from the rules themselves (`TEXT_CONSTANTS` in
+  `packages/shared/src/text.ts`), so the words never drift from the code. A missing translation falls back to English.
+  Staff-only texts (`api.staff.*`, `validation.staff.*`) are English only and never sent for translation.
+- **Hidden Tamil.** `ta/*.json` holds what the demo had translated and matches our English exactly;
+  `glossary.json` keeps all 80 demo phrases in English, Sinhala and Tamil. Offering Tamil later means translating the
+  catalogues, adding `ta` to `LOCALES` and to the database's `locale` type (a migration).
+- **Member app** (`src/lib/i18n.tsx`): `useI18n()` gives `t(key, vars)` and `rich(key, parts)`; plain modules use
+  `say()`. The language comes from a `?lang=si` link (the website's Sinhala pages, 5d), the visitor's saved choice
+  (`fh-visitor-preferences`, shared with the website's language dialog), or the browser's own language. `<html lang>`
+  follows it. The header's switch (English / සිංහල) changes it. Once the member is signed in, a choice made on this
+  device wins and is saved to the account; a device where nobody has chosen takes the account's language. Every API and
+  sign-in request carries `Accept-Language`. Value lists (statuses, religions, document types…) come from
+  `useLabels()` and `useBillingLabels()`; staff screens use their fixed English copies (`ENGLISH_LABELS`,
+  `ENGLISH_BILLING`) under `EnglishOnly`. Dates and country names come from the catalogues, not from the browser:
+  some browsers have no Sinhala calendar data and would quietly show English. The Sinhala country names were drafted
+  from the Unicode CLDR list. Members' own words, people's names and the owner's plan names are shown as written.
+- **API** (`src/text.ts`): an error carries a key (`fail(status, code, 'api.profile.notFound')`, with values when it
+  needs them); the error handler renders it, and any field messages, in the language of the request's
+  `Accept-Language`, English otherwise. The database rule answers (`app.ts`) and image checks carry keys too; Zod
+  messages are keys (`validation.*`), and a limit without its own message gets one per kind of problem
+  (`issueText`). Better-Auth's hooks render their refusals (banned address, paused sign-ups, too many codes) in the
+  request's language and add a code the app recognises.
+- **Emails and text messages:** sign-in and invitation codes in the language of the screen that asked (no account may
+  exist yet); an invitation in the inviting manager's language; queued emails (plans, payments, hand-overs) in the
+  recipient's saved language, `member_account.locale`. A new member account starts in the language of the request
+  that creates it; `PUT /api/v1/me/language` changes it (English or Sinhala only). A Sinhala text message is sent as
+  Unicode, 70 characters per part instead of 160, so it costs more.
+- **The reviewer's spreadsheet** (`scripts/text/`, no dependency): `npm run text:export` writes
+  `dist/text/favorite-hearts-text-si-<date>.xlsx` with a read-me, one tab each for the app, messages, and emails and
+  texts, and the glossary. Columns: key, where it appears, English, Sinhala now, the reviewer's Sinhala, status (Draft,
+  Approved, Needs discussion; "English changed" when the English moved on after a review), notes, and what to keep
+  (placeholders, tags, legal wording, plural forms). `npm run text:import -- <file>` checks every corrected row keeps
+  the English placeholders and tags, skips rows whose English changed since the export, writes the Sinhala, and
+  records each reviewed text with the English it was reviewed against (`i18n/review/si.json`); `--dry-run` only
+  reports. `npm run text:status` shows how much is translated and approved.
+
 ## Database access
 
 Tables (`apps/api/src/db/schema/`) follow spec 12.1. Discoverable profile fields live in `profile`. Private data has

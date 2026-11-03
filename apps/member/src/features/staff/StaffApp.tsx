@@ -18,12 +18,14 @@ import { api, errorMessage, post } from '@/lib/api';
 import { authClient } from '@/lib/auth-client';
 import { keys, resetSession, useMe } from '@/lib/queries';
 import { queryClient } from '@/lib/query-client';
-import { documentLabels } from '@/features/profile/options';
+import { ENGLISH_LABELS } from '@/features/profile/options';
 import { PaymentDetailsAdmin } from './PaymentDetailsAdmin';
 import { PaymentsQueue } from './PaymentsQueue';
 import { PlansAdmin } from './PlansAdmin';
 import { ReportsQueue } from './ReportsQueue';
 import { ServiceAdmin } from './ServiceAdmin';
+
+const { documentLabels } = ENGLISH_LABELS;
 
 export default function StaffApp() {
   const me = useMe();

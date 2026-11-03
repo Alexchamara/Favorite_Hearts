@@ -1,9 +1,13 @@
-import type { ReactNode } from 'react';
+import { useCallback, type ReactNode } from 'react';
 import { Heart, LogOut, Moon, Sun } from 'lucide-react';
 import { Link, NavLink, useNavigate } from 'react-router';
+import { LANGUAGE_NAMES } from '@fh/shared';
 import { Button } from '@/components/ui/button';
+import { put } from '@/lib/api';
 import { authClient } from '@/lib/auth-client';
-import { resetSession, useMe } from '@/lib/queries';
+import { useAccountLanguage, useI18n } from '@/lib/i18n';
+import { keys, resetSession, useMe } from '@/lib/queries';
+import { queryClient } from '@/lib/query-client';
 import { useTheme } from '@/lib/theme';
 import { cn } from '@/lib/utils';
 import site from '../../../website/site.config.json';
@@ -21,6 +25,18 @@ export function AppShell({ children, home = '/' }: { children: ReactNode; home?:
   const navigate = useNavigate();
   const showNav = Boolean(me.data && !me.data.staffRole && me.data.name);
   const showSupport = home !== '/staff' && !me.data?.staffRole;
+  const { t, language, setLanguage } = useI18n();
+  // The account's language follows the member's choice, so emails do too; staff screens stay in English.
+  const saveLanguage = useCallback(async (next: 'en' | 'si') => {
+    await put('/me/language', { language: next }).catch(() => undefined);
+    await queryClient.invalidateQueries({ queryKey: keys.me });
+  }, []);
+  useAccountLanguage(showSupport ? me.data?.memberAccount?.locale : undefined, saveLanguage);
+  const other = language === 'en' ? 'si' : 'en';
+  const switchLanguage = async () => {
+    setLanguage(other);
+    if (me.data?.memberAccount) await saveLanguage(other);
+  };
   const signOut = async () => {
     await authClient.signOut();
     await resetSession();
@@ -29,7 +45,7 @@ export function AppShell({ children, home = '/' }: { children: ReactNode; home?:
   return (
     <div className="min-h-dvh">
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:rounded focus:bg-card focus:px-3 focus:py-2">
-        Skip to content
+        {t('layout.skip')}
       </a>
       {/* On phones the navigation wraps to its own row under the brand and account buttons. */}
       <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-3 sm:px-6">
@@ -38,12 +54,12 @@ export function AppShell({ children, home = '/' }: { children: ReactNode; home?:
           Favorite Hearts
         </Link>
         {showNav && (
-          <nav aria-label="Main" className="order-last flex w-full items-center gap-1 text-sm sm:order-none sm:ml-auto sm:w-auto">
+          <nav aria-label={t('layout.mainNav')} className="order-last flex w-full items-center gap-1 text-sm sm:order-none sm:ml-auto sm:w-auto">
             <NavLink to="/" end className={navClass}>
-              Profiles
+              {t('layout.profiles')}
             </NavLink>
             <NavLink to="/browse" className={navClass}>
-              Browse
+              {t('layout.browse')}
             </NavLink>
           </nav>
         )}
@@ -53,16 +69,21 @@ export function AppShell({ children, home = '/' }: { children: ReactNode; home?:
               <span className="hidden max-w-[16ch] truncate text-sm text-muted-foreground md:inline">{me.data.name || me.data.email}</span>
               <Button variant="ghost" size="sm" onClick={signOut}>
                 <LogOut aria-hidden="true" />
-                Sign out
+                {t('layout.signOut')}
               </Button>
             </>
+          )}
+          {showSupport && (
+            <Button variant="ghost" size="sm" lang={other} onClick={switchLanguage} aria-label={t(`layout.languageTo.${other}`)}>
+              {LANGUAGE_NAMES[other]}
+            </Button>
           )}
           <Button
             variant="outline"
             size="icon"
             className="rounded-full"
             onClick={toggleTheme}
-            aria-label={theme === 'dark' ? 'Use the light theme' : 'Use the dark theme'}
+            aria-label={theme === 'dark' ? t('layout.lightTheme') : t('layout.darkTheme')}
           >
             {theme === 'dark' ? <Sun /> : <Moon />}
           </Button>
@@ -78,19 +99,20 @@ export function AppShell({ children, home = '/' }: { children: ReactNode; home?:
 
 /** Support channels and the policies, under every member screen and the sign-in page. */
 function SupportFooter() {
+  const { t } = useI18n();
   return (
     <footer className="mx-auto w-full max-w-3xl px-4 pb-10 text-sm text-muted-foreground">
       <div className="border-t pt-6">
-        <h2 className="font-semibold text-foreground">Need help?</h2>
+        <h2 className="font-semibold text-foreground">{t('layout.needHelp')}</h2>
         <ul className="mt-2 flex flex-wrap gap-x-5 gap-y-1">
           <li>
             <a className={footerLink} href={`https://wa.me/${phoneDigits}`} target="_blank" rel="noopener noreferrer">
-              WhatsApp {phoneLabel}
+              {t('layout.whatsapp', { phone: phoneLabel })}
             </a>
           </li>
           <li>
             <a className={footerLink} href={`tel:${site.telephone}`}>
-              Call {phoneLabel}
+              {t('layout.call', { phone: phoneLabel })}
             </a>
           </li>
           <li>
@@ -99,16 +121,16 @@ function SupportFooter() {
             </a>
           </li>
         </ul>
-        <p className="mt-3">Favorite Hearts staff will never ask for your password or a code.</p>
-        <nav aria-label="Help and policies" className="mt-3 flex flex-wrap gap-x-5 gap-y-1">
+        <p className="mt-3">{t('layout.staffNeverAsk')}</p>
+        <nav aria-label={t('layout.helpNav')} className="mt-3 flex flex-wrap gap-x-5 gap-y-1">
           <a className={footerLink} href="/help/">
-            Help
+            {t('layout.help')}
           </a>
           <a className={footerLink} href="/terms/">
-            Terms
+            {t('layout.terms')}
           </a>
           <a className={footerLink} href="/privacy/">
-            Privacy
+            {t('layout.privacy')}
           </a>
         </nav>
       </div>
@@ -154,10 +176,11 @@ export function Notice({ tone = 'info', title, children }: { tone?: keyof typeof
   );
 }
 
-export function Loading({ label = 'Loading…' }: { label?: string }) {
+export function Loading({ label }: { label?: string }) {
+  const { t } = useI18n();
   return (
     <p role="status" className="py-10 text-center text-sm text-muted-foreground">
-      {label}
+      {label ?? t('common.loading')}
     </p>
   );
 }

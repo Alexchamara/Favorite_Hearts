@@ -12,25 +12,8 @@ import { Button } from '@/components/ui/button';
 import { ApiError, errorMessage, patch } from '@/lib/api';
 import { keys, storeProfile } from '@/lib/queries';
 import { queryClient } from '@/lib/query-client';
-import {
-  childrenLabels,
-  communityLabels,
-  countries,
-  dietLabels,
-  genderLabels,
-  habitLabels,
-  horoscopeLabels,
-  incomeLabels,
-  involvementLabels,
-  maritalLabels,
-  options,
-  relocationLabels,
-  religionLabels,
-  SPOKEN_LANGUAGES,
-  SRI_LANKA_DISTRICTS,
-  timelineLabels,
-  valueLabels,
-} from './options';
+import { issueMessage, say, useI18n } from '@/lib/i18n';
+import { options, SPOKEN_LANGUAGES, SRI_LANKA_DISTRICTS, suggestionLabel, useCountries, useLabels } from './options';
 
 type Key = Exclude<keyof ProfileFields, 'caste' | 'adultDeclaredAt'>;
 type FormValue = string | string[];
@@ -53,7 +36,7 @@ function useStep(profile: ProfileView, fields: Key[]) {
   const save = useMutation({
     mutationFn: (payload: Record<string, unknown>) => patch<ProfileView>(`/profiles/${profile.id}`, { version: profile.version, ...payload }),
     onSuccess: async (updated) => {
-      toast.success('Saved.');
+      toast.success(say('common.saved'));
       await storeProfile(updated);
     },
     onError: (error) => {
@@ -74,20 +57,23 @@ function useStep(profile: ProfileView, fields: Key[]) {
     for (const key of fields) {
       if (same(values[key], initial[key])) continue;
       const value = fromForm(key, values[key]);
-      if (value === null && REQUIRED.has(key)) found[key] = 'Required.';
+      if (value === null && REQUIRED.has(key)) found[key] = say('validation.required');
       else payload[key] = value;
     }
     const checked = profileFieldsSchema.safeParse(payload);
-    if (!checked.success) for (const issue of checked.error.issues) found[issue.path.join('.')] ??= issue.message;
+    if (!checked.success) {
+      for (const issue of checked.error.issues) found[issue.path.join('.')] ??= issueMessage(issue as Parameters<typeof issueMessage>[0]);
+    }
     setErrors(found);
     if (Object.keys(found).length) return;
-    if (!Object.keys(payload).length) return toast('Nothing has changed.');
+    if (!Object.keys(payload).length) return toast(say('details.nothingChanged'));
     save.mutate(payload);
   }
   return { values, set, text, list, errors, submit, saving: save.isPending, failed: save.error };
 }
 
 function Step({ title, intro, children, onSave, saving, failed, canEdit }: { title: string; intro?: string; children: ReactNode; onSave: () => void; saving: boolean; failed: unknown; canEdit: boolean }) {
+  const { t } = useI18n();
   return (
     <Card>
       <h2 className="font-serif text-2xl">{title}</h2>
@@ -106,7 +92,7 @@ function Step({ title, intro, children, onSave, saving, failed, canEdit }: { tit
         {canEdit && (
           <div>
             <Button type="submit" className="h-11" disabled={saving}>
-              {saving ? 'Saving…' : 'Save'}
+              {saving ? t('common.saving') : t('common.save')}
             </Button>
           </div>
         )}
@@ -120,14 +106,17 @@ const full = 'sm:col-span-2';
 function Essentials({ profile }: { profile: ProfileView }) {
   const f = useStep(profile, ['displayName', 'gender', 'birthDate', 'countryCode', 'region', 'city', 'occupation', 'education', 'heightCm', 'maritalStatus', 'religion', 'languages', 'motherTongue']);
   const inSriLanka = f.text('countryCode') === 'LK';
+  const { t } = useI18n();
+  const { genderLabels, maritalLabels, religionLabels } = useLabels();
+  const countries = useCountries();
   return (
-    <Step title="Essentials" intro="The basics members see first. Use the candidate’s first name." onSave={() => f.submit()} saving={f.saving} failed={f.failed} canEdit={profile.me.canEdit}>
-      <TextField label="Name" maxLength={60} value={f.text('displayName')} onChange={f.set('displayName')} error={f.errors.displayName} />
-      <SelectField label="Gender" value={f.text('gender')} onChange={f.set('gender')} options={options(genderLabels)} error={f.errors.gender} />
-      <TextField label="Date of birth" type="date" value={f.text('birthDate')} onChange={f.set('birthDate')} error={f.errors.birthDate} hint="Only the age is shown to others." />
-      <SelectField label="Marital status" value={f.text('maritalStatus')} onChange={f.set('maritalStatus')} options={options(maritalLabels)} error={f.errors.maritalStatus} />
+    <Step title={t('details.essentials.title')} intro={t('details.essentials.intro')} onSave={() => f.submit()} saving={f.saving} failed={f.failed} canEdit={profile.me.canEdit}>
+      <TextField label={t('details.name')} maxLength={60} value={f.text('displayName')} onChange={f.set('displayName')} error={f.errors.displayName} />
+      <SelectField label={t('details.gender')} value={f.text('gender')} onChange={f.set('gender')} options={options(genderLabels)} error={f.errors.gender} />
+      <TextField label={t('details.birthDate')} type="date" value={f.text('birthDate')} onChange={f.set('birthDate')} error={f.errors.birthDate} hint={t('details.birthDate.hint')} />
+      <SelectField label={t('details.marital')} value={f.text('maritalStatus')} onChange={f.set('maritalStatus')} options={options(maritalLabels)} error={f.errors.maritalStatus} />
       <SelectField
-        label="Country"
+        label={t('details.country')}
         value={f.text('countryCode')}
         onChange={(value) => {
           f.set('countryCode')(value);
@@ -138,28 +127,28 @@ function Essentials({ profile }: { profile: ProfileView }) {
       />
       {inSriLanka ? (
         <SelectField
-          label="District"
+          label={t('details.district')}
           value={f.text('region')}
           onChange={f.set('region')}
-          options={SRI_LANKA_DISTRICTS.map((district) => ({ value: district, label: district }))}
+          options={SRI_LANKA_DISTRICTS.map((district) => ({ value: district, label: suggestionLabel(t, 'district', district) }))}
           error={f.errors.region}
         />
       ) : (
-        <TextField label="Region or state (optional)" maxLength={80} value={f.text('region')} onChange={f.set('region')} error={f.errors.region} />
+        <TextField label={t('details.region')} maxLength={80} value={f.text('region')} onChange={f.set('region')} error={f.errors.region} />
       )}
-      <TextField label="City or town" maxLength={80} value={f.text('city')} onChange={f.set('city')} error={f.errors.city} />
-      <TextField label="Height (cm)" type="number" inputMode="numeric" min={100} max={230} value={f.text('heightCm')} onChange={f.set('heightCm')} error={f.errors.heightCm} />
-      <TextField label="Occupation" maxLength={100} value={f.text('occupation')} onChange={f.set('occupation')} error={f.errors.occupation} />
-      <TextField label="Education" maxLength={200} value={f.text('education')} onChange={f.set('education')} error={f.errors.education} />
-      <SelectField label="Religion" value={f.text('religion')} onChange={f.set('religion')} options={options(religionLabels)} error={f.errors.religion} />
-      <TextField label="Mother tongue (optional)" maxLength={80} value={f.text('motherTongue')} onChange={f.set('motherTongue')} error={f.errors.motherTongue} />
+      <TextField label={t('details.city')} maxLength={80} value={f.text('city')} onChange={f.set('city')} error={f.errors.city} />
+      <TextField label={t('details.height')} type="number" inputMode="numeric" min={100} max={230} value={f.text('heightCm')} onChange={f.set('heightCm')} error={f.errors.heightCm} />
+      <TextField label={t('details.occupation')} maxLength={100} value={f.text('occupation')} onChange={f.set('occupation')} error={f.errors.occupation} />
+      <TextField label={t('details.education')} maxLength={200} value={f.text('education')} onChange={f.set('education')} error={f.errors.education} />
+      <SelectField label={t('details.religion')} value={f.text('religion')} onChange={f.set('religion')} options={options(religionLabels)} error={f.errors.religion} />
+      <TextField label={t('details.motherTongue')} maxLength={80} value={f.text('motherTongue')} onChange={f.set('motherTongue')} error={f.errors.motherTongue} />
       <div className={full}>
         <ChipPicker
-          label="Languages spoken"
+          label={t('details.languages')}
           max={10}
           value={f.list('languages')}
           onChange={f.set('languages')}
-          options={SPOKEN_LANGUAGES.map((language) => ({ value: language, label: language }))}
+          options={SPOKEN_LANGUAGES.map((language) => ({ value: language, label: suggestionLabel(t, 'spokenLanguage', language) }))}
           error={f.errors.languages}
         />
       </div>
@@ -169,28 +158,30 @@ function Essentials({ profile }: { profile: ProfileView }) {
 
 function About({ profile }: { profile: ProfileView }) {
   const f = useStep(profile, ['bio', 'values', 'hobbies', 'timeline', 'relocation', 'horoscopeImportance', 'incomeRange']);
+  const { t } = useI18n();
+  const { horoscopeLabels, incomeLabels, relocationLabels, timelineLabels, valueLabels } = useLabels();
   return (
     <Step
-      title="About"
-      intro="Describe everyday life and what matters. Do not put phone numbers or an exact address here."
+      title={t('details.about.title')}
+      intro={t('details.about.intro')}
       onSave={() => f.submit()}
       saving={f.saving}
       failed={f.failed}
       canEdit={profile.me.canEdit}
     >
-      <TextAreaField className={full} label="About" maxLength={600} value={f.text('bio')} onChange={f.set('bio')} error={f.errors.bio} />
+      <TextAreaField className={full} label={t('details.bio')} maxLength={600} value={f.text('bio')} onChange={f.set('bio')} error={f.errors.bio} />
       <div className={full}>
-        <ChipPicker label="Values" max={5} value={f.list('values')} onChange={f.set('values')} options={PROFILE_VALUES.map((value) => ({ value, label: valueLabels[value] }))} error={f.errors.values} />
+        <ChipPicker label={t('details.values')} max={5} value={f.list('values')} onChange={f.set('values')} options={PROFILE_VALUES.map((value) => ({ value, label: valueLabels[value] }))} error={f.errors.values} />
       </div>
       <div className={full}>
-        <ListField label="Hobbies" max={6} maxLength={50} placeholder="e.g. Hiking" value={f.list('hobbies')} onChange={f.set('hobbies')} error={f.errors.hobbies} />
+        <ListField label={t('details.hobbies')} max={6} maxLength={50} placeholder={t('details.hobbies.placeholder')} value={f.list('hobbies')} onChange={f.set('hobbies')} error={f.errors.hobbies} />
       </div>
-      <SelectField label="Marriage timeline" value={f.text('timeline')} onChange={f.set('timeline')} options={options(timelineLabels)} error={f.errors.timeline} />
-      <SelectField label="Relocation" value={f.text('relocation')} onChange={f.set('relocation')} options={options(relocationLabels)} error={f.errors.relocation} />
-      <SelectField label="Horoscope matching" value={f.text('horoscopeImportance')} onChange={f.set('horoscopeImportance')} options={options(horoscopeLabels)} error={f.errors.horoscopeImportance} />
+      <SelectField label={t('details.timeline')} value={f.text('timeline')} onChange={f.set('timeline')} options={options(timelineLabels)} error={f.errors.timeline} />
+      <SelectField label={t('details.relocation')} value={f.text('relocation')} onChange={f.set('relocation')} options={options(relocationLabels)} error={f.errors.relocation} />
+      <SelectField label={t('details.horoscope')} value={f.text('horoscopeImportance')} onChange={f.set('horoscopeImportance')} options={options(horoscopeLabels)} error={f.errors.horoscopeImportance} />
       <SelectField
-        label="Monthly income (self-declared)"
-        hint="Shown on the profile as self-declared."
+        label={t('details.income')}
+        hint={t('details.income.hint')}
         value={f.text('incomeRange')}
         onChange={f.set('incomeRange')}
         options={options(incomeLabels)}
@@ -202,16 +193,18 @@ function About({ profile }: { profile: ProfileView }) {
 
 function Family({ profile }: { profile: ProfileView }) {
   const f = useStep(profile, ['familyStory', 'motherName', 'motherOccupation', 'fatherName', 'fatherOccupation', 'sisters', 'brothers', 'familyInvolvement']);
+  const { t } = useI18n();
+  const { involvementLabels } = useLabels();
   return (
-    <Step title="Family" intro="All optional. Other members can see what you add here." onSave={() => f.submit()} saving={f.saving} failed={f.failed} canEdit={profile.me.canEdit}>
-      <TextAreaField className={full} label="Family story" maxLength={600} value={f.text('familyStory')} onChange={f.set('familyStory')} error={f.errors.familyStory} />
-      <TextField label="Mother’s name" maxLength={80} value={f.text('motherName')} onChange={f.set('motherName')} error={f.errors.motherName} />
-      <TextField label="Mother’s occupation" maxLength={100} value={f.text('motherOccupation')} onChange={f.set('motherOccupation')} error={f.errors.motherOccupation} />
-      <TextField label="Father’s name" maxLength={80} value={f.text('fatherName')} onChange={f.set('fatherName')} error={f.errors.fatherName} />
-      <TextField label="Father’s occupation" maxLength={100} value={f.text('fatherOccupation')} onChange={f.set('fatherOccupation')} error={f.errors.fatherOccupation} />
-      <ListField label="Sisters (occupation)" max={12} maxLength={100} placeholder="e.g. Teacher" value={f.list('sisters')} onChange={f.set('sisters')} error={f.errors.sisters} />
-      <ListField label="Brothers (occupation)" max={12} maxLength={100} placeholder="e.g. Engineer" value={f.list('brothers')} onChange={f.set('brothers')} error={f.errors.brothers} />
-      <SelectField label="Family involvement" value={f.text('familyInvolvement')} onChange={f.set('familyInvolvement')} options={options(involvementLabels)} error={f.errors.familyInvolvement} />
+    <Step title={t('details.family.title')} intro={t('details.family.intro')} onSave={() => f.submit()} saving={f.saving} failed={f.failed} canEdit={profile.me.canEdit}>
+      <TextAreaField className={full} label={t('details.familyStory')} maxLength={600} value={f.text('familyStory')} onChange={f.set('familyStory')} error={f.errors.familyStory} />
+      <TextField label={t('details.motherName')} maxLength={80} value={f.text('motherName')} onChange={f.set('motherName')} error={f.errors.motherName} />
+      <TextField label={t('details.motherOccupation')} maxLength={100} value={f.text('motherOccupation')} onChange={f.set('motherOccupation')} error={f.errors.motherOccupation} />
+      <TextField label={t('details.fatherName')} maxLength={80} value={f.text('fatherName')} onChange={f.set('fatherName')} error={f.errors.fatherName} />
+      <TextField label={t('details.fatherOccupation')} maxLength={100} value={f.text('fatherOccupation')} onChange={f.set('fatherOccupation')} error={f.errors.fatherOccupation} />
+      <ListField label={t('details.sisters')} max={12} maxLength={100} placeholder={t('details.sisters.placeholder')} value={f.list('sisters')} onChange={f.set('sisters')} error={f.errors.sisters} />
+      <ListField label={t('details.brothers')} max={12} maxLength={100} placeholder={t('details.brothers.placeholder')} value={f.list('brothers')} onChange={f.set('brothers')} error={f.errors.brothers} />
+      <SelectField label={t('details.involvement')} value={f.text('familyInvolvement')} onChange={f.set('familyInvolvement')} options={options(involvementLabels)} error={f.errors.familyInvolvement} />
     </Step>
   );
 }
@@ -225,26 +218,29 @@ function Lifestyle({ profile }: { profile: ProfileView }) {
   const [consent, setConsent] = useState(Boolean(savedCaste));
   const wanted = share === 'share' ? caste.trim() : '';
   const casteChanged = wanted !== savedCaste;
+  const { t } = useI18n();
+  const { childrenLabels, communityLabels, dietLabels, habitLabels } = useLabels();
+  const notShared = t('details.notShared');
   return (
     <Step
-      title="Lifestyle and community"
-      intro="All optional."
+      title={t('details.lifestyle.title')}
+      intro={t('details.lifestyle.intro')}
       onSave={() => f.submit(casteChanged ? { caste: wanted ? { value: wanted, consent } : null } : {})}
       saving={f.saving}
       failed={f.failed}
       canEdit={profile.me.canEdit}
     >
-      <SelectField label="Diet" value={f.text('diet')} onChange={f.set('diet')} options={options(dietLabels)} placeholder="Not shared" />
-      <SelectField label="Children" value={f.text('childrenPlan')} onChange={f.set('childrenPlan')} options={options(childrenLabels)} placeholder="Not shared" />
-      <SelectField label="Smoking" value={f.text('smoking')} onChange={f.set('smoking')} options={options(habitLabels)} placeholder="Not shared" />
-      <SelectField label="Drinking" value={f.text('drinking')} onChange={f.set('drinking')} options={options(habitLabels)} placeholder="Not shared" />
-      <SelectField className={full} label="Community" value={f.text('communityOpenness')} onChange={f.set('communityOpenness')} options={options(communityLabels)} placeholder="Not shared" />
+      <SelectField label={t('details.diet')} value={f.text('diet')} onChange={f.set('diet')} options={options(dietLabels)} placeholder={notShared} />
+      <SelectField label={t('details.children')} value={f.text('childrenPlan')} onChange={f.set('childrenPlan')} options={options(childrenLabels)} placeholder={notShared} />
+      <SelectField label={t('details.smoking')} value={f.text('smoking')} onChange={f.set('smoking')} options={options(habitLabels)} placeholder={notShared} />
+      <SelectField label={t('details.drinking')} value={f.text('drinking')} onChange={f.set('drinking')} options={options(habitLabels)} placeholder={notShared} />
+      <SelectField className={full} label={t('details.community')} value={f.text('communityOpenness')} onChange={f.set('communityOpenness')} options={options(communityLabels)} placeholder={notShared} />
       <fieldset className={`${full} flex flex-col gap-3 rounded-[12px] border border-dashed p-4`}>
-        <legend className="px-1 text-[13px] font-semibold">Caste or community</legend>
+        <legend className="px-1 text-[13px] font-semibold">{t('details.caste')}</legend>
         {(
           [
-            ['prefer_not', 'Prefer not to say'],
-            ['share', 'Share it on the profile'],
+            ['prefer_not', t('details.caste.preferNot')],
+            ['share', t('details.caste.share')],
           ] as const
         ).map(([value, text]) => (
           <label key={value} className="flex items-center gap-3 text-sm">
@@ -261,8 +257,8 @@ function Lifestyle({ profile }: { profile: ProfileView }) {
         {share === 'share' && (
           <>
             <TextField
-              label="Your caste or community"
-              hint="Shown to signed-in members only, never to visitors, and members can filter by it. You can remove it at any time."
+              label={t('details.caste.label')}
+              hint={t('details.caste.hint')}
               maxLength={80}
               value={caste}
               onChange={setCaste}
@@ -272,7 +268,7 @@ function Lifestyle({ profile }: { profile: ProfileView }) {
               checked={consent}
               onChange={setConsent}
               error={f.errors['caste.consent']}
-              label="I agree that this is shown on the profile to signed-in members and can be used in their filters."
+              label={t('details.caste.consent')}
             />
           </>
         )}
@@ -282,9 +278,10 @@ function Lifestyle({ profile }: { profile: ProfileView }) {
 }
 
 export function DetailsForm({ profile }: { profile: ProfileView }) {
+  const { t } = useI18n();
   return (
     <div className="flex flex-col gap-6">
-      {!profile.me.canEdit && <Notice>You can view these details but not change them.</Notice>}
+      {!profile.me.canEdit && <Notice>{t('details.viewOnly')}</Notice>}
       <Essentials profile={profile} />
       <About profile={profile} />
       <Family profile={profile} />

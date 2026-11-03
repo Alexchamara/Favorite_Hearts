@@ -14,7 +14,9 @@ import { errorMessage, put } from '@/lib/api';
 import { formatWhen } from '@/lib/format';
 import { useOwnerSettings } from '@/lib/queries';
 import { queryClient } from '@/lib/query-client';
-import { channelLabels } from '@/features/billing/labels';
+import { ENGLISH_BILLING } from '@/features/billing/labels';
+
+const { channelLabels } = ENGLISH_BILLING;
 
 const examples: Record<PaymentSettingView['channel'], string> = {
   lkr_bank_transfer: 'Account name, bank, branch and account number.',

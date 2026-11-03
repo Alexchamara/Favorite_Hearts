@@ -19,7 +19,7 @@ export const discover = new Hono<AppEnv>().use(requireMember);
 /** Browsing opens once the member's identity document is reviewed and phone verified (N04). */
 export async function requireVerifiedMember(tx: Tx): Promise<void> {
   if (!(await scalar<boolean>(tx, sql`app.is_verified_member()`))) {
-    fail(403, 'VERIFICATION_REQUIRED', 'Browsing opens once your identity document is reviewed and your phone is verified.');
+    fail(403, 'VERIFICATION_REQUIRED', 'api.discover.verificationRequired');
   }
 }
 
@@ -29,7 +29,7 @@ function decodeCursor(value: string) {
   try {
     return cursorSchema.parse(JSON.parse(Buffer.from(value, 'base64url').toString('utf8')));
   } catch {
-    return fail(400, 'VALIDATION', 'This page link is no longer valid.', { cursor: 'Invalid' });
+    return fail(400, 'VALIDATION', 'api.discover.pageExpired', { cursor: 'validation.invalid' });
   }
 }
 
@@ -113,12 +113,12 @@ async function relation(tx: Tx, acting: string, target: string): Promise<Relatio
 }
 
 discover.get('/:id', async (c) => {
-  const id = parse(z.uuid({ error: 'Profile not found.' }), c.req.param('id'));
+  const id = parse(z.uuid({ error: 'api.profile.notFound' }), c.req.param('id'));
   const as = c.req.query('as') === undefined ? null : parse(actingProfileSchema, c.req.query('as'));
   const view = await withActor(c, async (tx): Promise<MemberProfileView> => {
     await requireVerifiedMember(tx);
     const [row] = await tx.select().from(profile).where(and(eq(profile.id, id), sql`not app.operates_profile(${profile.id})`));
-    if (!row) fail(404, 'NOT_FOUND', 'This profile is not available.');
+    if (!row) fail(404, 'NOT_FOUND', 'api.profile.unavailable');
     if (as) await operatedProfile(tx, as);
     const base = await memberProfileView(c, tx, row);
     const connected = base.family.namesShown;

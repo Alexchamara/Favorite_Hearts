@@ -58,6 +58,10 @@ allow the preview's origin (`SANDBOX_MEMBER_ORIGIN=http://localhost:8080`).
 
 Checks: `npm run typecheck`, `npm test`, `npm run build`, and `npm run build:site` (with its site check).
 
+Text and translations (English and Sinhala; see `docs/ARCHITECTURE.md`, "Languages"): `npm run text:export` writes the
+reviewer's spreadsheet to `dist/text/`; `npm run text:import -- <file.xlsx>` reads the reviewed file back (add
+`--dry-run` to only check it); `npm run text:status` shows how much is translated and approved.
+
 ## Secrets
 
 Never commit real keys; only `*.example` files are tracked. Browser-visible values start with

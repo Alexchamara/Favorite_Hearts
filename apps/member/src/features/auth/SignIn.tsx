@@ -11,9 +11,10 @@ import { useBotCheck } from '@/components/turnstile';
 import { Button } from '@/components/ui/button';
 import { errorMessage } from '@/lib/api';
 import { authClient } from '@/lib/auth-client';
+import { useI18n } from '@/lib/i18n';
 import { keys, resetSession, useServiceStatus } from '@/lib/queries';
 import { queryClient } from '@/lib/query-client';
-import { enabledChannels, requestLoginCode, verifyLoginCode } from './login-code';
+import { authErrorMessage, enabledChannels, requestLoginCode, verifyLoginCode } from './login-code';
 
 type Step = { kind: 'contact' } | { kind: 'code'; channel: LoginChannel; contact: string };
 
@@ -27,6 +28,7 @@ export function SignIn({ onSignedIn, intro }: { onSignedIn?: () => void; intro?:
   const [busy, setBusy] = useState(false);
   const bot = useBotCheck();
   const status = useServiceStatus();
+  const { t, rich } = useI18n();
 
   const input = (target: LoginChannel, value: string) =>
     target === 'email' ? ({ channel: 'email', email: value } as const) : ({ channel: 'sms', phone: value } as const);
@@ -63,21 +65,21 @@ export function SignIn({ onSignedIn, intro }: { onSignedIn?: () => void; intro?:
     }
   }
 
-  if (!channels.length) return <Notice tone="warning">Sign-in is not available right now.</Notice>;
+  if (!channels.length) return <Notice tone="warning">{t('signIn.unavailable')}</Notice>;
 
   return (
     <div className="flex flex-col gap-5">
       {intro && <p className="text-muted-foreground">{intro}</p>}
       {status.data?.signupsPaused && (
-        <Notice tone="warning" title="New sign-ups are paused for now">
-          We are catching up on reviews. If you already have an account, you can still sign in.
+        <Notice tone="warning" title={t('signIn.paused.title')}>
+          {t('signIn.paused.body')}
         </Notice>
       )}
       {error && <Notice tone="error">{error}</Notice>}
       {step.kind === 'contact' ? (
         <form onSubmit={sendCode} className="flex flex-col gap-4">
           {channels.length > 1 && (
-            <div role="radiogroup" aria-label="Sign in with" className="flex gap-2">
+            <div role="radiogroup" aria-label={t('signIn.channel')} className="flex gap-2">
               {channels.map((option) => (
                 <button
                   key={option}
@@ -87,13 +89,13 @@ export function SignIn({ onSignedIn, intro }: { onSignedIn?: () => void; intro?:
                   onClick={() => setChannel(option)}
                   className="min-h-11 flex-1 rounded-[10px] border text-sm font-semibold aria-checked:border-primary aria-checked:bg-primary aria-checked:text-primary-foreground"
                 >
-                  {option === 'email' ? 'Email' : 'Phone (SMS)'}
+                  {t(option === 'email' ? 'signIn.channel.email' : 'signIn.channel.sms')}
                 </button>
               ))}
             </div>
           )}
           <TextField
-            label={channel === 'email' ? 'Email address' : 'Mobile number'}
+            label={t(channel === 'email' ? 'signIn.email' : 'signIn.mobile')}
             type={channel === 'email' ? 'email' : 'tel'}
             inputMode={channel === 'email' ? 'email' : 'tel'}
             autoComplete={channel === 'email' ? 'email' : 'tel'}
@@ -103,19 +105,19 @@ export function SignIn({ onSignedIn, intro }: { onSignedIn?: () => void; intro?:
           />
           {bot.widget}
           <Button type="submit" className="h-11" disabled={busy || !contact.trim() || !bot.ready}>
-            {busy ? 'Sending…' : 'Send me a code'}
+            {busy ? t('signIn.sending') : t('signIn.send')}
           </Button>
           <p className="text-xs text-muted-foreground">
-            New here? The same code creates your account. Favorite Hearts staff will never ask you for a code.
+            {t('signIn.newHere')}
           </p>
         </form>
       ) : (
         <form onSubmit={checkCode} className="flex flex-col gap-4">
           <p className="text-sm">
-            We sent a 6-digit code to <strong>{step.contact}</strong>. It expires in 10 minutes.
+            {rich('signIn.sent', { strong: (words) => <strong>{words}</strong> }, { contact: step.contact })}
           </p>
           <TextField
-            label="Code"
+            label={t('signIn.code')}
             inputMode="numeric"
             autoComplete="one-time-code"
             maxLength={6}
@@ -123,12 +125,12 @@ export function SignIn({ onSignedIn, intro }: { onSignedIn?: () => void; intro?:
             onChange={(value) => setCode(value.replace(/\D/g, ''))}
           />
           <Button type="submit" className="h-11" disabled={busy || code.length !== 6}>
-            {busy ? 'Checking…' : 'Continue'}
+            {busy ? t('signIn.checking') : t('common.continue')}
           </Button>
           {bot.widget}
           <div className="flex flex-wrap gap-4 text-sm">
             <button type="button" className="text-brand underline underline-offset-4 disabled:opacity-60" onClick={() => void sendCode()} disabled={busy || !bot.ready}>
-              Send a new code
+              {t('signIn.resend')}
             </button>
             <button
               type="button"
@@ -138,7 +140,7 @@ export function SignIn({ onSignedIn, intro }: { onSignedIn?: () => void; intro?:
                 setStep({ kind: 'contact' });
               }}
             >
-              Use a different {step.channel === 'email' ? 'email' : 'number'}
+              {t(step.channel === 'email' ? 'signIn.otherEmail' : 'signIn.otherNumber')}
             </button>
           </div>
         </form>
@@ -152,28 +154,29 @@ export function NameStep() {
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const { t } = useI18n();
   async function save(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
     setError(null);
     const result = await authClient.updateUser({ name: name.trim() });
     setBusy(false);
-    if (result.error) return setError(result.error.message ?? 'Could not save your name.');
+    if (result.error) return setError(authErrorMessage(result.error));
     await queryClient.invalidateQueries({ queryKey: keys.me });
   }
   return (
     <form onSubmit={save} className="flex flex-col gap-4">
       {error && <Notice tone="error">{error}</Notice>}
       <TextField
-        label="Your name"
-        hint="The account holder: you, or the family member managing a profile. Others see it as “Managed by …”."
+        label={t('name.label')}
+        hint={t('name.hint')}
         autoComplete="name"
         maxLength={60}
         value={name}
         onChange={setName}
       />
       <Button type="submit" className="h-11" disabled={busy || name.trim().length < 2}>
-        {busy ? 'Saving…' : 'Continue'}
+        {busy ? t('common.saving') : t('common.continue')}
       </Button>
     </form>
   );

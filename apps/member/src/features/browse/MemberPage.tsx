@@ -16,26 +16,11 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ApiError, errorMessage, post } from '@/lib/api';
 import { refreshRelations, useMember, usePhotos } from '@/lib/queries';
-import {
-  childrenLabels,
-  communityLabels,
-  contactKindLabels,
-  contactPersonLabels,
-  dietLabels,
-  habitLabels,
-  horoscopeLabels,
-  incomeLabels,
-  involvementLabels,
-  maritalLabels,
-  platformLabels,
-  relationshipLabels,
-  religionLabels,
-  relocationLabels,
-  timelineLabels,
-  valueLabels,
-} from '@/features/profile/options';
+import { suggestionLabel, useLabels } from '@/features/profile/options';
+import { formatDay } from '@/lib/format';
+import { say, useI18n, type AppTextKey } from '@/lib/i18n';
 import { ActingPicker, useActingProfile, withAs } from './acting';
-import { ContactList, PhotoFrame, placeOf } from './MemberCard';
+import { ContactList, PhotoFrame, usePlaceOf } from './MemberCard';
 import { ReportDialog } from './ReportDialog';
 
 export default function MemberPage() {
@@ -43,20 +28,21 @@ export default function MemberPage() {
   const { acting, profiles, choose, ready } = useActingProfile();
   const member = useMember(id, acting?.id ?? null, ready);
   const error = member.error instanceof ApiError ? member.error : null;
+  const { t } = useI18n();
   return (
     <AppShell>
       <Link to={withAs('/browse', acting)} className="text-sm text-muted-foreground underline underline-offset-4">
-        ← Browse
+        {t('memberPage.back')}
       </Link>
       <div className="mt-6 flex flex-col gap-6">
         {ready && <ActingPicker profiles={profiles} acting={acting} onChoose={choose} />}
         {member.isPending ? (
           <Loading />
         ) : error?.code === 'VERIFICATION_REQUIRED' ? (
-          <Notice title="Browsing opens once you are verified">
-            Your identity document needs to be reviewed and your phone verified first.{' '}
+          <Notice title={t('browse.notVerified.title')}>
+            {t('browse.notVerified.body')}{' '}
             <Link to="/verify" className="text-brand underline underline-offset-4">
-              Go to verification
+              {t('profile.goToVerification')}
             </Link>
           </Notice>
         ) : member.isError ? (
@@ -72,8 +58,9 @@ export default function MemberPage() {
 const label = <T extends string>(labels: Record<T, string>, value: T | null) => (value ? labels[value] : null);
 
 function Facts({ items }: { items: [string, ReactNode][] }) {
+  const { t } = useI18n();
   const shown = items.filter(([, value]) => value !== null && value !== undefined && value !== '');
-  if (!shown.length) return <p className="mt-2 text-sm text-muted-foreground">Nothing shared yet.</p>;
+  if (!shown.length) return <p className="mt-2 text-sm text-muted-foreground">{t('memberPage.nothing')}</p>;
   return (
     <dl className="mt-3 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
       {shown.map(([term, value]) => (
@@ -87,15 +74,18 @@ function Facts({ items }: { items: [string, ReactNode][] }) {
 }
 
 function MemberView({ view, acting }: { view: MemberProfileView; acting: ProfileView | null }) {
-  const name = view.displayName ?? 'This member';
+  const { t } = useI18n();
+  const labels = useLabels();
+  const placeOf = usePlaceOf();
+  const name = view.displayName ?? t('memberPage.thisMember');
   const blurred = view.photos.some((photo) => photo.blurred);
   return (
     <>
       <div className="flex flex-col gap-2">
         <p className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
           {view.management === 'manager' && view.managerRelationship
-            ? `Managed by a ${relationshipLabels[view.managerRelationship].toLowerCase()}`
-            : 'Manages their own profile'}
+            ? t('memberPage.managedBy', { relationship: labels.relationshipLabels[view.managerRelationship].toLowerCase() })
+            : t('memberPage.selfManaged')}
         </p>
         <h1 className="font-serif text-3xl leading-tight sm:text-4xl">
           {name}
@@ -106,7 +96,7 @@ function MemberView({ view, acting }: { view: MemberProfileView; acting: Profile
       </div>
 
       {view.photos.length > 0 && (
-        <section aria-label="Photos">
+        <section aria-label={t('memberPage.photos')}>
           <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {view.photos.map((photo) => (
               <li key={photo.id} className="flex flex-col gap-1">
@@ -119,7 +109,7 @@ function MemberView({ view, acting }: { view: MemberProfileView; acting: Profile
                     name={name}
                     trigger={
                       <button type="button" className="self-start text-xs text-muted-foreground underline underline-offset-4">
-                        Report this photo
+                        {t('memberPage.reportPhoto')}
                       </button>
                     }
                   />
@@ -127,93 +117,93 @@ function MemberView({ view, acting }: { view: MemberProfileView; acting: Profile
               </li>
             ))}
           </ul>
-          {blurred && <p className="mt-2 text-sm text-muted-foreground">Photos stay blurred until you both accept.</p>}
+          {blurred && <p className="mt-2 text-sm text-muted-foreground">{t('memberPage.blurred')}</p>}
         </section>
       )}
 
       <RelationPanel view={view} acting={acting} />
 
       <Card>
-        <h2 className="font-serif text-2xl">Contact details</h2>
+        <h2 className="font-serif text-2xl">{t('memberPage.contacts')}</h2>
         {view.contacts ? (
           <ContactList contacts={view.contacts} />
         ) : (
           <p className="mt-2 text-sm text-muted-foreground">
-            {view.contactsHidden === 'plan_needed'
-              ? 'Your plan has ended, so contact details are hidden. They come back when you renew.'
-              : view.contactsHidden === 'not_allowed'
-                ? 'The candidate has not allowed you to see the contact details connections share.'
-                : 'Shared only after you both accept.'}
+            {t(
+              view.contactsHidden === 'plan_needed'
+                ? 'memberPage.contacts.plan'
+                : view.contactsHidden === 'not_allowed'
+                  ? 'connections.hidden.candidate'
+                  : 'memberPage.contacts.afterAccept',
+            )}
           </p>
         )}
       </Card>
 
       <Card>
-        <h2 className="font-serif text-2xl">About</h2>
+        <h2 className="font-serif text-2xl">{t('details.about.title')}</h2>
         {view.bio && <p className="mt-3 leading-relaxed whitespace-pre-line">{view.bio}</p>}
         <Facts
           items={[
-            ['Height', view.heightCm ? `${view.heightCm} cm` : null],
-            ['Marital status', label(maritalLabels, view.maritalStatus)],
-            ['Religion', label(religionLabels, view.religion)],
-            ['Education', view.education],
-            ['Languages', view.languages?.join(', ')],
-            ['Mother tongue', view.motherTongue],
-            ['Values', view.values?.map((v) => valueLabels[v]).join(', ')],
-            ['Hobbies', view.hobbies?.join(', ')],
-            ['Marriage timeline', label(timelineLabels, view.timeline)],
-            ['Relocation', label(relocationLabels, view.relocation)],
-            ['Horoscope matching', label(horoscopeLabels, view.horoscopeImportance)],
-            ['Monthly income (self-declared)', view.incomeRange === 'prefer_not_to_say' ? null : label(incomeLabels, view.incomeRange)],
+            [t('details.height'), view.heightCm ? t('memberPage.heightValue', { height: view.heightCm }) : null],
+            [t('details.marital'), label(labels.maritalLabels, view.maritalStatus)],
+            [t('details.religion'), label(labels.religionLabels, view.religion)],
+            [t('details.education'), view.education],
+            [t('memberPage.languages'), view.languages?.map((language) => suggestionLabel(t, 'spokenLanguage', language)).join(', ')],
+            [t('memberPage.motherTongue'), view.motherTongue],
+            [t('details.values'), view.values?.map((v) => labels.valueLabels[v]).join(', ')],
+            [t('details.hobbies'), view.hobbies?.join(', ')],
+            [t('details.timeline'), label(labels.timelineLabels, view.timeline)],
+            [t('details.relocation'), label(labels.relocationLabels, view.relocation)],
+            [t('details.horoscope'), label(labels.horoscopeLabels, view.horoscopeImportance)],
+            [t('details.income'), view.incomeRange === 'prefer_not_to_say' ? null : label(labels.incomeLabels, view.incomeRange)],
           ]}
         />
       </Card>
 
       <Card>
-        <h2 className="font-serif text-2xl">Lifestyle and community</h2>
+        <h2 className="font-serif text-2xl">{t('details.lifestyle.title')}</h2>
         <Facts
           items={[
-            ['Diet', label(dietLabels, view.diet)],
-            ['Smoking', label(habitLabels, view.smoking)],
-            ['Drinking', label(habitLabels, view.drinking)],
-            ['Children', label(childrenLabels, view.childrenPlan)],
-            ['Community', label(communityLabels, view.communityOpenness)],
-            ['Caste or community (shared by the member)', view.caste],
+            [t('details.diet'), label(labels.dietLabels, view.diet)],
+            [t('details.smoking'), label(labels.habitLabels, view.smoking)],
+            [t('details.drinking'), label(labels.habitLabels, view.drinking)],
+            [t('details.children'), label(labels.childrenLabels, view.childrenPlan)],
+            [t('details.community'), label(labels.communityLabels, view.communityOpenness)],
+            [t('memberPage.casteShared'), view.caste],
           ]}
         />
       </Card>
 
       <Card>
-        <h2 className="font-serif text-2xl">Family</h2>
+        <h2 className="font-serif text-2xl">{t('details.family.title')}</h2>
         {view.family.familyStory && <p className="mt-3 leading-relaxed whitespace-pre-line">{view.family.familyStory}</p>}
         <Facts
           items={[
-            ['Mother', [view.family.motherName, view.family.motherOccupation].filter(Boolean).join(', ') || null],
-            ['Father', [view.family.fatherName, view.family.fatherOccupation].filter(Boolean).join(', ') || null],
-            ['Sisters', view.family.sisters?.join(', ')],
-            ['Brothers', view.family.brothers?.join(', ')],
-            ['Family involvement', label(involvementLabels, view.family.familyInvolvement)],
+            [t('memberPage.mother'), [view.family.motherName, view.family.motherOccupation].filter(Boolean).join(', ') || null],
+            [t('memberPage.father'), [view.family.fatherName, view.family.fatherOccupation].filter(Boolean).join(', ') || null],
+            [t('memberPage.sisters'), view.family.sisters?.join(', ')],
+            [t('memberPage.brothers'), view.family.brothers?.join(', ')],
+            [t('details.involvement'), label(labels.involvementLabels, view.family.familyInvolvement)],
           ]}
         />
-        {!view.family.namesShown && <p className="mt-3 text-sm text-muted-foreground">Parents’ names are shared once you both accept.</p>}
+        {!view.family.namesShown && <p className="mt-3 text-sm text-muted-foreground">{t('memberPage.namesLater')}</p>}
       </Card>
     </>
   );
 }
 
-const reasons: Record<NonNullable<RelationView['reason']>, string> = {
-  no_plan: 'A plan is needed to send requests, see who is interested and accept. Buying a plan opens in a later update.',
-  not_published: 'Publish your profile before sending requests.',
-  not_allowed: 'The candidate has not allowed you to manage requests for this profile.',
-  pending: '',
-  connected: '',
-  cooldown: '',
+const reasons: Partial<Record<NonNullable<RelationView['reason']>, AppTextKey>> = {
+  no_plan: 'relation.noPlan',
+  not_published: 'relation.notPublished',
+  not_allowed: 'relation.notAllowed',
 };
 
 /** Where the acting profile stands with this member, and what it can do next. */
 function RelationPanel({ view, acting }: { view: MemberProfileView; acting: ProfileView | null }) {
   const navigate = useNavigate();
-  const name = view.displayName ?? 'this member';
+  const { t } = useI18n();
+  const name = view.displayName ?? t('connections.thisMember');
   const relation = view.relation;
   const act = useMutation({
     mutationFn: ({ path, body }: { path: string; body?: unknown }) => post(path, body ?? {}),
@@ -223,7 +213,7 @@ function RelationPanel({ view, acting }: { view: MemberProfileView; acting: Prof
   const block = useMutation({
     mutationFn: () => post(`/profiles/${acting!.id}/blocks`, { profileId: view.id }),
     onSuccess: async () => {
-      toast.success(`${name} is blocked. You no longer see each other.`);
+      toast.success(say('relation.blocked', { name }));
       await refreshRelations();
       navigate(withAs('/browse', acting));
     },
@@ -232,8 +222,11 @@ function RelationPanel({ view, acting }: { view: MemberProfileView; acting: Prof
 
   if (!acting) {
     return (
-      <Notice title="Create your profile to send requests">
-        Requests are sent from a published profile. <Link to="/" className="text-brand underline underline-offset-4">Go to your profiles</Link>
+      <Notice title={t('relation.noProfile.title')}>
+        {t('relation.noProfile.body')}{' '}
+        <Link to="/" className="text-brand underline underline-offset-4">
+          {t('errorPage.home')}
+        </Link>
       </Notice>
     );
   }
@@ -242,72 +235,73 @@ function RelationPanel({ view, acting }: { view: MemberProfileView; acting: Prof
   if (relation?.connectionId) {
     status = (
       <>
-        <p>You are connected. Contact details and photos are shared both ways.</p>
+        <p>{t('relation.connected')}</p>
         <Confirm
-          title={`End the connection with ${name}?`}
-          action="End connection"
+          title={t('connections.end.title', { name })}
+          action={t('connections.end')}
           destructive
           onConfirm={() => act.mutate({ path: `/connections/${relation.connectionId}/end` })}
           trigger={
             <Button variant="outline" className="h-11 self-start">
-              End connection
+              {t('connections.end')}
             </Button>
           }
         >
-          <p>From now on neither of you sees the other’s contact details or unblurred photos.</p>
-          <p>A new request between you can be sent after 7 days.</p>
+          <p>{t('connections.end.details')}</p>
+          <p>{t('connections.end.cooldown')}</p>
         </Confirm>
       </>
     );
   } else if (latest?.status === 'pending' && latest.direction === 'sent') {
     status = (
       <>
-        <p>Your request is waiting for {name} to answer.</p>
+        <p>{t('relation.waiting', { name })}</p>
         <Button variant="outline" className="h-11 self-start" disabled={act.isPending} onClick={() => act.mutate({ path: `/interests/${latest.id}/withdraw` })}>
-          Withdraw the request
+          {t('relation.withdraw')}
         </Button>
       </>
     );
   } else if (latest?.status === 'pending' && latest.direction === 'received') {
     status = (
       <>
-        <p>{name} sent you a request.</p>
+        <p>{t('relation.received', { name })}</p>
         <div className="flex flex-wrap gap-3">
-          <Button className="h-11" disabled={act.isPending} onClick={() => act.mutate({ path: `/interests/${latest.id}/accept` }, { onSuccess: () => toast.success('Accepted. You are now connected.') })}>
-            Accept
+          <Button className="h-11" disabled={act.isPending} onClick={() => act.mutate({ path: `/interests/${latest.id}/accept` }, { onSuccess: () => toast.success(say('requests.accepted')) })}>
+            {t('requests.accept')}
           </Button>
           <Button variant="outline" className="h-11" disabled={act.isPending} onClick={() => act.mutate({ path: `/interests/${latest.id}/decline` })}>
-            Decline
+            {t('requests.decline')}
           </Button>
         </div>
       </>
     );
   } else if (relation?.reason === 'cooldown' && relation.cooldownUntil) {
-    status = <p>You can send a new request to {name} from {new Date(relation.cooldownUntil).toLocaleDateString()}.</p>;
+    status = <p>{t('relation.cooldown', { name, date: formatDay(relation.cooldownUntil) })}</p>;
   } else if (relation?.canSend) {
     status = <SendRequestDialog acting={acting} receiverId={view.id} name={name} />;
   } else {
-    status = <p className="text-muted-foreground">{reasons[relation?.reason ?? 'no_plan']}</p>;
+    const reason = reasons[relation?.reason ?? 'no_plan'];
+    status = <p className="text-muted-foreground">{reason ? t(reason) : null}</p>;
   }
 
   return (
     <Card>
-      <h2 className="font-serif text-2xl">Your request</h2>
+      <h2 className="font-serif text-2xl">{t('relation.title')}</h2>
       <div className="mt-3 flex flex-col gap-3 text-sm">{status}</div>
       <div className="mt-6 flex flex-wrap gap-4 border-t pt-4 text-sm">
         <Confirm
-          title={`Block ${name}?`}
-          action="Block"
+          title={t('relation.block.title', { name })}
+          action={t('relation.block')}
           destructive
           onConfirm={() => block.mutate()}
           trigger={
             <button type="button" className="text-muted-foreground underline underline-offset-4">
-              Block
+              {t('relation.block')}
             </button>
           }
         >
-          <p>You stop seeing each other anywhere on Favorite Hearts. A connection between you ends and open requests close.</p>
-          <p>{name} is not told. You can unblock later from your connections.</p>
+          <p>{t('relation.block.effect')}</p>
+          <p>{t('relation.block.notTold', { name })}</p>
         </Confirm>
         <ReportDialog
           reporterProfileId={acting.id}
@@ -316,7 +310,7 @@ function RelationPanel({ view, acting }: { view: MemberProfileView; acting: Prof
           trigger={
             <button type="button" className="inline-flex items-center gap-1 text-muted-foreground underline underline-offset-4">
               <Flag className="size-3.5" aria-hidden="true" />
-              Report
+              {t('relation.report')}
             </button>
           }
         />
@@ -331,11 +325,13 @@ function SendRequestDialog({ acting, receiverId, name }: { acting: ProfileView; 
   const shared = acting.contacts.filter((contact) => contact.shareWithConnections);
   const photos = usePhotos(acting.id).data ?? [];
   const names = [acting.fields.motherName, acting.fields.fatherName].some(Boolean);
+  const { t } = useI18n();
+  const { contactKindLabels, contactPersonLabels, platformLabels } = useLabels();
   const send = useMutation({
     mutationFn: () =>
       post(`/profiles/${acting.id}/interests`, { receiverProfileId: receiverId, confirmSharing: true, idempotencyKey: crypto.randomUUID() }),
     onSuccess: async () => {
-      toast.success(`Request sent to ${name}.`);
+      toast.success(say('send.sent', { name }));
       setOpen(false);
       await refreshRelations();
     },
@@ -343,31 +339,34 @@ function SendRequestDialog({ acting, receiverId, name }: { acting: ProfileView; 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="h-11 self-start">Send a request</Button>
+        <Button className="h-11 self-start">{t('send.button')}</Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Send a request to {name}?</DialogTitle>
-          <DialogDescription>If {name} accepts, you both see what the other shares. From your profile that is:</DialogDescription>
+          <DialogTitle>{t('send.title', { name })}</DialogTitle>
+          <DialogDescription>{t('send.body', { name })}</DialogDescription>
         </DialogHeader>
         <ul className="list-disc pl-5 text-sm">
           {shared.map((contact) => (
             <li key={contact.id}>
-              {acting.management === 'self' ? 'Your' : `The ${contactPersonLabels[contact.person].toLowerCase()}’s`}{' '}
-              {contact.kind === 'social' && contact.platform ? platformLabels[contact.platform] : contactKindLabels[contact.kind].toLowerCase()}: {contact.value}
+              {t(acting.management === 'self' ? 'send.item.own' : 'send.item.person', {
+                person: contactPersonLabels[contact.person].toLowerCase(),
+                kind: contact.kind === 'social' && contact.platform ? platformLabels[contact.platform] : contactKindLabels[contact.kind].toLowerCase(),
+                value: contact.value,
+              })}
             </li>
           ))}
-          {photos.length > 0 && <li>Your photos, unblurred</li>}
-          {names && <li>Your parents’ names</li>}
+          {photos.length > 0 && <li>{t('send.photos')}</li>}
+          {names && <li>{t('send.names')}</li>}
         </ul>
-        <p className="text-sm text-muted-foreground">You can change what is shared under Contacts. If they decline, nothing is shared.</p>
+        <p className="text-sm text-muted-foreground">{t('send.change')}</p>
         {send.isError && <Notice tone="error">{errorMessage(send.error)}</Notice>}
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button disabled={send.isPending} onClick={() => send.mutate()}>
-            {send.isPending ? 'Sending…' : 'Send request'}
+            {send.isPending ? t('signIn.sending') : t('send.submit')}
           </Button>
         </DialogFooter>
       </DialogContent>

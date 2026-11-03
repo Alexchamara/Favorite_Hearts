@@ -1,5 +1,7 @@
+import { dateNow, say } from './i18n';
+
 /**
- * Money and plan dates as members and the owner read them. Money arrives in minor units with its currency
+ * Money and plan dates as members and the owner read them, in the language on screen. Money arrives in minor units with its currency
  * (OWNER-DECISIONS section 2): 300000 LKR is "LKR 3,000". Plan dates are shown on the Sri Lanka clock, where the
  * plan's months are counted.
  */
@@ -19,13 +21,13 @@ export function parseMoney(text: string): number | null {
 /** Minor units back into what the owner typed: 300050 becomes "3000.50". */
 export const moneyInput = (amountMinor: number) => (amountMinor % 100 === 0 ? String(amountMinor / 100) : (amountMinor / 100).toFixed(2));
 
-const sriLankaDate = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Colombo' });
-const sriLankaTime = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Colombo' });
+// Month names and the order of a date come from the catalogue (date.*), not from the browser: some browsers have no
+// Sinhala calendar data and would quietly show English.
 
 /** "29 November 2026" (Sri Lanka). */
-export const formatDay = (value: string | Date) => sriLankaDate.format(new Date(value));
+export const formatDay = (value: string | Date) => dateNow(value, 'day');
 /** "29 Nov 2026, 10:15" (Sri Lanka), for plan ends and review times. */
-export const formatWhen = (value: string | Date) => `${sriLankaTime.format(new Date(value))} (Sri Lanka time)`;
+export const formatWhen = (value: string | Date) => say('format.sriLankaTime', { time: dateNow(value, 'when') });
 
 /** "3 hours" / "2 days": how long something has waited, for the owner's 48-hour promise. */
 export function waitedFor(value: string | Date): string {

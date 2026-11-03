@@ -5,7 +5,7 @@
 import type { Context } from 'hono';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import type { z } from 'zod';
-import type { StaffRole } from '@fh/shared';
+import { issueText, type StaffRole, type TextRef } from '@fh/shared';
 import type { Auth, AuthSession } from './auth.ts';
 import type { Config } from './config.ts';
 import { runAsActor, type Actor, type ActorTx } from './db/actor.ts';
@@ -13,6 +13,7 @@ import type { Db } from './db/types.ts';
 import type { Messenger } from './messaging/messenger.ts';
 import type { Turnstile } from './middleware/turnstile.ts';
 import type { Storage } from './storage/storage.ts';
+import { toRef, type Say } from './text.ts';
 
 /** `turnstile` is null until a Turnstile secret key is configured (then code and password endpoints need a token). */
 export type Deps = { config: Config; db: Db; auth: Auth; storage: Storage; messenger: Messenger; turnstile: Turnstile | null };
@@ -31,28 +32,34 @@ export type AppEnv = {
 
 export type Tx = ActorTx<Db>;
 
-/** An error with a stable code the member app can act on, and a message people can read. */
+/**
+ * An error with a stable code the member app can act on, and a message people can read. The message is a catalogue key
+ * (text.ts): the error handler renders it in the language of the request.
+ */
 export class HttpError extends Error {
   constructor(
     public status: ContentfulStatusCode,
     public code: string,
-    message: string,
-    public fields?: Record<string, string>,
+    public text: TextRef,
+    public fields?: Record<string, TextRef>,
   ) {
-    super(message);
+    super(text.key);
   }
 }
 
-export function fail(status: ContentfulStatusCode, code: string, message: string, fields?: Record<string, string>): never {
-  throw new HttpError(status, code, message, fields);
+export function fail(status: ContentfulStatusCode, code: string, message: Say, fields?: Record<string, Say>): never {
+  const refs = fields && Object.fromEntries(Object.entries(fields).map(([field, say]) => [field, toRef(say)]));
+  throw new HttpError(status, code, toRef(message), refs);
 }
 
 /** Validates with a shared Zod schema; field messages go back as `fields`. */
 export function parse<S extends z.ZodType>(schema: S, value: unknown): z.output<S> {
   const result = schema.safeParse(value);
   if (!result.success) {
-    const fields = Object.fromEntries(result.error.issues.map((issue) => [issue.path.join('.') || '_', issue.message]));
-    fail(400, 'VALIDATION', 'Please check the highlighted fields.', fields);
+    const fields = Object.fromEntries(
+      result.error.issues.map((issue) => [issue.path.join('.') || '_', issueText(issue as Parameters<typeof issueText>[0])]),
+    );
+    throw new HttpError(400, 'VALIDATION', { key: 'api.validation' }, fields);
   }
   return result.data;
 }
@@ -61,7 +68,7 @@ export async function readJson(c: Context<AppEnv>): Promise<unknown> {
   try {
     return await c.req.json();
   } catch {
-    fail(400, 'BAD_JSON', 'The request body must be JSON.');
+    fail(400, 'BAD_JSON', 'api.badJson');
   }
 }
 
