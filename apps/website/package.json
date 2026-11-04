@@ -9,9 +9,11 @@
     "build:css": "tailwindcss -c tailwind.config.cjs -i src/styles/tailwind.css -o public/assets/css/tailwind.css --minify",
     "build": "npm run build:css && astro build",
     "preview": "astro preview --port 4321",
-    "typecheck": "astro check"
+    "typecheck": "astro check",
+    "test": "node --import tsx --test test/*.test.ts"
   },
   "dependencies": {
+    "@fh/shared": "*",
     "astro": "7.4.0"
   },
   "devDependencies": {

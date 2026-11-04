@@ -1,5 +1,9 @@
 ---
-// Same page the demo's build.py generated.
+// Same page the demo's build.py generated. One file answers every missing address, so it speaks both languages.
+import { texts } from '../lib/i18n';
+
+const en = texts('en');
+const si = texts('si');
 ---
 <!doctype html>
 <html lang="en">
@@ -7,10 +11,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
-<title>Page not found — Favorite Hearts</title>
-<style is:inline>body{margin:0;padding:12vh 8vw;background:#191919;color:white;font:18px/1.6 Arial}h1{font:normal clamp(40px,6vw,80px)/1.1 Georgia}a{display:inline-block;background:#f1b744;color:#191919;border-radius:40px;padding:16px 28px;text-decoration:none}</style>
+<title>{en.t('web.common.pageTitle', { page: en.t('web.notFound.title') })}</title>
+<style is:inline>body{margin:0;padding:12vh 8vw;background:#191919;color:white;font:18px/1.6 Arial}h1{font:normal clamp(40px,6vw,80px)/1.1 Georgia}a{display:inline-block;background:#f1b744;color:#191919;border-radius:40px;padding:16px 28px;text-decoration:none}section+section{margin-top:12vh}</style>
 </head>
 <body>
-<main><p>Favorite Hearts</p><h1>A little off course.</h1><p>We couldn’t find that page.</p><a href="/">Back to home</a></main>
+<main><p>Favorite Hearts</p>
+<section><h1>{en.t('web.notFound.heading')}</h1><p>{en.t('web.notFound.text')}</p><a href="/">{en.t('web.notFound.home')}</a></section>
+<section lang="si"><h2>{si.t('web.notFound.heading')}</h2><p>{si.t('web.notFound.text')}</p><a href="/si/">{si.t('web.notFound.home')}</a></section>
+</main>
 </body>
 </html>

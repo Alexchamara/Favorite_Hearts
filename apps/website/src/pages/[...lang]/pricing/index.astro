@@ -1,0 +1,207 @@
+---
+// Pricing (Stage 5b, OWNER-DECISIONS sections 1–3 and 9). The plan cards come from the live catalogue the owner
+// manages in the app (assets/js/pricing.js), so no price is written into this page.
+import Header from '../../../components/Header.astro';
+import Navigation from '../../../components/Navigation.astro';
+import Footer from '../../../components/Footer.astro';
+import Dialogs from '../../../components/Dialogs.astro';
+import Seo from '../../../components/Seo.astro';
+import { css, js } from '../../../lib/site';
+import { langOf, languagePaths, texts } from '../../../lib/i18n';
+
+export function getStaticPaths() {
+  return languagePaths();
+}
+
+const { lang, t, html, path } = texts(langOf(Astro.params.lang));
+const title = t('web.common.pageTitle', { page: t('web.pricing.title') });
+const description = t('web.pricing.description');
+
+const steps = [
+  {
+    icon: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="m8 9 2 2 5-5M8 16h8"/>',
+    title: t('web.pricing.step1.title'),
+    text: t('web.pricing.step1.text'),
+  },
+  {
+    icon: '<path d="M4 7h13m-4-4 4 4-4 4M20 17H7m4-4-4 4 4 4"/>',
+    title: t('web.pricing.step2.title'),
+    text: t('web.pricing.step2.text'),
+  },
+  {
+    icon: '<path d="M12 16V3m-5 5 5-5 5 5M4 14v6h16v-6"/>',
+    title: t('web.pricing.step3.title'),
+    text: t('web.pricing.step3.text'),
+  },
+  {
+    icon: '<circle cx="12" cy="12" r="9"/><path d="m7 12 3 3 7-7"/>',
+    title: t('web.pricing.step4.title'),
+    text: t('web.pricing.step4.text'),
+  },
+];
+
+const questions = [
+  {
+    q: t('web.pricing.q1'),
+    a: t('web.pricing.a1'),
+  },
+  {
+    q: t('web.pricing.q2'),
+    a: t('web.pricing.a2'),
+  },
+  {
+    q: t('web.pricing.q3'),
+    a: t('web.pricing.a3'),
+  },
+  {
+    q: t('web.pricing.q4'),
+    a: t('web.pricing.a4'),
+  },
+  {
+    q: t('web.pricing.q5'),
+    a: t('web.pricing.a5'),
+  },
+  {
+    q: t('web.pricing.q6'),
+    a: t('web.pricing.a6'),
+  },
+  {
+    q: t('web.pricing.q7'),
+    a: t('web.pricing.a7'),
+  },
+  {
+    q: t('web.pricing.q8'),
+    a: t('web.pricing.a8'),
+  },
+  {
+    q: t('web.pricing.q9'),
+    a: t('web.pricing.a9'),
+  },
+  {
+    q: t('web.pricing.q10'),
+    a: t('web.pricing.a10'),
+  },
+];
+---
+<!doctype html>
+<html lang={lang}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#ffffff">
+<title>{title}</title>
+<meta name="description" content={description}>
+<link rel="stylesheet" href={css("landing.css")}>
+<script is:inline src={js("site-config.js")} defer>
+</script>
+<script is:inline src={js("site.js")} defer>
+</script>
+<script is:inline src={js("resource-carousel.js")} defer>
+</script>
+<script is:inline src={js("resources.js")} defer>
+</script>
+<link rel="stylesheet" href={css("monochrome.css")}>
+<link rel="stylesheet" href={css("resources.css")}>
+<script is:inline src={js("pricing-carousel.js")} defer>
+</script>
+<script is:inline src={js("pricing.js")} defer>
+</script>
+<link rel="stylesheet" href={css("welcome.css")}>
+<script is:inline src={js("welcome.js")} defer>
+</script>
+<script is:inline src={js("motion.js")} defer></script>
+<link rel="stylesheet" href={css("design-system.css")}>
+<link rel="stylesheet" href={css("tailwind.css")}>
+<Seo lang={lang} route="/pricing/" title={title} description={description} headline={t('web.pricing.headline')} />
+</head>
+<body class="tw-antialiased">
+<a class="skip" href="#main">{t('web.common.skip')}</a>
+<Header lang={lang} />
+<Navigation lang={lang} />
+<main id="main" class="resource-page" data-theme="light">
+<section class="section resource-intro">
+<p class="label">{t('web.footer.pricing')}</p>
+<h1 set:html={html('web.pricing.freeToPublishA')}></h1>
+<p class="resource-lead">{t('web.pricing.creatingAndPublishingA')}</p>
+</section>
+<section class="section plans-section" aria-labelledby="plans-title" data-plans>
+<p class="label">{t('web.pricing.plans')}</p>
+<h2 id="plans-title">{t('web.pricing.chooseHowYouBegin')}</h2>
+<div class="currency-control">
+<span id="currency-local">{t('web.pricing.livingInSriLanka')}</span>
+<label class="currency-switch">
+<input type="checkbox" id="currency-toggle" role="switch" aria-label={t('web.pricing.showPricesForMembers')}>
+<span class="currency-switch-track" aria-hidden="true">
+</span>
+</label>
+<span id="currency-overseas">{t('web.pricing.livingAbroadUsd')}</span>
+</div>
+<p class="market-description" id="market-description">{t('web.js.pricing.local')}</p>
+<p class="plan-template-note" id="plans-status" role="status">{t('web.pricing.loadingTodaySPlans')}</p>
+<noscript><p class="plan-template-note">{t('web.pricing.turnOnJavascriptTo')}</p></noscript>
+<div class="pricing-carousel tw-min-w-0" role="region" aria-roledescription="carousel" aria-label={t('web.pricing.plans')} hidden>
+<div class="plans-grid pricing-track" tabindex="0" aria-label={t('web.pricing.plansUseLeftAnd')}>
+</div>
+<div class="pricing-dashes" aria-label={t('web.pricing.plansNavigation')}>
+</div>
+</div>
+<p class="plan-template-note">{t('web.pricing.eachProfileHasIts')}</p>
+</section>
+<section class="section resource-band" data-theme="dark">
+<p class="label">{t('web.pricing.howPayingWorks')}</p>
+<h2 set:html={html('web.pricing.payByTransferWe')}></h2>
+<div class="pricing-carousel tw-min-w-0" role="region" aria-roledescription="carousel" aria-label={t('web.pricing.paymentSteps')}>
+<div class="resource-grid pricing-track" tabindex="0" aria-label={t('web.pricing.paymentStepsUseLeft')}>
+{steps.map((step, i) => (
+<article class="resource-card">
+<svg class="step-icon" viewBox="0 0 24 24" aria-hidden="true" set:html={step.icon} />
+<span class="resource-index">{t('web.pricing.stepNumber', { n: String(i + 1).padStart(2, '0') })}</span>
+<h3>{step.title}</h3>
+<p>{step.text}</p>
+</article>
+))}
+</div>
+<div class="pricing-dashes" aria-label={t('web.pricing.paymentStepsNavigation')}>
+{steps.map((_, i) => (
+<button type="button" aria-label={t('web.pricing.goToStep', { n: i + 1 })} aria-current={i === 0 ? 'true' : 'false'}>
+<span aria-hidden="true">
+</span>
+</button>
+))}
+</div>
+</div>
+<p class="band-small">{t('web.pricing.weNeverAskYou')}</p>
+</section>
+<section class="section resource-section">
+<p class="label">{t('web.pricing.planRules')}</p>
+<h2>{t('web.pricing.theDetailsMatter')}</h2>
+<div class="resource-questions">
+{questions.map((item) => (
+<details name="resource-answer">
+<summary>{item.q}<span aria-hidden="true">+</span>
+</summary>
+<div>
+<p>{item.a}</p>
+</div>
+</details>
+))}
+</div>
+</section>
+<section class="section resource-end" data-theme="dark">
+<div>
+<p class="label">{t('web.pricing.letSMakeIt')}</p>
+<h2 set:html={html('web.pricing.stillWeighingThingsUp')}></h2>
+<p>{t('web.pricing.askUsAboutPlans')}</p>
+</div>
+<div class="resource-actions">
+<a class="pill" href={path('/help/')}>{t('web.common.exploreHelp')} <span aria-hidden="true">↗</span>
+</a>
+<a class="pill" href={path('/contact/')}>{t('web.common.contactUs')} <span aria-hidden="true">↗</span>
+</a>
+<p class="response-hours" set:html={html('web.common.hours')}></p>
+</div>
+</section>
+</main><Footer lang={lang} />
+<Dialogs lang={lang} />
+</body>
+</html>

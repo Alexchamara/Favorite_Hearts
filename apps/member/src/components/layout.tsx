@@ -99,7 +99,9 @@ export function AppShell({ children, home = '/' }: { children: ReactNode; home?:
 
 /** Support channels and the policies, under every member screen and the sign-in page. */
 function SupportFooter() {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
+  // The website's pages in the language on screen: Sinhala ones are under /si/ (apps/website, Stage 5d).
+  const page = (route: string) => (language === 'si' ? `/si${route}` : route);
   return (
     <footer className="mx-auto w-full max-w-3xl px-4 pb-10 text-sm text-muted-foreground">
       <div className="border-t pt-6">
@@ -123,13 +125,13 @@ function SupportFooter() {
         </ul>
         <p className="mt-3">{t('layout.staffNeverAsk')}</p>
         <nav aria-label={t('layout.helpNav')} className="mt-3 flex flex-wrap gap-x-5 gap-y-1">
-          <a className={footerLink} href="/help/">
+          <a className={footerLink} href={page('/help/')}>
             {t('layout.help')}
           </a>
-          <a className={footerLink} href="/terms/">
+          <a className={footerLink} href={page('/terms/')}>
             {t('layout.terms')}
           </a>
-          <a className={footerLink} href="/privacy/">
+          <a className={footerLink} href={page('/privacy/')}>
             {t('layout.privacy')}
           </a>
         </nav>

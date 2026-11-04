@@ -1,42 +1,46 @@
 ---
 // Shared footer (from the demo partial footer.html).
+import { texts, type Lang } from '../lib/i18n';
+
+const { lang } = Astro.props as { lang: Lang };
+const { t, path } = texts(lang);
 ---
 <footer data-theme="dark">
 <div class="footer-group">
-<h3>Index</h3>
+<h3>{t('web.footer.index')}</h3>
 <div class="footer-links">
-<a href="/mission/">Mission</a>
-<a href="/contact/">Contact</a>
-<a href="/newsroom/">Newsroom</a>
-<a href="/labs/">Labs</a>
+<a href={path('/mission/')}>{t('web.nav.mission')}</a>
+<a href={path('/contact/')}>{t('web.footer.contact')}</a>
+<a href={path('/newsroom/')}>{t('web.nav.newsroom')}</a>
+<a href={path('/labs/')}>{t('web.footer.labs')}</a>
 </div>
 </div>
 <div class="footer-group">
-<h3>Resources</h3>
+<h3>{t('web.footer.resources')}</h3>
 <div class="footer-links">
-<a href="/help/">FAQ and NFAQ <span class="footer-detail">(Not-so frequently asked questions)</span>
+<a href={path('/help/')}>{t('web.footer.help')} <span class="footer-detail">{t('web.footer.helpDetail')}</span>
 </a>
-<a href="/trust-and-safety/">Trust and safety</a>
-<a href="/pricing/">Pricing</a>
+<a href={path('/trust-and-safety/')}>{t('web.footer.trust')}</a>
+<a href={path('/pricing/')}>{t('web.footer.pricing')}</a>
 </div>
 </div>
 <div class="footer-group">
-<h3>Legal</h3>
+<h3>{t('web.footer.legal')}</h3>
 <div class="footer-links">
-<a href="/security/">Security</a>
-<a href="/terms/">Terms and conditions</a>
-<a href="/privacy/">Privacy Policy</a>
+<a href={path('/security/')}>{t('web.footer.security')}</a>
+<a href={path('/terms/')}>{t('web.footer.terms')}</a>
+<a href={path('/privacy/')}>{t('web.footer.privacy')}</a>
 </div>
 </div>
 <div class="copyright">
-<span>© 2026 Favorite Hearts</span>
+<span>{t('web.footer.copyright')}</span>
 <button class="visitor-preferences" type="button" aria-haspopup="dialog">
 <svg class="globe" viewBox="0 0 24 24" aria-hidden="true">
 <circle cx="12" cy="12" r="9"/>
 <ellipse cx="12" cy="12" rx="4" ry="9"/>
 <path d="M3 12h18M5 6.5h14M5 17.5h14"/>
 </svg>
-<span>English · Sri Lanka</span>
+<span>{t(`web.lang.name.${lang}`)} · {t('web.footer.defaultCountry')}</span>
 </button>
 </div>
 </footer>

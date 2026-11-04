@@ -1,0 +1,189 @@
+---
+// Terms and conditions (Stage 5b): a draft for the owner's lawyer that states every rule docs/OWNER-DECISIONS.md assigns
+// to the terms (audit rows W08, W09, X02). The points the lawyer must check are listed in docs/LEGAL-REVIEW.md.
+import LegalPage, { type LegalSection } from '../../../components/LegalPage.astro';
+import { site } from '../../../lib/site';
+
+import { langOf, languagePaths, texts, type WebKey } from '../../../lib/i18n';
+
+export function getStaticPaths() {
+  return languagePaths();
+}
+
+const { lang, t, html, path, date } = texts(langOf(Astro.params.lang));
+// A paragraph or list item as HTML: <operator/> marks the operator's legal name and address, still to be filled in,
+// and <email/> is our address as a link.
+const legal = (key: WebKey, tags: Record<string, string> = {}) =>
+  html(key, {
+    ...tags,
+    operator: `<mark class="legal-placeholder">[${t('web.legal.operator')}]</mark>`,
+    email: `<a href="mailto:${site.email}">${site.email}</a>`,
+  });
+
+const sections: LegalSection[] = [
+  {
+    id: 'about',
+    title: t('web.terms.about.title'),
+    body: [
+      legal('web.terms.about.1'),
+      legal('web.terms.about.2'),
+    ],
+  },
+  {
+    id: 'service',
+    title: t('web.terms.service.title'),
+    body: [
+      legal('web.terms.service.1'),
+    ],
+  },
+  {
+    id: 'eligibility',
+    title: t('web.terms.eligibility.title'),
+    body: [
+      legal('web.terms.eligibility.1'),
+      legal('web.terms.eligibility.2'),
+    ],
+  },
+  {
+    id: 'accounts',
+    title: t('web.terms.accounts.title'),
+    body: [
+      legal('web.terms.accounts.1'),
+      legal('web.terms.accounts.2'),
+      [
+        legal('web.terms.accounts.3'),
+        legal('web.terms.accounts.4'),
+        legal('web.terms.accounts.5'),
+      ],
+      legal('web.terms.accounts.6'),
+    ],
+  },
+  {
+    id: 'managers',
+    title: t('web.terms.managers.title'),
+    body: [
+      legal('web.terms.managers.1'),
+      legal('web.terms.managers.2'),
+      legal('web.terms.managers.3'),
+    ],
+  },
+  {
+    id: 'connections',
+    title: t('web.terms.connections.title'),
+    body: [
+      legal('web.terms.connections.1'),
+      legal('web.terms.connections.2'),
+      legal('web.terms.connections.3'),
+      legal('web.terms.connections.4'),
+    ],
+  },
+  {
+    id: 'plans',
+    title: t('web.terms.plans.title'),
+    body: [
+      legal('web.terms.plans.1'),
+      legal('web.terms.plans.2', { link: `<a href="${path('/pricing/')}">` }),
+      legal('web.terms.plans.3'),
+      legal('web.terms.plans.4'),
+    ],
+  },
+  {
+    id: 'payments',
+    title: t('web.terms.payments.title'),
+    body: [
+      legal('web.terms.payments.1'),
+      legal('web.terms.payments.2'),
+      legal('web.terms.payments.3'),
+    ],
+  },
+  {
+    id: 'changes',
+    title: t('web.terms.changes.title'),
+    body: [
+      legal('web.terms.changes.1'),
+      legal('web.terms.changes.2'),
+      legal('web.terms.changes.3'),
+    ],
+  },
+  {
+    id: 'refunds',
+    title: t('web.terms.refunds.title'),
+    body: [
+      legal('web.terms.refunds.1'),
+      [legal('web.terms.refunds.2'), legal('web.terms.refunds.3'), legal('web.terms.refunds.4')],
+      legal('web.terms.refunds.5'),
+      legal('web.terms.refunds.6'),
+      legal('web.terms.refunds.7'),
+      legal('web.terms.refunds.8'),
+    ],
+  },
+  {
+    id: 'conduct',
+    title: t('web.terms.conduct.title'),
+    body: [
+      [
+        legal('web.terms.conduct.1'),
+        legal('web.terms.conduct.2'),
+        legal('web.terms.conduct.3'),
+        legal('web.terms.conduct.4'),
+        legal('web.terms.conduct.5'),
+        legal('web.terms.conduct.6'),
+      ],
+    ],
+  },
+  {
+    id: 'safety',
+    title: t('web.terms.safety.title'),
+    body: [
+      legal('web.terms.safety.1'),
+      legal('web.terms.safety.2'),
+    ],
+  },
+  {
+    id: 'content',
+    title: t('web.terms.content.title'),
+    body: [
+      legal('web.terms.content.1', { link: `<a href="${path('/privacy/')}">` }),
+      legal('web.terms.content.2'),
+      legal('web.terms.content.3'),
+    ],
+  },
+  {
+    id: 'ending',
+    title: t('web.terms.ending.title'),
+    body: [
+      legal('web.terms.ending.1'),
+      legal('web.terms.ending.2', { link: `<a href="${path('/privacy/')}">` }),
+      legal('web.terms.ending.3'),
+    ],
+  },
+  {
+    id: 'liability',
+    title: t('web.terms.liability.title'),
+    body: [
+      legal('web.terms.liability.1'),
+      legal('web.terms.liability.2'),
+    ],
+  },
+  {
+    id: 'law',
+    title: t('web.terms.law.title'),
+    body: [
+      legal('web.terms.law.1'),
+      legal('web.terms.law.2'),
+      legal('web.terms.law.3'),
+    ],
+  },
+];
+---
+<LegalPage
+  lang={lang}
+  route="/terms/"
+  title={t('web.common.pageTitle', { page: t('web.terms.title') })}
+  heading={t('web.terms.title')}
+  description={t('web.terms.description')}
+  lead={t('web.terms.lead')}
+  updated={date(31, 10, 2026)}
+  sections={sections}
+  other={{ href: path('/privacy/'), label: t('web.privacy.title') }}
+/>

@@ -20,7 +20,7 @@ without output.
 | 2 Accounts and verification (codes, invites, takeover, badges, staff 2FA, documents) | **done (2a server, 2b screens), awaiting owner review.** SMS **BLOCKED** until a provider is chosen; evidence below. |
 | 3 Requests, connections and privacy | **done (3a server, 3b screens), awaiting owner review.** Evidence below. |
 | 4 Plans, payments, email, Turnstile | **done (4a server, 4b screens), awaiting owner review.** Real payment details, Turnstile keys and email to members are **BLOCKED** on the owner; evidence below. |
-| 5 Content, safety and quality | **5a (safety), 5b (website text and SEO) and 5c (English and Sinhala in the app, emails and the reviewer's spreadsheet) done, awaiting owner review.** The terms and privacy policy wait for the owner's lawyer (`docs/LEGAL-REVIEW.md`); all Sinhala waits for the owner's reviewer. 5d (the website in Sinhala) and 5e (accessibility) not started. Evidence below. |
+| 5 Content, safety and quality | **5a (safety), 5b (website text and SEO), 5c (English and Sinhala in the app, emails and the reviewer's spreadsheet) and 5d (the website in Sinhala) done, awaiting owner review.** The terms and privacy policy wait for the owner's lawyer (`docs/LEGAL-REVIEW.md`); all Sinhala waits for the owner's reviewer. 5e (accessibility) not started. Evidence below. |
 | 6 Test, harden and hand over | not started |
 
 ## Decisions recorded during setup
@@ -116,6 +116,10 @@ without output.
 | 2026-11-03 | Sinhala uses the phone's or computer's own Sinhala font (no web font is downloaded). | Proposed — confirm |
 | 2026-11-03 | Plan names stay exactly as the owner types them in both languages (the owner may write both, e.g. "Premium 3 months / ප්‍රීමියම් මාස 3"). Members' own words and names are never translated. | Proposed — confirm |
 | 2026-11-03 | Texts live in catalogues in `packages/shared/src/i18n` (English the source, a missing translation falls back to English); the spreadsheet tools need no dependency; dates and country names come from the catalogues, not the browser. | Engineering |
+| 2026-11-04 | The ten newsroom articles and Favorite Labs are translated now, with the rest of the website. | Proposed — confirm |
+| 2026-11-04 | The Sinhala terms and privacy policy are drafted now, marked draft like the English, and say the English is the official version; the lawyer reviews both together. | Proposed — confirm |
+| 2026-11-04 | A first visit is never redirected by the browser's language: every page links to its other-language version (header, or the menu on phones), and the footer's language dialog opens it. The choice is saved for the app. | Proposed — confirm |
+| 2026-11-04 | Each website page is one file built at its English address and under `/si/`; the website's words are a `website` catalogue (`web.*`) in the reviewer's spreadsheet (Website tab); the ten article pages became one template. | Engineering |
 
 ## Step 5 evidence
 
@@ -635,10 +639,12 @@ Open:
 - [ ] **Owner action:** the native-speaker reviewer goes through the spreadsheet (1,272 texts); the lawyer reviews the
   rows marked "Legal wording".
 
-5d, the website in Sinhala:
+5d, the website in Sinhala (done):
 
-- [ ] Sinhala pages at `/si/…` with Tamil hidden, the language dialog's "Website content is currently in English"
+- [x] Sinhala pages at `/si/…` with Tamil hidden, the language dialog's "Website content is currently in English"
   removed (W14), the website's text in the spreadsheet, and the Sinhala terms and privacy policy for the lawyer.
+- [ ] **Owner action:** the reviewer goes through the spreadsheet's Website tab (712 texts); the lawyer compares the
+  Sinhala terms and privacy policy with the English (`docs/LEGAL-REVIEW.md`).
 
 5e, accessibility:
 
@@ -2354,3 +2360,177 @@ touched.
 - Opening the spreadsheet in Microsoft Excel itself was not tried (it would open Excel on the owner's Mac); files saved
   by `openpyxl` and Excel's own layout are covered by tests.
 - Pushing to GitHub and Neon migrations 0008–0011: on request, as before (5c adds no migration).
+
+## Stage 5d evidence (4 Nov 2026): the website in Sinhala
+
+Scope (Part 3 "Stage 5": "Implement English and Sinhala with Tamil hidden, and export all text to a spreadsheet for my
+reviewer"), for the public website. Accessibility is 5e.
+
+### Defaults used (proposed, to confirm)
+
+The owner said "Continue" without choosing, so the recommended options were used and recorded as "Proposed — confirm"
+in the decisions table: the ten newsroom articles and Favorite Labs are translated now; the Sinhala terms and privacy
+policy are drafted now, marked draft, with the English official; a first visit is not redirected, every page links to
+its other-language version.
+
+### What was built
+
+- **Addresses.** All 21 pages moved to `apps/website/src/pages/[...lang]/` and are built twice: 21 English pages at
+  their old addresses and 21 Sinhala pages under `/si/` (43 HTML files with the 404 page, which shows both
+  languages). The ten article pages, which shared one layout, are now one template (`newsroom/[article]/`) with their
+  list in `src/lib/articles.ts`.
+- **Words.** A `website` catalogue (`web.*`, 712 texts, about 61,000 characters) with a Sinhala draft for every text,
+  including the articles, Labs, help (40 questions), pricing, and the terms and privacy policy. `src/lib/i18n.ts`
+  turns keys into text or safe HTML (links, bold, line breaks, and marks such as `<email/>` filled by the page).
+  The English pages' text is unchanged: before committing, the text of every English page was compared with the
+  previous build; the only differences were the language link, the Sinhala alternates, the filter codes and the Join
+  link's `?lang=en`.
+- **Scripts.** Menus, dialogs, help and newsroom search, Labs, pricing cards and carousels take their words from the
+  page (`FH_TEXT`), with Sinhala plural forms. The newsroom's search reads the articles from the page rather than an
+  English copy in `newsroom.js`.
+- **Choosing a language.** A link to the other version beside the menu button (in the menu on phones); the footer's
+  language dialog opens the other version when chosen, and the old note "Website content is currently in English" is
+  gone (W14). The choice is saved for the app; Join opens the app with `?lang=`; the app's footer links to the help,
+  terms and privacy pages in its own language.
+- **Search engines.** Canonical per language, `hreflang` en / si / x-default, `og:locale` si_LK with the other as an
+  alternate, JSON-LD `inLanguage`, and a sitemap with both versions and their alternates. The site check has a new
+  "languages" area.
+- **Spreadsheet.** A Website tab (where each text appears, notes for links, marks, legal wording and search-result
+  texts); the import files website rows into the website catalogue and refuses a row that drops a mark.
+- **Tests.** A website test file (5 tests: HTML escaping and marks, addresses, Sinhala dates and countries, script
+  texts, and every key used exists and every key is used); the catalogue tests now cover the website catalogue; two
+  spreadsheet tests cover the Website tab.
+
+### `npm test`: 158 tests, all passing
+
+```text
+api:      ℹ tests 144  ℹ suites 49  ℹ pass 144  ℹ fail 0
+website:  ℹ tests 5    ℹ suites 1   ℹ pass 5    ℹ fail 0
+scripts:  ℹ tests 9    ℹ suites 2   ℹ pass 9    ℹ fail 0
+
+▶ website texts
+  ✔ html() escapes the words and puts in only the elements the page gives
+  ✔ addresses: English at the root, Sinhala under /si/, and back
+  ✔ dates and countries come from the catalogues in the page’s order
+  ✔ the Sinhala pages have Sinhala text, and scripts get only their own words
+  ✔ every key the pages and scripts use is in the catalogue, and every catalogue key is used
+▶ export and import
+  ✔ the export has one row per text members see, with status and what to keep
+  ✔ corrections and approvals come back in; broken rows are refused with a reason
+  ✔ website rows import into the website catalogue, and a correction that drops a mark like <email/> is refused
+  ✔ a dry run reports without writing, and Excel’s layout imports the same way
+  ✔ when the English changes after a review, the text is a draft again and old rows are skipped
+```
+
+### Mutation check: every deliberate break caught
+
+Each break was made alone, the matching check run, and the file restored:
+
+```text
+CAUGHT html() stops escaping words
+CAUGHT routeOf treats /simple/ as Sinhala
+CAUGHT a page uses a misspelled key
+CAUGHT a catalogue key nobody uses
+CAUGHT Sinhala month order lost
+CAUGHT a Sinhala text missing
+CAUGHT a Sinhala text drops a link mark
+CAUGHT a Sinhala text drops <email/>
+CAUGHT a website key in the app catalogue
+CAUGHT spreadsheet ignores self-closing marks
+CAUGHT spreadsheet files website rows under app
+CAUGHT a Sinhala page says lang="en"
+CAUGHT a page loses its Sinhala alternate
+CAUGHT the sitemap misses a Sinhala page
+CAUGHT a Sinhala page is missing
+CAUGHT a Sinhala page keeps an English title
+16/16 caught
+```
+
+### Site check (`npm run build:site`)
+
+```text
+Site check of dist/site for https://favoritehearts.com ("indexable": false), 42 pages and the 404 page:
+  ✓ titles           42 unique
+  ✓ descriptions     42 unique
+  ✓ canonical links  42 point to the page's own address on https://favoritehearts.com
+  ✓ robots tags      noindex on every page (not indexable yet)
+  ✓ social previews  Open Graph and Twitter tags on 42 pages, preview image 1200×630
+  ✓ headings         one h1 on each of 42 pages
+  ✓ language         lang set on 43 pages
+  ✓ languages        21 pages in English and 21 in Sinhala, lang matches; 126 hreflang links resolve to each other
+  ✓ structured data  valid JSON-LD on 42 pages
+  ✓ links            1556 links and assets on this site resolve, 96 anchors found
+  ✓ sitemap          42 pages listed once each, the 404 page left out
+  ✓ robots.txt       Disallow: / while not indexable; /app/ noindex
+No problems found.
+```
+
+Titles and descriptions over the lengths search results show are listed as notes, as before; the Sinhala ones are
+the same kind (article summaries used as descriptions). A scan of every built Sinhala page found no English words
+outside names (Favorite Hearts, WhatsApp, Wise, PayPal, Starter, Premium…) and meta values.
+
+### The spreadsheet
+
+`npm run text:export` → `dist/text/favorite-hearts-text-si-2026-11-04.xlsx` (194 KB), tabs Read me, App, Messages,
+Emails and texts, Website, Glossary: "1984 texts: 1984 translated, 0 approved, 0 with changed English."
+
+```text
+Language: si
+  app         1022 texts  1022 translated     0 approved
+  shared        27 texts    27 translated     0 approved
+  api          126 texts   126 translated     0 approved
+  validation    37 texts    37 translated     0 approved
+  email         60 texts    60 translated     0 approved
+  website      712 texts   712 translated     0 approved
+  all         1984 texts  1984 translated     0 approved
+```
+
+Acting as the reviewer, `openpyxl` corrected one Website row, approved one, and dropped `<email/>` from a terms row;
+`npm run text:import -- <file> --dry-run` reported:
+
+```text
+Dry run, nothing written. Corrected: 1. Approved: 1. Unchanged: 1981.
+Problem: Website row 642 (web.terms.law.3): the text must keep <email/> <operator/> as in the English; it has <operator/>. Not imported.
+```
+
+### Browser walkthrough
+
+The built site (`scripts/serve-site.mjs` on 8099, a sandbox API on 8799 with its sample plans). The owner's servers
+were not touched.
+
+| Checked | Result |
+| --- | --- |
+| `/si/` | `<html lang="si">`, "ඔබේ කෙනා. ඔබේ සදාකාලය."; the hand-drawn circle sits on "සදාකාලය" mid-sentence ("ඔබේ සදාකාලය ගොඩනඟන්න."). |
+| `/si/pricing/` | Live plans in Sinhala ("මාස 3", "දිනකට ඉල්ලීම් 5ක්, මසකට 30ක්", "අසීමිත ඉල්ලීම් (සාධාරණ භාවිතය අදාළයි: දිනකට 30 දක්වා)"); plan names as the owner wrote them. |
+| Footer dialog on `/si/pricing/` | Opens in Sinhala with Sinhala selected and countries in Sinhala; choosing English and Continue opened `/pricing/` in English and saved `{"language":"en","country":"LK"}`. |
+| Header link on `/pricing/` | "සිංහල" opened `/si/pricing/` and saved Sinhala. |
+| Join on `/si/pricing/` | Opened `/app/?lang=si`; the app came up in Sinhala and its footer links to `/si/help/`, `/si/terms/`, `/si/privacy/`. |
+| `/si/help/` | "පිළිතුරු 40ක් හමු විය."; searching "කේන්දර" found the horoscope question; the Payments filter ("ගෙවීම්") shows 5. |
+| `/si/newsroom/` | "ලිපි 10න් 3ක් පෙන්වයි.", Show more / less, the Advice filter, "Our Stories" empty text, and a search for "මුදල්" found the respect article. |
+| An article at 375 px | "2026 ඔක්තෝබර්", "Favorite Hearts විසින්"; no sideways scrolling; the header link hidden and "English" at the end of the menu. |
+| `/si/terms/` | "කෙටුම්පත · 2026 ඔක්තෝබර් 31", the draft notice with the English-official sentence, the operator placeholder and the email link in place. |
+
+### Problems found while building and walking through, all fixed
+
+- The site check failed on its first run: Labs had the same title in both languages ("Favorite Labs" is a name). The
+  Sinhala page now has its own title.
+- Wrapping the Join button in a new header group would have dropped its existing styles (`header>.pill`); the language
+  link sits with the menu button instead.
+- The footer dialog's two language cards were staggered in both languages (before 5d too): the floated legend took
+  the first grid cell. It now spans the row.
+- Stylesheets and scripts changed, so `release` is now `5d-1` and browsers fetch new copies.
+
+### `npm run typecheck` and `npm run build:site`
+
+- `npm run typecheck`: exit 0 (`astro check`: 0 errors, 0 warnings, 0 hints).
+- `npm run build:site`: exit 0, "No problems found." The member app's main chunk is 710.04 kB (210.92 kB compressed),
+  as in 5c.
+
+### Not done in 5d
+
+- **Owner action:** the reviewer goes through the Website tab (712 drafts); the lawyer compares the Sinhala terms and
+  privacy policy with the English. The three "Proposed — confirm" defaults above are the owner's to confirm.
+- Wording to settle in review: the app's footer says "පෞද්ගලිකත්වය" for Privacy while the website says "රහස්‍යතා
+  ප්‍රතිපත්තිය" (Privacy Policy); the help status says "පිළිතුරු 0ක් හමු විය." when nothing matches.
+- 5e: accessibility.
+- Pushing to GitHub and Neon migrations 0008–0011: on request, as before (5d adds no migration).

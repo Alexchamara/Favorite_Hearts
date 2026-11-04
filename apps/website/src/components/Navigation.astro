@@ -1,31 +1,37 @@
 ---
 // Shared navigation (from the demo partial navigation.html). A social button appears only once that page's real
 // address is set in site.config.json.
+import { routeOf, texts, type Lang } from '../lib/i18n';
 import { site } from '../lib/site';
 
 const social = site.social as Record<string, string | null>;
 const anySocial = Object.values(social).some(Boolean);
+const { lang } = Astro.props as { lang: Lang };
+const { t, path, other } = texts(lang);
+const counterpart = texts(other).path(routeOf(Astro.url.pathname));
 ---
-<nav id="navigation" aria-label="Main navigation" hidden>
+<nav id="navigation" aria-label={t('web.nav.label')} hidden>
 <div class="menu-items">
-<a href="/mission/" class="mission-link">Mission <span class="menu-link-arrow" aria-hidden="true">↗</span>
+<a href={path('/mission/')} class="mission-link">{t('web.nav.mission')} <span class="menu-link-arrow" aria-hidden="true">↗</span>
 </a>
-<a href="/labs/">Favorite Labs <span class="menu-link-arrow" aria-hidden="true">↗</span>
+<a href={path('/labs/')}>{t('web.nav.labs')} <span class="menu-link-arrow" aria-hidden="true">↗</span>
 </a>
-<a type="button" href="/newsroom/">Newsroom <span class="menu-link-arrow" aria-hidden="true">↗</span>
+<a href={path('/newsroom/')}>{t('web.nav.newsroom')} <span class="menu-link-arrow" aria-hidden="true">↗</span>
 </a>
-<a href="/contact/">Contact Us <span class="menu-link-arrow" aria-hidden="true">↗</span>
+<a href={path('/contact/')}>{t('web.nav.contact')} <span class="menu-link-arrow" aria-hidden="true">↗</span>
 </a>
-<a href="/help/">Help &amp; FAQ <span class="menu-link-arrow" aria-hidden="true">↗</span>
+<a href={path('/help/')}>{t('web.nav.help')} <span class="menu-link-arrow" aria-hidden="true">↗</span>
 </a>
-<a href="/privacy/">Privacy Policy <span class="menu-link-arrow" aria-hidden="true">↗</span>
+<a href={path('/privacy/')}>{t('web.nav.privacy')} <span class="menu-link-arrow" aria-hidden="true">↗</span>
 </a>
-<a href="/terms/">Terms and Conditions <span class="menu-link-arrow" aria-hidden="true">↗</span>
+<a href={path('/terms/')}>{t('web.nav.terms')} <span class="menu-link-arrow" aria-hidden="true">↗</span>
+</a>
+<a class="menu-language" href={counterpart} hreflang={other} lang={other} aria-label={t(`web.lang.to.${other}`)}>{t(`web.lang.name.${other}`)} <span class="menu-link-arrow" aria-hidden="true">↗</span>
 </a>
 </div>
 <div class="menu-bottom-row">
 {anySocial && (
-<div class="menu-social" aria-label="Social profiles">
+<div class="menu-social" aria-label={t('web.nav.social')}>
 {social.Instagram && (
 <button type="button" data-social="Instagram" aria-label="Instagram">
 <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -65,7 +71,7 @@ const anySocial = Object.values(social).some(Boolean);
 <path d="M12 11v6"/>
 <circle cx="12" cy="7.5" r=".8" fill="currentColor" stroke="none"/>
 </svg>
-<span>For adults aged 18 and over. Designed with privacy, consent and trust at heart.</span>
+<span>{t('web.nav.note')}</span>
 </p>
 </div>
 </nav>

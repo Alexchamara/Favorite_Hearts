@@ -1,0 +1,112 @@
+---
+// A newsroom article (the demo's ten article pages, which shared one layout), in English and in Sinhala.
+import Header from '../../../../components/Header.astro';
+import Navigation from '../../../../components/Navigation.astro';
+import Footer from '../../../../components/Footer.astro';
+import Dialogs from '../../../../components/Dialogs.astro';
+import Seo from '../../../../components/Seo.astro';
+import { css, js } from '../../../../lib/site';
+import { langOf, languagePaths, texts, type WebKey } from '../../../../lib/i18n';
+import { ARTICLES, PHOTO_FALLBACK, PUBLISHED, SECTIONS, photoUrl, type Article } from '../../../../lib/articles';
+
+export function getStaticPaths() {
+  return languagePaths().flatMap(({ params }) =>
+    ARTICLES.map((article) => ({ params: { ...params, article: article.slug }, props: { article } })),
+  );
+}
+
+const { article } = Astro.props as { article: Article };
+const { lang, t, path, monthYear } = texts(langOf(Astro.params.lang));
+const text = (slug: string, part: string) => t(`web.article.${slug}.${part}` as WebKey);
+const title = text(article.slug, 'title');
+const intro = text(article.slug, 'intro');
+const pageTitle = t('web.common.pageTitle', { page: title });
+const date = monthYear(PUBLISHED.month, PUBLISHED.year);
+const related = article.related.map((slug) => ARTICLES.find((other) => other.slug === slug)!);
+---
+<!doctype html>
+<html lang={lang}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#ffffff">
+<title>{pageTitle}</title>
+<meta name="description" content={intro}>
+<link rel="stylesheet" href={css("landing.css")}>
+<script is:inline src={js("site-config.js")} defer>
+</script>
+<script is:inline src={js("site.js")} defer>
+</script>
+<script is:inline src={js("article.js")} defer>
+</script>
+<link rel="stylesheet" href={css("monochrome.css")}>
+<link rel="stylesheet" href={css("labs.css")}>
+<link rel="stylesheet" href={css("article.css")}>
+<link rel="stylesheet" href={css("welcome.css")}>
+<script is:inline src={js("welcome.js")} defer>
+</script>
+<script is:inline src={js("motion.js")} defer></script>
+<link rel="stylesheet" href={css("design-system.css")}>
+<link rel="stylesheet" href={css("tailwind.css")}>
+<Seo lang={lang} route={`/newsroom/${article.slug}/`} title={pageTitle} description={intro} headline={title} />
+</head>
+<body class="tw-antialiased">
+<a class="skip" href="#main">{t('web.common.skip')}</a>
+<Header lang={lang} />
+<Navigation lang={lang} />
+<main id="main" class="story-page" data-theme="light">
+<article class="story">
+<div class="story-heading">
+<p class="story-meta">
+<a href={path('/newsroom/')}>{t('web.nav.newsroom')}</a>
+<span class="story-meta-dot" aria-hidden="true">
+</span>
+<time datetime={PUBLISHED.datetime}>{date}</time>
+</p>
+<h1>{title}</h1>
+<p class="story-byline">{t('web.article.byline')}</p>
+</div>
+<figure class="story-cover">
+<img src={photoUrl(article.photo, 2000)} alt={t('web.article.coverAlt')} width="1600" height="1067" fetchpriority="high" data-stock-fallback={PHOTO_FALLBACK} decoding="async">
+</figure>
+<div class="story-copy">
+<p class="story-intro">{intro}</p>
+{SECTIONS.map((n) => (
+<section>
+<h2>{text(article.slug, `s${n}.title`)}</h2>
+<p>{text(article.slug, `s${n}.text`)}</p>
+</section>
+))}
+<aside class="story-summary" aria-labelledby="summary-title">
+<h2 id="summary-title">{t('web.article.inBrief')}</h2>
+<p>{text(article.slug, 'summary')}</p>
+</aside>
+<a class="pill story-back" href={path('/newsroom/')}>
+<span aria-hidden="true">←</span> {t('web.article.back')}</a>
+</div>
+</article>
+<section class="story-related" aria-labelledby="related-title">
+<h2 id="related-title">{t('web.article.related')}</h2>
+<div class="story-related-grid">
+{related.map((other) => (
+<article>
+<a class="article-open" href={path(`/newsroom/${other.slug}/`)}>
+<div class="article-image">
+<img src={photoUrl(other.photo, 2000)} alt="" loading="lazy" data-stock-fallback={PHOTO_FALLBACK} decoding="async">
+</div>
+<span class="article-meta">
+<span class="article-category">{t(`web.category.${other.category}`)}</span>
+<time class="article-date" datetime={PUBLISHED.datetime}>{date}</time>
+</span>
+<h3>{text(other.slug, 'title')}</h3>
+<span class="article-tag">{t('web.article.readStory')} <span aria-hidden="true">↗</span>
+</span>
+</a>
+</article>
+))}
+</div>
+</section>
+</main><Footer lang={lang} />
+<Dialogs lang={lang} />
+</body>
+</html>

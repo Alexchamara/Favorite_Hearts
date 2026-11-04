@@ -1,0 +1,194 @@
+---
+// Converted from the demo page src/pages/labs/index.html; its words are in the website catalogue (web.labs.*).
+import Header from '../../../components/Header.astro';
+import Navigation from '../../../components/Navigation.astro';
+import Footer from '../../../components/Footer.astro';
+import Dialogs from '../../../components/Dialogs.astro';
+import Seo from '../../../components/Seo.astro';
+import { css, js } from '../../../lib/site';
+import { langOf, languagePaths, texts } from '../../../lib/i18n';
+
+export function getStaticPaths() {
+  return languagePaths();
+}
+
+const { lang, t, html, path, monthYear } = texts(langOf(Astro.params.lang));
+const title = t('web.common.pageTitle', { page: t('web.labs.title') });
+const description = t('web.labs.description');
+const date = monthYear(10, 2026);
+// "Ideas for / a shared life." with its underlined words, which can come first in Sinhala (then without the break).
+const [headingStart, headingMarked, headingEnd] = t('web.labs.heading').split(/<\/?underlined>/);
+---
+<!doctype html>
+<html lang={lang}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#ffffff">
+<title>{title}</title>
+<meta name="description" content={description}>
+<link rel="stylesheet" href={css("landing.css")}>
+<script is:inline src={js("site-config.js")} defer>
+</script>
+<script is:inline src={js("site.js")} defer>
+</script>
+<script is:inline src={js("labs.js")} defer>
+</script>
+<link rel="stylesheet" href={css("monochrome.css")}>
+<link rel="stylesheet" href={css("labs.css")}>
+<link rel="stylesheet" href={css("welcome.css")}>
+<script is:inline src={js("welcome.js")} defer>
+</script>
+<script is:inline src={js("motion.js")} defer></script>
+<link rel="stylesheet" href={css("design-system.css")}>
+<link rel="stylesheet" href={css("tailwind.css")}>
+<Seo lang={lang} route="/labs/" title={title} description={description} headline={t('web.labs.headline')} />
+</head>
+<body class="tw-antialiased">
+<a class="skip" href="#main">{t('web.common.skip')}</a>
+<Header lang={lang} />
+<Navigation lang={lang} />
+<main id="main" class="labs-page">
+<section class="labs-opening" data-theme="light">
+<div class="labs-cover">
+<img src="https://images.pexels.com/photos/8836421/pexels-photo-8836421.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=2400&amp;q=90" alt={t('web.labs.aCoupleEnjoyingA')} fetchpriority="high" width="1600" height="1067" data-stock-fallback="/assets/labs-couple.jpg" decoding="async">
+</div>
+<div class="section">
+<p class="labs-wordmark">favorite<span>Labs</span>
+</p>
+<h1 data-reveal>{headingStart.trim()}{headingStart.trim() && <br />}
+<span class="scientists-mark">{headingMarked}<svg class="draw-underline" viewBox="0 0 420 30" preserveAspectRatio="none" aria-hidden="true">
+<defs>
+<filter id="underline-ink" x="-10%" y="-50%" width="120%" height="200%">
+<feTurbulence type="fractalNoise" baseFrequency=".32" numOctaves="3" seed="8" result="rough"/>
+<feDisplacementMap in="SourceGraphic" in2="rough" scale="1.65" xChannelSelector="R" yChannelSelector="G"/>
+</filter>
+</defs>
+<path filter="url(#underline-ink)" pathLength="1" d="M8 18 C75 10 139 19 201 14 S324 11 411 16"/>
+</svg>
+</span>{headingEnd}
+</h1>
+</div>
+</section>
+<section class="section labs-science" data-theme="light">
+<p class="label" data-reveal>{t('web.labs.ourApproachToConnection')}</p>
+<h2 data-reveal set:html={html('web.labs.understandingPeopleBuildingLasting')}></h2>
+<div class="offset">
+<p data-reveal>{t('web.labs.favoriteLabsSharesIdeas')}</p>
+</div>
+</section>
+<div class="labs-photo" data-theme="light">
+<img src="https://images.pexels.com/photos/3967505/pexels-photo-3967505.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=2400&amp;q=90" alt={t('web.labs.aCoupleSharingCoffee')} loading="lazy" width="1536" height="1024" data-stock-fallback="/assets/labs-couple.jpg" decoding="async">
+</div>
+<section class="section labs-reading" id="advice" data-theme="light">
+<h2 data-reveal>{t('web.labs.ideasAdvice')} <sup>(6)</sup>
+</h2>
+<div class="article-grid">
+<article class="advice-card">
+<a class="article-open" href={path('/newsroom/beyond-the-checklist/')}>
+<div class="article-image">
+<img src="https://images.pexels.com/photos/5910748/pexels-photo-5910748.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=2400&amp;q=90" alt="" loading="lazy" data-stock-fallback="/assets/labs-couple.jpg" decoding="async">
+</div>
+<span class="article-meta">
+<span class="article-category">{t('web.labs.sharedValues')}</span>
+<time class="article-date" datetime="2026-10">{date}</time>
+</span>
+<h3>{t('web.article.beyond-the-checklist.title')}</h3>
+<span class="article-tag">{t('web.article.readStory')} <span aria-hidden="true">↗</span>
+</span>
+</a>
+</article>
+<article class="advice-card">
+<a class="article-open" href={path('/newsroom/a-first-conversation/')}>
+<div class="article-image">
+<img src="https://images.pexels.com/photos/8836421/pexels-photo-8836421.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=2400&amp;q=90" alt="" loading="lazy" data-stock-fallback="/assets/labs-couple.jpg" decoding="async">
+</div>
+<span class="article-meta">
+<span class="article-category">{t('web.labs.conversations')}</span>
+<time class="article-date" datetime="2026-10">{date}</time>
+</span>
+<h3>{t('web.article.a-first-conversation.title')}</h3>
+<span class="article-tag">{t('web.article.readStory')} <span aria-hidden="true">↗</span>
+</span>
+</a>
+</article>
+<article class="advice-card">
+<a class="article-open" href={path('/newsroom/family-and-your-voice/')}>
+<div class="article-image">
+<img src="https://images.pexels.com/photos/3967505/pexels-photo-3967505.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=2400&amp;q=90" alt="" loading="lazy" data-stock-fallback="/assets/labs-couple.jpg" decoding="async">
+</div>
+<span class="article-meta">
+<span class="article-category">{t('web.labs.familyChoice')}</span>
+<time class="article-date" datetime="2026-10">{date}</time>
+</span>
+<h3>{t('web.article.family-and-your-voice.title')}</h3>
+<span class="article-tag">{t('web.article.readStory')} <span aria-hidden="true">↗</span>
+</span>
+</a>
+</article>
+<article class="advice-card" hidden>
+<a class="article-open" href={path('/newsroom/across-borders-on-the-same-page/')}>
+<div class="article-image">
+<img src="https://images.pexels.com/photos/5910748/pexels-photo-5910748.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=2400&amp;q=90" alt="" loading="lazy" data-stock-fallback="/assets/labs-couple.jpg" decoding="async">
+</div>
+<span class="article-meta">
+<span class="article-category">{t('web.labs.sriLankaBeyond')}</span>
+<time class="article-date" datetime="2026-10">{date}</time>
+</span>
+<h3>{t('web.article.across-borders-on-the-same-page.title')}</h3>
+<span class="article-tag">{t('web.article.readStory')} <span aria-hidden="true">↗</span>
+</span>
+</a>
+</article>
+<article class="advice-card" hidden>
+<a class="article-open" href={path('/newsroom/before-marriage/')}>
+<div class="article-image">
+<img src="https://images.pexels.com/photos/3967505/pexels-photo-3967505.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=2400&amp;q=90" alt="" loading="lazy" data-stock-fallback="/assets/labs-couple.jpg" decoding="async">
+</div>
+<span class="article-meta">
+<span class="article-category">{t('web.labs.everydayPartnership')}</span>
+<time class="article-date" datetime="2026-10">{date}</time>
+</span>
+<h3>{t('web.article.before-marriage.title')}</h3>
+<span class="article-tag">{t('web.article.readStory')} <span aria-hidden="true">↗</span>
+</span>
+</a>
+</article>
+<article class="advice-card" hidden>
+<a class="article-open" href={path('/newsroom/an-honest-profile/')}>
+<div class="article-image">
+<img src="https://images.pexels.com/photos/8836421/pexels-photo-8836421.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=2400&amp;q=90" alt="" loading="lazy" data-stock-fallback="/assets/labs-couple.jpg" decoding="async">
+</div>
+<span class="article-meta">
+<span class="article-category">{t('web.labs.gettingStarted')}</span>
+<time class="article-date" datetime="2026-10">{date}</time>
+</span>
+<h3>{t('web.article.an-honest-profile.title')}</h3>
+<span class="article-tag">{t('web.article.readStory')} <span aria-hidden="true">↗</span>
+</span>
+</a>
+</article>
+</div>
+<div class="all-posts">
+<button class="pill" id="all-posts" aria-expanded="false">{t('web.js.labs.all')}</button>
+</div>
+</section>
+<section class="section labs-press" data-theme="dark">
+<div class="press-row">
+<p class="label">{t('web.labs.newsMedia')}</p>
+<h3>{t('web.labs.followOurNextChapter')}</h3>
+<p>{t('web.labs.futureAnnouncementsAndPress')}</p>
+<a href={path('/newsroom/')} class="labs-text-link">{t('web.common.visitNewsroom')} <span aria-hidden="true">↗</span>
+</a>
+</div>
+</section>
+<section class="section begin join" data-theme="light">
+<p class="label" data-reveal>{t('web.common.nextChapter')}</p>
+<h2 data-reveal set:html={html('web.labs.makeRoomForYour')}></h2>
+<p>{t('web.labs.aSharedLifeStarts')}</p>
+<button class="pill start">{t('web.header.join')}</button>
+</section>
+</main><Footer lang={lang} />
+<Dialogs lang={lang} />
+</body>
+</html>

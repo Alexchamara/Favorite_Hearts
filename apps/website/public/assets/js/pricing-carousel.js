@@ -15,7 +15,7 @@
       frame = 0;
       active = targets.reduce((best, target, i) => Math.abs(target - track.scrollLeft) < Math.abs(targets[best] - track.scrollLeft) ? i : best, 0);
       dots.forEach((dot,i) => dot.setAttribute('aria-current', String(i === active)));
-      status.textContent = targets.length > 1 ? `Position ${active + 1} of ${targets.length}` : 'All cards are visible';
+      status.textContent = targets.length > 1 ? FH_TEXT('web.js.carousel.position', { n: active + 1, count: targets.length }) : FH_TEXT('web.js.carousel.allVisible');
     }
     function measure() {
       const max = Math.max(0, track.scrollWidth - track.clientWidth);
@@ -23,7 +23,7 @@
       targets = cards.map(card => Math.max(0, Math.min(max, track.scrollLeft + card.getBoundingClientRect().left - edge - 2)))
         .filter((target,i,list) => i === 0 || Math.abs(target - list[i-1]) > 4);
       if (!targets.length) targets = [0];
-      dots.forEach((dot,i) => { dot.hidden = targets.length === 1 || i >= targets.length; dot.setAttribute('aria-label', `Show position ${i+1} of ${targets.length}`); });
+      dots.forEach((dot,i) => { dot.hidden = targets.length === 1 || i >= targets.length; dot.setAttribute('aria-label', FH_TEXT('web.js.carousel.show', { n: i + 1, count: targets.length })); });
       track.tabIndex = targets.length > 1 ? 0 : -1;
       root.querySelector('.pricing-dashes').hidden = targets.length === 1;
       update();

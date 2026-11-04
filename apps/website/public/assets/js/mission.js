@@ -34,4 +34,4 @@ window.addEventListener('scroll',queueNumberFills,{passive:true});window.addEven
 reduced.addEventListener?.('change',event=>{if(event.matches)missionArrow.classList.remove('arrow-ready');queueNumberFills()});updateNumberFills();
 
 // Keep an available stock photograph visible if the external photo cannot load.
-document.querySelectorAll('img[data-stock-fallback]').forEach(img=>{const fallback=()=>{if(img.dataset.stockFallback){const src=img.dataset.stockFallback;delete img.dataset.stockFallback;img.srcset='';img.src=src;img.alt='A couple enjoying a moment together'}};img.addEventListener('error',fallback,{once:true});if(img.complete&&img.naturalWidth===0)fallback()});
+document.querySelectorAll('img[data-stock-fallback]').forEach(img=>{const fallback=()=>{if(img.dataset.stockFallback){const src=img.dataset.stockFallback;delete img.dataset.stockFallback;img.srcset='';img.src=src;img.alt=FH_TEXT('web.js.fallbackAlt')}};img.addEventListener('error',fallback,{once:true});if(img.complete&&img.naturalWidth===0)fallback()});

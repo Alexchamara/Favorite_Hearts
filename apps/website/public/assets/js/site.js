@@ -1,4 +1,20 @@
 /** Shared navigation, surface colours, dialogs and keyboard behaviour. */
+/**
+ * The page's words for scripts, in its language: #fh-text (Dialogs.astro) holds the catalogue's web.js.* texts.
+ * FH_TEXT('web.js.help.found', {count: 2}) fills {count}; a key with _one/_other forms picks one by count
+ * (Sinhala uses "one" for 0 and 1). FH_PATH('/contact/') is that page in the same language.
+ */
+(() => {
+  let data = {lang: 'en', texts: {}};
+  try { data = JSON.parse(document.querySelector('#fh-text').textContent); } catch (_) { /* English keys show instead. */ }
+  const form = count => (data.lang === 'si' ? count === 0 || count === 1 : count === 1) ? 'one' : 'other';
+  window.FH_LANG = data.lang;
+  window.FH_TEXT = (key, vars = {}) => {
+    const text = data.texts[key] ?? data.texts[key + '_' + form(Number(vars.count))] ?? key;
+    return text.replace(/\{(\w+)\}/g, (whole, name) => (name in vars ? String(vars[name]) : whole));
+  };
+  window.FH_PATH = route => (data.lang === 'en' ? route : '/' + data.lang + route);
+})();
 (() => {
   'use strict';
   const header = document.querySelector('header');
@@ -12,7 +28,7 @@
     menuOpen = open;
     clearTimeout(closeTimer);
     toggle.setAttribute('aria-expanded', String(open));
-    toggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+    toggle.setAttribute('aria-label', open ? FH_TEXT('web.js.closeMenu') : FH_TEXT('web.js.openMenu'));
     header.classList.toggle('menu-closing', !open);
     background.forEach(element => { element.inert = open; });
     if (open) {
@@ -73,19 +89,20 @@
     content.replaceChildren();
     const p = document.createElement('p'); p.textContent = paragraph; content.append(p);
     if (contact) {
-      const link = document.createElement('a'); link.className = 'pill'; link.href = localUrl('/contact/'); link.textContent = 'Contact our team'; content.append(link);
+      const link = document.createElement('a'); link.className = 'pill'; link.href = localUrl(FH_PATH('/contact/')); link.textContent = FH_TEXT('web.js.contactTeam'); content.append(link);
     }
     if (!dialog.open) dialog.showModal();
   }
   document.querySelectorAll('.start').forEach(button => button.addEventListener('click', () => {
-    if (window.FH_CONFIG.registrationUrl) location.assign(localUrl(window.FH_CONFIG.registrationUrl));
-    else openDialog('Your beginning starts here.', 'Talk to our team about membership and when registration will be available.', true);
+    // The app opens in the page's language (apps/member lib/i18n.tsx reads ?lang=).
+    if (window.FH_CONFIG.registrationUrl) location.assign(localUrl(window.FH_CONFIG.registrationUrl) + '?lang=' + FH_LANG);
+    else openDialog(FH_TEXT('web.js.beginTitle'), FH_TEXT('web.js.beginText'), true);
   }));
-  document.querySelectorAll('[data-page]').forEach(button => button.addEventListener('click', () => openDialog(button.dataset.page, 'Our team can help you find the information you need.', true)));
+  document.querySelectorAll('[data-page]').forEach(button => button.addEventListener('click', () => openDialog(button.dataset.page, FH_TEXT('web.js.pageText'), true)));
   document.querySelectorAll('[data-social]').forEach(button => button.addEventListener('click', () => {
     const url = window.FH_CONFIG.social[button.dataset.social];
     if (url) location.assign(url);
-    else openDialog('Find Favorite Hearts', 'Contact our team for the verified link to our official ' + button.dataset.social + ' page.', true);
+    else openDialog(FH_TEXT('web.js.socialTitle'), FH_TEXT('web.js.socialText', {network: button.dataset.social}), true);
   }));
   dialog?.querySelector('.close')?.addEventListener('click', () => dialog.close());
   dialog?.addEventListener('click', event => {

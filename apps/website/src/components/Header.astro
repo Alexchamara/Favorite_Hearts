@@ -1,14 +1,23 @@
 ---
-// Shared header (from the demo partial header.html).
+// Shared header (from the demo partial header.html), with a link to the same page in the other language beside the
+// menu button (on narrow phones it is in the menu instead).
+import { routeOf, texts, type Lang } from '../lib/i18n';
+
+const { lang } = Astro.props as { lang: Lang };
+const { t, path, other } = texts(lang);
+const counterpart = texts(other).path(routeOf(Astro.url.pathname));
 ---
 <header id="header">
-<button class="menu-toggle" aria-label="Open menu" aria-controls="navigation" aria-expanded="false">
+<div class="header-start">
+<button class="menu-toggle" aria-label={t('web.js.openMenu')} aria-controls="navigation" aria-expanded="false">
 <span>
 </span>
 <span>
 </span>
 </button>
-<a class="logo" href="/" aria-label="Favorite Hearts home">favorite<span>hearts</span>
+<a class="language-link" href={counterpart} hreflang={other} lang={other} aria-label={t(`web.lang.to.${other}`)}>{t(`web.lang.name.${other}`)}</a>
+</div>
+<a class="logo" href={path('/')} aria-label={t('web.header.home')}>favorite<span>hearts</span>
 </a>
-<button class="pill start">Join now</button>
+<button class="pill start">{t('web.header.join')}</button>
 </header>

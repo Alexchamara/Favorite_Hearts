@@ -47,12 +47,12 @@ import { notificationOutbox } from '../src/db/schema/operations.ts';
 import { sendNotifications } from '../src/jobs/notifications.ts';
 import { createTestApp, type Res } from './harness.ts';
 
-const AREAS = ['app', 'shared', 'api', 'validation', 'email'] as const;
+const AREAS = ['app', 'shared', 'api', 'validation', 'email', 'website'] as const;
 const root = new URL('../../../packages/shared/src/i18n/', import.meta.url);
 const catalogue = (language: string, area: string): Record<string, string> =>
   JSON.parse(readFileSync(new URL(`${language}/${area}.json`, root), 'utf8'));
 const isStaff = (key: string) => key.startsWith('api.staff.') || key.startsWith('validation.staff.');
-const marks = (text: string) => [...(text.match(/\{\w+\}/g) ?? []), ...(text.match(/<\/?\w+>/g) ?? [])].sort();
+const marks = (text: string) => [...(text.match(/\{\w+\}/g) ?? []), ...(text.match(/<\/?\w+\/?>/g) ?? [])].sort();
 
 const ok = (res: Res, status = 200) => {
   assert.equal(res.status, status, JSON.stringify(res.body));
@@ -77,10 +77,11 @@ describe('text catalogues', () => {
   });
 
   test('each catalogue keeps to its own keys, and staff texts are only in English', () => {
-    for (const key of Object.keys(catalogue('en', 'app'))) assert.ok(!/^(api|email|validation)\./.test(key), key);
+    for (const key of Object.keys(catalogue('en', 'app'))) assert.ok(!/^(api|email|validation|web)\./.test(key), key);
     for (const area of ['api', 'email', 'validation'] as const) {
       for (const key of Object.keys(catalogue('en', area))) assert.ok(key.startsWith(`${area}.`), key);
     }
+    for (const key of Object.keys(catalogue('en', 'website'))) assert.ok(key.startsWith('web.'), key);
     for (const key of Object.keys(catalogue('en', 'shared'))) assert.ok(key.startsWith('date.'), key);
     for (const area of AREAS) for (const key of Object.keys(catalogue('si', area))) assert.ok(!isStaff(key), key);
   });

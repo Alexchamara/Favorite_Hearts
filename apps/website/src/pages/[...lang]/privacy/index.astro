@@ -1,0 +1,158 @@
+---
+// Privacy policy (Stage 5b): a draft for the owner's lawyer that lists exactly what is collected, who sees it, and what
+// is kept and for how long (OWNER-DECISIONS sections 6–8; audit rows W10, W11, X02, X04). It matches what the app does
+// (docs/ARCHITECTURE.md, "Safety"). The points the lawyer must check are listed in docs/LEGAL-REVIEW.md.
+import LegalPage, { type LegalSection } from '../../../components/LegalPage.astro';
+import { site } from '../../../lib/site';
+
+import { langOf, languagePaths, texts, type WebKey } from '../../../lib/i18n';
+
+export function getStaticPaths() {
+  return languagePaths();
+}
+
+const { lang, t, html, path, date } = texts(langOf(Astro.params.lang));
+// A paragraph or list item as HTML: <operator/> marks the operator's legal name and address, still to be filled in,
+// and <email/> is our address as a link.
+const legal = (key: WebKey, tags: Record<string, string> = {}) =>
+  html(key, {
+    ...tags,
+    operator: `<mark class="legal-placeholder">[${t('web.legal.operator')}]</mark>`,
+    email: `<a href="mailto:${site.email}">${site.email}</a>`,
+  });
+
+const sections: LegalSection[] = [
+  {
+    id: 'about',
+    title: t('web.privacy.about.title'),
+    body: [
+      legal('web.privacy.about.1'),
+      legal('web.privacy.about.2'),
+    ],
+  },
+  {
+    id: 'collect',
+    title: t('web.privacy.collect.title'),
+    body: [
+      [
+        legal('web.privacy.collect.1'),
+        legal('web.privacy.collect.2'),
+        legal('web.privacy.collect.3'),
+        legal('web.privacy.collect.4'),
+        legal('web.privacy.collect.5'),
+        legal('web.privacy.collect.6'),
+        legal('web.privacy.collect.7'),
+        legal('web.privacy.collect.8'),
+      ],
+    ],
+  },
+  {
+    id: 'use',
+    title: t('web.privacy.use.title'),
+    body: [
+      legal('web.privacy.use.1'),
+      legal('web.privacy.use.2'),
+    ],
+  },
+  {
+    id: 'sharing',
+    title: t('web.privacy.sharing.title'),
+    body: [
+      [
+        legal('web.privacy.sharing.1'),
+        legal('web.privacy.sharing.2'),
+        legal('web.privacy.sharing.3'),
+        legal('web.privacy.sharing.4'),
+        legal('web.privacy.sharing.5'),
+        legal('web.privacy.sharing.6'),
+      ],
+    ],
+  },
+  {
+    id: 'providers',
+    title: t('web.privacy.providers.title'),
+    body: [
+      legal('web.privacy.providers.1'),
+      [
+        legal('web.privacy.providers.2'),
+        legal('web.privacy.providers.3'),
+        legal('web.privacy.providers.4'),
+        legal('web.privacy.providers.5'),
+        legal('web.privacy.providers.6'),
+      ],
+      legal('web.privacy.providers.7'),
+    ],
+  },
+  {
+    id: 'security',
+    title: t('web.privacy.security.title'),
+    body: [
+      legal('web.privacy.security.1'),
+      legal('web.privacy.security.2'),
+    ],
+  },
+  {
+    id: 'retention',
+    title: t('web.privacy.retention.title'),
+    body: [
+      [
+        legal('web.privacy.retention.1'),
+        legal('web.privacy.retention.2'),
+        legal('web.privacy.retention.3'),
+        legal('web.privacy.retention.4'),
+      ],
+      legal('web.privacy.retention.5'),
+    ],
+  },
+  {
+    id: 'rights',
+    title: t('web.privacy.rights.title'),
+    body: [
+      [
+        legal('web.privacy.rights.1'),
+        legal('web.privacy.rights.2'),
+        legal('web.privacy.rights.3'),
+        legal('web.privacy.rights.4'),
+      ],
+      legal('web.privacy.rights.5'),
+    ],
+  },
+  {
+    id: 'children',
+    title: t('web.privacy.children.title'),
+    body: [
+      legal('web.privacy.children.1'),
+    ],
+  },
+  {
+    id: 'storage',
+    title: t('web.privacy.storage.title'),
+    body: [
+      [
+        legal('web.privacy.storage.1'),
+        legal('web.privacy.storage.2'),
+        legal('web.privacy.storage.3'),
+      ],
+    ],
+  },
+  {
+    id: 'changes',
+    title: t('web.privacy.changes.title'),
+    body: [
+      legal('web.privacy.changes.1'),
+      legal('web.privacy.changes.2'),
+    ],
+  },
+];
+---
+<LegalPage
+  lang={lang}
+  route="/privacy/"
+  title={t('web.common.pageTitle', { page: t('web.privacy.title') })}
+  heading={t('web.privacy.title')}
+  description={t('web.privacy.description')}
+  lead={t('web.privacy.lead')}
+  updated={date(31, 10, 2026)}
+  sections={sections}
+  other={{ href: path('/terms/'), label: t('web.terms.title') }}
+/>

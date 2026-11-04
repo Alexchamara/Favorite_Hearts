@@ -1,0 +1,319 @@
+---
+// Help and FAQ (Stage 5b): answers match docs/OWNER-DECISIONS.md and what the app does. Answers are trusted HTML
+// written here (some carry a link); search and filters are in assets/js/help.js.
+import Header from '../../../components/Header.astro';
+import Navigation from '../../../components/Navigation.astro';
+import Footer from '../../../components/Footer.astro';
+import Dialogs from '../../../components/Dialogs.astro';
+import Seo from '../../../components/Seo.astro';
+import { css, js, site } from '../../../lib/site';
+import { langOf, languagePaths, texts } from '../../../lib/i18n';
+
+export function getStaticPaths() {
+  return languagePaths();
+}
+
+const { lang, t, html, path } = texts(langOf(Astro.params.lang));
+const title = t('web.common.pageTitle', { page: t('web.help.title') });
+const description = t('web.help.description');
+
+// Each answer is HTML from html(): its words escaped, its links ours.
+const groups: { id: string; name: string; heading?: string; items: { q: string; a: string }[] }[] = [
+  {
+    id: 'started',
+    name: t('web.help.started.name'),
+    items: [
+      {
+        q: t('web.help.started.q1'),
+        a: html('web.help.started.a1'),
+      },
+      {
+        q: t('web.help.started.q2'),
+        a: html('web.help.started.a2'),
+      },
+      {
+        q: t('web.help.started.q3'),
+        a: html('web.help.started.a3', { link: `<a href="/app/?lang=${lang}">` }),
+      },
+      {
+        q: t('web.help.started.q4'),
+        a: html('web.help.started.a4'),
+      },
+      {
+        q: t('web.help.started.q5'),
+        a: html('web.help.started.a5'),
+      },
+      {
+        q: t('web.help.started.q6'),
+        a: html('web.help.started.a6'),
+      },
+    ],
+  },
+  {
+    id: 'profiles',
+    name: t('web.help.profiles.name'),
+    items: [
+      {
+        q: t('web.help.profiles.q1'),
+        a: html('web.help.profiles.a1'),
+      },
+      {
+        q: t('web.help.profiles.q2'),
+        a: html('web.help.profiles.a2'),
+      },
+      {
+        q: t('web.help.profiles.q3'),
+        a: html('web.help.profiles.a3'),
+      },
+      {
+        q: t('web.help.profiles.q4'),
+        a: html('web.help.profiles.a4'),
+      },
+      {
+        q: t('web.help.profiles.q5'),
+        a: html('web.help.profiles.a5'),
+      },
+      {
+        q: t('web.help.profiles.q6'),
+        a: html('web.help.profiles.a6'),
+      },
+      {
+        q: t('web.help.profiles.q7'),
+        a: html('web.help.profiles.a7'),
+      },
+    ],
+  },
+  {
+    id: 'introductions',
+    name: t('web.help.introductions.name'),
+    items: [
+      {
+        q: t('web.help.introductions.q1'),
+        a: html('web.help.introductions.a1'),
+      },
+      {
+        q: t('web.help.introductions.q2'),
+        a: html('web.help.introductions.a2'),
+      },
+      {
+        q: t('web.help.introductions.q3'),
+        a: html('web.help.introductions.a3'),
+      },
+      {
+        q: t('web.help.introductions.q4'),
+        a: html('web.help.introductions.a4'),
+      },
+      {
+        q: t('web.help.introductions.q5'),
+        a: html('web.help.introductions.a5'),
+      },
+      {
+        q: t('web.help.introductions.q6'),
+        a: html('web.help.introductions.a6'),
+      },
+      {
+        q: t('web.help.introductions.q7'),
+        a: html('web.help.introductions.a7'),
+      },
+      {
+        q: t('web.help.introductions.q8'),
+        a: html('web.help.introductions.a8'),
+      },
+    ],
+  },
+  {
+    id: 'payments',
+    name: t('web.help.payments.name'),
+    items: [
+      {
+        q: t('web.help.payments.q1'),
+        a: html('web.help.payments.a1', { link: `<a href="${path('/pricing/')}">` }),
+      },
+      {
+        q: t('web.help.payments.q2'),
+        a: html('web.help.payments.a2'),
+      },
+      {
+        q: t('web.help.payments.q3'),
+        a: html('web.help.payments.a3', { link: `<a href="${path('/pricing/')}">`, link2: `<a href="${path('/terms/')}">` }),
+      },
+      {
+        q: t('web.help.payments.q4'),
+        a: html('web.help.payments.a4'),
+      },
+      {
+        q: t('web.help.payments.q5'),
+        a: html('web.help.payments.a5', { link: `<a href="${path('/pricing/')}">` }),
+      },
+    ],
+  },
+  {
+    id: 'privacy',
+    name: t('web.help.privacy.name'),
+    items: [
+      {
+        q: t('web.help.privacy.q1'),
+        a: html('web.help.privacy.a1'),
+      },
+      {
+        q: t('web.help.privacy.q2'),
+        a: html('web.help.privacy.a2'),
+      },
+      {
+        q: t('web.help.privacy.q3'),
+        a: html('web.help.privacy.a3'),
+      },
+      {
+        q: t('web.help.privacy.q4'),
+        a: html('web.help.privacy.a4'),
+      },
+      {
+        q: t('web.help.privacy.q5'),
+        a: html('web.help.privacy.a5'),
+      },
+      {
+        q: t('web.help.privacy.q6'),
+        a: html('web.help.privacy.a6'),
+      },
+      {
+        q: t('web.help.privacy.q7'),
+        a: html('web.help.privacy.a7', { link: `<a href="${path('/privacy/')}">` }),
+      },
+      {
+        q: t('web.help.privacy.q8'),
+        a: html('web.help.privacy.a8', { link: `<a href="mailto:${site.email}">` }, { email: site.email }),
+      },
+    ],
+  },
+  {
+    id: 'nfaq',
+    name: t('web.help.nfaq.name'),
+    heading: t('web.help.nfaq.heading'),
+    items: [
+      {
+        q: t('web.help.nfaq.q1'),
+        a: html('web.help.nfaq.a1'),
+      },
+      {
+        q: t('web.help.nfaq.q2'),
+        a: html('web.help.nfaq.a2'),
+      },
+      {
+        q: t('web.help.nfaq.q3'),
+        a: html('web.help.nfaq.a3'),
+      },
+      {
+        q: t('web.help.nfaq.q4'),
+        a: html('web.help.nfaq.a4'),
+      },
+      {
+        q: t('web.help.nfaq.q5'),
+        a: html('web.help.nfaq.a5'),
+      },
+      {
+        q: t('web.help.nfaq.q6'),
+        a: html('web.help.nfaq.a6'),
+      },
+    ],
+  },
+];
+---
+<!doctype html>
+<html lang={lang}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#ffffff">
+<title>{title}</title>
+<meta name="description" content={description}>
+<link rel="stylesheet" href={css("landing.css")}>
+<script is:inline src={js("site-config.js")} defer>
+</script>
+<script is:inline src={js("site.js")} defer>
+</script>
+<script is:inline src={js("help.js")} defer>
+</script>
+<link rel="stylesheet" href={css("monochrome.css")}>
+<link rel="stylesheet" href={css("help.css")}>
+<link rel="stylesheet" href={css("welcome.css")}>
+<script is:inline src={js("welcome.js")} defer>
+</script>
+<script is:inline src={js("motion.js")} defer></script>
+<link rel="stylesheet" href={css("design-system.css")}>
+<link rel="stylesheet" href={css("tailwind.css")}>
+<Seo lang={lang} route="/help/" title={title} description={description} headline={t('web.help.headline')} />
+</head>
+<body class="tw-antialiased">
+<a class="skip" href="#main">{t('web.common.skip')}</a>
+<Header lang={lang} />
+<Navigation lang={lang} />
+<main id="main" class="help-page" data-theme="light">
+<section class="section help-intro">
+<p class="label">{t('web.help.aLittleGuidance')}</p>
+<h1 set:html={html('web.help.goodQuestionsThoughtfulAnswers')}></h1>
+<p set:html={html('web.help.fromFirstIntroductionsTo')}></p>
+<label class="help-search" for="help-search">
+<svg viewBox="0 0 24 24" aria-hidden="true">
+<circle cx="10.5" cy="10.5" r="6.5"/>
+<path d="m16 16 5 5"/>
+</svg>
+<input id="help-search" type="search" placeholder={t('web.help.searchQuestionsAndAnswers')} autocomplete="off">
+<span class="sr-only">{t('web.help.searchHelpAndFrequently')}</span>
+</label>
+<div class="help-filters" role="group" aria-label={t('web.help.filterQuestionsByCategory')}>
+<button type="button" data-category="all" aria-pressed="true">{t('web.help.allQuestions')}</button>
+{groups.map((group) => (
+<button type="button" data-category={group.id} aria-pressed="false">{group.name}</button>
+))}
+</div>
+</section>
+<section class="section help-content" aria-label={t('web.help.helpAndFrequentlyAsked')}>
+<p id="help-status" class="sr-only" role="status" aria-live="polite">
+</p>
+{groups.map((group) => (
+<section class="faq-group" data-group={group.id}>
+<div class="faq-group-heading">
+<h2>{group.name}</h2>
+{group.heading && <p>{group.heading}</p>}
+</div>
+<div class="faq-items">
+{group.items.map((item) => (
+<details name="help-answer" data-category={group.id}>
+<summary>{item.q}<span aria-hidden="true">+</span>
+</summary>
+<div class="faq-answer">
+<p set:html={item.a} />
+</div>
+</details>
+))}
+</div>
+</section>
+))}
+<div id="help-empty" hidden>
+<h2>{t('web.help.noAnswersFound')}</h2>
+<p>{t('web.help.tryADifferentWord')}</p>
+<button class="pill" id="help-reset">{t('web.help.showAllQuestions')}</button>
+</div>
+</section>
+<section class="section help-contact" data-theme="dark">
+<div>
+<p class="label">{t('web.help.weReHereFor')}</p>
+<h2 set:html={html('web.help.stillHaveAQuestion')}></h2>
+<p>{t('web.help.someThingsNeedA')}</p>
+</div>
+<div class="help-contact-actions">
+<a class="help-direct" href="https://wa.me/94766769894" target="_blank" rel="noopener noreferrer">{t('web.help.whatsapp0766769894')} <span aria-hidden="true">↗</span>
+</a>
+<a class="help-direct" href={`tel:${site.telephone}`}>{t('web.help.call0766769894')} <span aria-hidden="true">↗</span>
+</a>
+<a class="help-direct" href={`mailto:${site.email}`}>{site.email} <span aria-hidden="true">↗</span>
+</a>
+<p set:html={html('web.common.hours')}></p>
+<a class="pill" href={path('/contact/')}>{t('web.common.contactUs')} <span aria-hidden="true">↗</span>
+</a>
+</div>
+</section>
+</main><Footer lang={lang} />
+<Dialogs lang={lang} />
+</body>
+</html>

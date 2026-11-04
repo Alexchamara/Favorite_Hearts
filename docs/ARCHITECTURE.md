@@ -400,8 +400,8 @@ and the privacy policy are drafts for the owner's lawyer, and what the lawyer mu
 - **Legal pages.** `src/components/LegalPage.astro` lays out the terms and the privacy policy from the section lists
   in their pages: numbered contents, the date, a "Draft for legal review" notice that also says the English text is
   the official version, and highlighted placeholders (`[operator’s legal name and address]`) for the owner to fill.
-- **Help.** The questions are a data list in `src/pages/help/index.astro`; `assets/js/help.js` filters and searches
-  them.
+- **Help.** The questions are a data list in `src/pages/[...lang]/help/index.astro`; `assets/js/help.js` filters and
+  searches them.
 - **Search engines and link previews.** `src/components/Seo.astro` gives every page a canonical link on `siteUrl`, a
   robots tag that follows `indexable`, Open Graph and Twitter tags with a 1200×630 preview photo
   (`public/assets/og-image.jpg`), and JSON-LD. `sitemap.xml` lists every page except the 404 page. `robots.txt`
@@ -418,12 +418,13 @@ and the privacy policy are drafts for the owner's lawyer, and what the lawyer mu
 ## Languages (Stage 5c)
 
 English and Sinhala in the member app, the API's messages, emails and text messages (OWNER-DECISIONS section 10).
-Tamil is prepared but hidden; staff screens stay in English (owner, 3 Nov 2026). The website's Sinhala pages follow
-in 5d.
+Tamil is prepared but hidden; staff screens stay in English (owner, 3 Nov 2026). The public website is in both
+languages too (Stage 5d, below).
 
 - **Catalogues** (`packages/shared/src/i18n/<language>/<area>.json`, English the source): `app` (member app),
-  `shared` (month names and the order of a date, used by the app and emails), `api` (the API's messages),
-  `validation` (form checks, used by both) and `email` (emails and text messages). A text is a flat key
+  `shared` (month names and the order of a date, used by the app, emails and the website), `api` (the API's
+  messages), `validation` (form checks, used by both), `email` (emails and text messages) and `website` (`web.*`, the
+  public site). A text is a flat key
   (`signIn.title`) with `{placeholders}`; plural texts are `key_one` / `key_other`, chosen with the language's plural
   rules (Sinhala counts 0 as one); `<strong>…</strong>`-style tags mark words the app renders in bold or as a link.
   Limits named in texts (ages, code length, days) are filled from the rules themselves (`TEXT_CONSTANTS` in
@@ -454,13 +455,44 @@ in 5d.
   that creates it; `PUT /api/v1/me/language` changes it (English or Sinhala only). A Sinhala text message is sent as
   Unicode, 70 characters per part instead of 160, so it costs more.
 - **The reviewer's spreadsheet** (`scripts/text/`, no dependency): `npm run text:export` writes
-  `dist/text/favorite-hearts-text-si-<date>.xlsx` with a read-me, one tab each for the app, messages, and emails and
-  texts, and the glossary. Columns: key, where it appears, English, Sinhala now, the reviewer's Sinhala, status (Draft,
+  `dist/text/favorite-hearts-text-si-<date>.xlsx` with a read-me, one tab each for the app, messages, emails and
+  texts, and the website, and the glossary. Columns: key, where it appears, English, Sinhala now, the reviewer's Sinhala, status (Draft,
   Approved, Needs discussion; "English changed" when the English moved on after a review), notes, and what to keep
   (placeholders, tags, legal wording, plural forms). `npm run text:import -- <file>` checks every corrected row keeps
   the English placeholders and tags, skips rows whose English changed since the export, writes the Sinhala, and
   records each reviewed text with the English it was reviewed against (`i18n/review/si.json`); `--dry-run` only
   reports. `npm run text:status` shows how much is translated and approved.
+
+### The website in English and Sinhala (Stage 5d)
+
+- **Addresses.** Every page is one file under `apps/website/src/pages/[...lang]/` built twice by `getStaticPaths`
+  (`languagePaths()`): at its English address (`/pricing/`) and under `/si/` (`/si/pricing/`). The ten newsroom
+  articles share one template, `[...lang]/newsroom/[article]/`, with their list (photo, category, related articles) in
+  `src/lib/articles.ts`. The 404 page is one file for every missing address, so it shows both languages.
+- **Words** are `web.*` keys in the `website` catalogue; `src/lib/i18n.ts` gives a page `texts(lang)`: `t()`,
+  `html()` for words with markup (escaped, then `<link>…</link>` becomes the link the page passes, a mark such as
+  `<email/>` the whole element, and `<strong>`, `<em>`, `<br>` stay), `path()` for a link in the same language,
+  `monthYear()`/`date()` with the catalogue's month names and order, and `countries()` in the page's language. Where a
+  heading's hand-drawn circle or underline sits on a word, the text marks it (`<circled>…</circled>`) so Sinhala can
+  put it mid-sentence. Plan names and descriptions on the pricing page are the owner's own text, shown as written.
+- **Scripts.** The page's scripts get their words from one JSON block (`#fh-text`, the `web.js.*` texts in the page's
+  language, written by `Dialogs.astro`): `site.js` defines `FH_TEXT(key, vars)` (with `_one`/`_other` forms) and
+  `FH_PATH(route)`. The newsroom's search reads the articles' words from `#fh-posts`. Filters use codes (`advice`,
+  `payments`), not English names.
+- **Choosing a language.** Nothing redirects (proposed default, 4 Nov 2026): the header (and the menu on narrow phones)
+  links to the same page in the other language, and the footer's language and country dialog opens the other version
+  when the visitor picks it. Either way the choice is saved in `fh-visitor-preferences`, which the member app reads.
+  Join buttons open the app with `?lang=` the page's language, and the app's footer links to the website's pages in
+  the app's language.
+- **Search engines.** Each page's canonical link is its own address; it names both versions and English as the
+  default with `hreflang` links (`x-default`), sets `og:locale` (`en_LK` / `si_LK`, with the other as an alternate) and
+  JSON-LD `inLanguage`. The sitemap lists both versions of every page, each with its alternates. The site check adds a
+  "languages" area: every English page has its Sinhala twin and back, `<html lang>` matches the address, and every
+  `hreflang` link is right; titles and descriptions must differ between the two versions, which catches a Sinhala page
+  left in English.
+- **Legal pages.** The Sinhala terms and privacy policy are drafts like the English ones; their notice says the
+  English text is the official version (the terms also say a Sinhala translation is provided for convenience and the
+  English applies if they differ). The lawyer reviews both (`LEGAL-REVIEW.md`).
 
 ## Database access
 

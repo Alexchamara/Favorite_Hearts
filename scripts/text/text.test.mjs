@@ -17,8 +17,8 @@ async function catalogueRoot(english = { 'demo.hello': 'Hello {name}', 'demo.sav
   for (const language of ['en', 'si']) await mkdir(join(root, language));
   const sinhala = { 'demo.hello': 'ආයුබෝවන් {name}', 'demo.save': 'සුරකින්න', 'demo.close': 'වසන්න', 'demo.loading': 'පූරණය…', 'demo.bold': '<strong>{contact}</strong> වෙත යැව්වා.' };
   const files = {
-    en: { app: english, api: { 'api.signIn': 'Please sign in.', 'api.staff.notAllowed': 'Not allowed.' }, validation: {}, email: {} },
-    si: { app: sinhala, api: { 'api.signIn': 'කරුණාකර පිවිසෙන්න.' }, validation: {}, email: {} },
+    en: { app: english, api: { 'api.signIn': 'Please sign in.', 'api.staff.notAllowed': 'Not allowed.' }, validation: {}, email: {}, website: { 'web.terms.law.1': 'Write to <email/> or see the <link>terms</link>.' } },
+    si: { app: sinhala, api: { 'api.signIn': 'කරුණාකර පිවිසෙන්න.' }, validation: {}, email: {}, website: { 'web.terms.law.1': '<email/> වෙත ලියන්න, නැතහොත් <link>නියම</link> බලන්න.' } },
   };
   for (const [language, areas] of Object.entries(files)) {
     for (const [area, texts] of Object.entries(areas)) await writeFile(join(root, language, `${area}.json`), JSON.stringify(texts));
@@ -72,13 +72,16 @@ describe('export and import', () => {
     const root = await catalogueRoot();
     const { buffer, counts } = await buildWorkbook({ root, language: 'si' });
     const sheets = readWorkbook(buffer);
-    assert.deepEqual(sheets.map((s) => s.name), ['Read me', 'App', 'Messages', 'Emails and texts', 'Glossary']);
+    assert.deepEqual(sheets.map((s) => s.name), ['Read me', 'App', 'Messages', 'Emails and texts', 'Website', 'Glossary']);
     const app = sheets[1].rows;
     assert.deepEqual(app[0], ['Key', 'Where it appears', 'English', 'Sinhala now', 'Your Sinhala', 'Status', 'Your notes', 'Keep as is']);
     assert.deepEqual(app[1].slice(0, 6), ['demo.hello', 'demo', 'Hello {name}', 'ආයුබෝවන් {name}', '', 'Draft']);
     assert.match(app[5][7], /\{contact\} becomes an email address or phone number; keep it exactly\. Keep <strong>…<\/strong>/);
     assert.deepEqual(sheets[2].rows.map((r) => r[0]), ['Key', 'api.signIn'], 'staff texts stay out');
-    assert.deepEqual(counts, { total: 6, translated: 6, approved: 0, changed: 0 });
+    const website = sheets[4].rows;
+    assert.deepEqual(website[1].slice(0, 2), ['web.terms.law.1', 'Website: the terms (draft)']);
+    assert.match(website[1][7], /Keep <email\/> where our email address goes \(as a link\)\. Keep <link>…<\/link> around the same words \(a link\)\. Legal wording/);
+    assert.deepEqual(counts, { total: 7, translated: 7, approved: 0, changed: 0 });
   });
 
   test('corrections and approvals come back in; broken rows are refused with a reason', async () => {
@@ -97,6 +100,20 @@ describe('export and import', () => {
     assert.deepEqual(Object.keys(review), ['demo.close', 'demo.hello', 'demo.save']);
     assert.deepEqual(review['demo.save'], { english: 'Save', at: '2026-11-03' });
     assert.deepEqual((await status({ root })).find((row) => row.area === 'app'), { area: 'app', total: 5, translated: 5, approved: 3, changed: 0 });
+  });
+
+  test('website rows import into the website catalogue, and a correction that drops a mark like <email/> is refused', async () => {
+    const root = await catalogueRoot();
+    const columns = ['Key', 'English', 'Your Sinhala', 'Status'].map((title) => ({ title, width: 10 }));
+    const english = 'Write to <email/> or see the <link>terms</link>.';
+    const sheet = (yours) => writeWorkbook([{ name: 'Website', columns, rows: [['web.terms.law.1', english, yours, '']] }]);
+    const refused = await importWorkbook(sheet('<link>නියම</link> බලන්න.'), { root, today: '2026-11-04' });
+    assert.match(refused.problems[0], /Website row 2 \(web\.terms\.law\.1\): the text must keep <email\/> <link> as in the English; it has <link>\. Not imported\./);
+    const fixed = '<link>නියම</link> බලන්න, නැතහොත් <email/> වෙත ලියන්න.';
+    const report = await importWorkbook(sheet(fixed), { root, today: '2026-11-04' });
+    assert.deepEqual(report.corrected, ['web.terms.law.1']);
+    assert.equal(JSON.parse(await readFile(join(root, 'si', 'website.json'), 'utf8'))['web.terms.law.1'], fixed);
+    assert.deepEqual((await status({ root })).find((row) => row.area === 'website'), { area: 'website', total: 1, translated: 1, approved: 1, changed: 0 });
   });
 
   test('a dry run reports without writing, and Excel’s layout imports the same way', async () => {

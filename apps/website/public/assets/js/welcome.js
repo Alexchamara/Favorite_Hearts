@@ -1,4 +1,8 @@
-/** Visitor preferences are opened only through the footer control. */
+/**
+ * Visitor preferences are opened only through the footer control. The language is the page's own: choosing the other
+ * one opens this page in it (the header's language link). The choice is saved for the member app too
+ * (apps/member lib/i18n.tsx reads fh-visitor-preferences).
+ */
 (() => {
   'use strict';
   const modal = document.querySelector('#welcome-dialog');
@@ -7,27 +11,28 @@
   const reopen = document.querySelector('.visitor-preferences');
   if (!modal || !form || !country) return;
   const preferenceKey = 'fh-visitor-preferences';
-  let saved = null;
-  try { saved = JSON.parse(localStorage.getItem(preferenceKey)); } catch (_) { /* Storage is optional. */ }
-  const valid = saved && ['en','si'].includes(saved.language) && [...country.options].some(option => option.value === saved.country);
-  if (valid) { country.value = saved.country; form.elements.language.value = saved.language; }
-  const languageNote = () => { document.querySelector('#language-note').hidden = form.elements.language.value !== 'si'; };
+  const read = () => { try { return JSON.parse(localStorage.getItem(preferenceKey)) || {}; } catch (_) { return {}; } };
+  const save = changes => { try { localStorage.setItem(preferenceKey, JSON.stringify({...read(), ...changes})); } catch (_) { /* Storage is optional. */ } };
+  const saved = read();
+  if ([...country.options].some(option => option.value === saved.country)) country.value = saved.country;
+  const otherPage = document.querySelector('.language-link');
+  document.querySelectorAll('.language-link, .menu-language').forEach(link => link.addEventListener('click', () => save({language: link.hreflang})));
   function updateLabel() {
-    if (reopen) reopen.querySelector('span').textContent = (form.elements.language.value === 'si' ? 'සිංහල' : 'English') + ' · ' + country.selectedOptions[0].textContent;
+    if (reopen) reopen.querySelector('span').textContent = FH_TEXT('web.js.thisLanguage') + ' · ' + country.selectedOptions[0].textContent;
   }
   function open() {
     window.FH?.setMenu(false);
-    languageNote();
+    form.elements.language.value = FH_LANG;
     if (modal.open) return;
     modal.showModal();
     document.body.classList.add('welcoming');
     document.querySelector('#welcome-title').focus({preventScroll:true});
   }
-  form.addEventListener('change', languageNote);
   form.addEventListener('submit', event => {
     event.preventDefault();
     const preferences = {language:form.elements.language.value, country:country.value};
-    try { localStorage.setItem(preferenceKey, JSON.stringify(preferences)); } catch (_) {}
+    save(preferences);
+    if (preferences.language !== FH_LANG && otherPage) { location.assign(otherPage.href); return; }
     updateLabel(); modal.close();
     document.dispatchEvent(new CustomEvent('fh:preferences', {detail:preferences}));
   });

@@ -3,6 +3,8 @@
 //   pages     a unique title and description, a canonical link to the page's own address on siteUrl, a robots tag that
 //             follows "indexable", Open Graph and Twitter tags that repeat the title, description and address, a preview
 //             image that exists at the size the tags state, one h1, a language, and structured data that parses;
+//   languages every page is in English at its address and in Sinhala under /si/ (lang en or si to match), and names
+//             both versions and English as the default with hreflang links that exist and name it back;
 //   links     every link and asset on the site's own domain resolves, and every #anchor exists on its page;
 //   sitemap   lists every page except the 404 page, once, at its canonical address;
 //   robots    robots.txt follows "indexable" in site.config.json, and the member app (/app/) is never indexed.
@@ -105,6 +107,12 @@ function fileFor(path) {
   return join(root, decoded.endsWith('/') ? `${decoded}index.html` : decoded);
 }
 
+/** A page's language and its address without it: /si/pricing/ is the Sinhala version of /pricing/. */
+const langOf = (route) => (/^\/si(\/|$)/.test(route) ? 'si' : 'en');
+const routeOf = (route) => route.replace(/^\/si(?=\/)/, '');
+const LANGUAGES = { en: (route) => route, si: (route) => `/si${route}`, 'x-default': (route) => route };
+let alternateCount = 0;
+
 const idsOf = new Map(pages.map((p) => [p.route, new Set(p.tags.map((t) => t.attrs.id).filter(Boolean))]));
 const imageSizes = new Map();
 let linkCount = 0;
@@ -129,7 +137,9 @@ for (const page of pages) {
   const titles = [...markup(page.html).matchAll(/<title\b[^>]*>([\s\S]*?)<\/title>/gi)].map((m) => decode(m[1]).trim());
   page.title = titles.length === 1 && titles[0] ? titles[0] : null;
   if (!page.title) fail('titles', where, `${titles.length} titles`);
-  if (!page.tags.find((t) => t.name === 'html')?.attrs.lang) fail('language', where, 'the html element has no lang');
+  const lang = page.tags.find((t) => t.name === 'html')?.attrs.lang;
+  if (!lang) fail('language', where, 'the html element has no lang');
+  else if (page !== notFound && lang !== langOf(page.route)) fail('languages', where, `lang is ${lang}, the address says ${langOf(page.route)}`);
 
   const robots = one('robots tags', 'robots');
   if (page === notFound) {
@@ -160,7 +170,8 @@ for (const page of pages) {
     same('og:url', url);
     same('og:site_name', config.siteName);
     const type = one('social previews', 'og:type');
-    if (type && type !== (page.route.startsWith('/newsroom/') && page.route !== '/newsroom/' ? 'article' : 'website')) {
+    const route = routeOf(page.route);
+    if (type && type !== (route.startsWith('/newsroom/') && route !== '/newsroom/' ? 'article' : 'website')) {
       fail('social previews', where, `og:type is ${type}`);
     }
     one('social previews', 'og:locale');
@@ -186,6 +197,16 @@ for (const page of pages) {
         }
       }
     }
+
+    const alternates = new Map(
+      page.tags.filter((t) => t.name === 'link' && t.attrs.rel === 'alternate' && t.attrs.hreflang).map((t) => [t.attrs.hreflang, t.attrs.href]),
+    );
+    for (const [hreflang, address] of Object.entries(LANGUAGES)) {
+      const expected = base + address(route);
+      if (alternates.get(hreflang) !== expected) fail('languages', where, `hreflang ${hreflang} is ${alternates.get(hreflang) ?? 'missing'}, not ${expected}`);
+      else alternateCount++;
+    }
+    if (alternates.size !== Object.keys(LANGUAGES).length) fail('languages', where, `${alternates.size} hreflang links`);
 
     const h1 = page.tags.filter((t) => t.name === 'h1').length;
     if (h1 !== 1) fail('headings', where, `${h1} h1 headings`);
@@ -230,6 +251,12 @@ for (const page of pages) {
   }
 }
 
+const routes = new Set(listed.map((p) => p.route));
+for (const page of listed) {
+  const twin = langOf(page.route) === 'en' ? `/si${page.route}` : routeOf(page.route);
+  if (!routes.has(twin)) fail('languages', page.route, `has no ${langOf(twin) === 'si' ? 'Sinhala' : 'English'} version at ${twin}`);
+}
+
 for (const [area, key] of [['titles', 'title'], ['descriptions', 'description']]) {
   const seen = new Map();
   for (const page of listed) if (page[key]) seen.set(page[key], [...(seen.get(page[key]) ?? []), page.route]);
@@ -267,6 +294,7 @@ const summary = [
   ['social previews', `Open Graph and Twitter tags on ${listed.length} pages, preview image ${[...imageSizes.values()].map((s) => (s && s !== 'missing' ? `${s.width}×${s.height}` : '?')).join(', ')}`],
   ['headings', `one h1 on each of ${listed.length} pages`],
   ['language', `lang set on ${pages.length} pages`],
+  ['languages', `${listed.filter((p) => langOf(p.route) === 'en').length} pages in English and ${listed.filter((p) => langOf(p.route) === 'si').length} in Sinhala, lang matches; ${alternateCount} hreflang links resolve to each other`],
   ['structured data', `valid JSON-LD on ${listed.length} pages`],
   ['links', `${linkCount} links and assets on this site resolve, ${anchorCount} anchors found`],
   ['sitemap', `${listed.length} pages listed once each, the 404 page left out`],

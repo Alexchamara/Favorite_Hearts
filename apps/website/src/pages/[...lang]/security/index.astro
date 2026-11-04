@@ -1,0 +1,168 @@
+---
+// Converted from the demo page src/pages/security/index.html; its words are in the website catalogue (web.security.*).
+import Header from '../../../components/Header.astro';
+import Navigation from '../../../components/Navigation.astro';
+import Footer from '../../../components/Footer.astro';
+import Dialogs from '../../../components/Dialogs.astro';
+import Seo from '../../../components/Seo.astro';
+import { css, js } from '../../../lib/site';
+import { langOf, languagePaths, texts } from '../../../lib/i18n';
+
+export function getStaticPaths() {
+  return languagePaths();
+}
+
+const { lang, t, html, path } = texts(langOf(Astro.params.lang));
+const title = t('web.common.pageTitle', { page: t('web.footer.security') });
+const description = t('web.security.description');
+---
+<!doctype html>
+<html lang={lang}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#ffffff">
+<title>{title}</title>
+<meta name="description" content={description}>
+<link rel="stylesheet" href={css("landing.css")}>
+<script is:inline src={js("site-config.js")} defer>
+</script>
+<script is:inline src={js("site.js")} defer>
+</script>
+<script is:inline src={js("resource-carousel.js")} defer>
+</script>
+<script is:inline src={js("resources.js")} defer>
+</script>
+<link rel="stylesheet" href={css("monochrome.css")}>
+<link rel="stylesheet" href={css("resources.css")}>
+<link rel="stylesheet" href={css("welcome.css")}>
+<script is:inline src={js("welcome.js")} defer>
+</script>
+<script is:inline src={js("motion.js")} defer></script>
+<link rel="stylesheet" href={css("design-system.css")}>
+<link rel="stylesheet" href={css("tailwind.css")}>
+<Seo lang={lang} route="/security/" title={title} description={description} headline={t('web.security.headline')} />
+</head>
+<body class="tw-antialiased">
+<a class="skip" href="#main">{t('web.common.skip')}</a>
+<Header lang={lang} />
+<Navigation lang={lang} />
+<main id="main" class="resource-page" data-theme="light">
+<section class="section resource-intro">
+<p class="label">{t('web.footer.security')}</p>
+<h1 set:html={html('web.security.aLittleCareA')}></h1>
+<p class="resource-lead">{t('web.security.protectYourInformationRecognise')}</p>
+</section>
+<section class="section resource-section">
+<p class="label">{t('web.security.goodHabitsFromThe')}</p>
+<h2 set:html={html('web.security.keepYourInformationIn')}></h2>
+<div class="security-carousel" role="region" aria-roledescription="carousel" aria-label={t('web.security.securityHabits')}>
+<div class="principles-track" tabindex="0" aria-label={t('web.security.securityHabitsUseLeft')}>
+<article class="principle">
+<span class="principle-number">01</span>
+<h3>{t('web.security.keepAccessPrivate')}</h3>
+<p>{t('web.security.neverShareASign')}</p>
+</article>
+<article class="principle">
+<span class="principle-number">02</span>
+<h3>{t('web.security.checkBeforeYouClick')}</h3>
+<p>{t('web.security.beCautiousWithUnexpected')}</p>
+</article>
+<article class="principle">
+<span class="principle-number">03</span>
+<h3>{t('web.security.shareOnlyWhatIs')}</h3>
+<p>{t('web.security.keepIdentityDocumentsFinancial')}</p>
+</article>
+</div>
+<div class="principle-controls">
+<div class="review-indicators principle-dashes" aria-hidden="true">
+<span class="active">
+</span>
+<span>
+</span>
+<span>
+</span>
+</div>
+</div>
+</div>
+</section>
+<section class="section resource-band" data-theme="dark">
+<p class="label">{t('web.security.howWeProtectIt')}</p>
+<h2>{t('web.security.trustShouldBeInformed')}</h2>
+<p>{t('web.security.identityDocumentsReceiptsAnd')}</p>
+<a class="resource-link" href={path('/privacy/')}>{t('web.security.readOurPrivacyPolicy')} <span aria-hidden="true">↗</span>
+</a>
+</section>
+<section class="section resource-section resource-split">
+<div>
+<p class="label">{t('web.security.reportATechnicalConcern')}</p>
+<h2 set:html={html('web.security.spottedSomethingThatIsn')}></h2>
+<p>{t('web.security.ifYouNoticeA')}</p>
+<a class="pill" href="mailto:hello@favoritehearts.com?subject=Security%20report">{t('web.security.reportASecurityIssue')}</a>
+</div>
+<div class="report-guidance">
+<h3>
+<svg viewBox="0 0 24 24" aria-hidden="true">
+<rect x="5" y="4" width="14" height="17" rx="2"/>
+<path d="M9 4V2h6v2M9 9h6M9 13h6M9 17h4"/>
+</svg>{t('web.security.whatToInclude')}</h3>
+<ol>
+<li>{t('web.security.thePageAddressAnd')}</li>
+<li>{t('web.security.whatYouExpectedAnd')}</li>
+<li>{t('web.security.yourDeviceBrowserAnd')}</li>
+<li>{t('web.security.aScreenshotWithPrivate')}</li>
+</ol>
+</div>
+</section>
+<section class="section resource-section">
+<p class="label">{t('web.security.securityQuestions')}</p>
+<h2>{t('web.security.aFewUsefulAnswers')}</h2>
+<div class="resource-questions">
+<details name="resource-answer">
+<summary>{t('web.security.someoneAskedForMy')}<span aria-hidden="true">+</span>
+</summary>
+<div>
+<p>{t('web.security.doNotShareIt')}</p>
+</div>
+</details>
+<details name="resource-answer">
+<summary>{t('web.security.doesHttpsMeanA')}<span aria-hidden="true">+</span>
+</summary>
+<div>
+<p>{t('web.security.noAnEncryptedConnection')}</p>
+</div>
+</details>
+<details name="resource-answer">
+<summary>{t('web.security.isAVerificationBadge')}<span aria-hidden="true">+</span>
+</summary>
+<div>
+<p>{t('web.security.noEachBadgeMeans')}</p>
+</div>
+</details>
+<details name="resource-answer">
+<summary>{t('web.security.whereDoIRaise')}<span aria-hidden="true">+</span>
+</summary>
+<div>
+<p set:html={html('web.security.useReportOnTheir', { link: `<a href="${path('/trust-and-safety/')}">` })}></p>
+</div>
+</details>
+</div>
+</section>
+<section class="section resource-end" data-theme="dark">
+<div>
+<p class="label">{t('web.security.letSKeepIt')}</p>
+<h2 set:html={html('web.security.questionsAboutYourInformation')}></h2>
+<p>{t('web.security.weCanHelpYou')}</p>
+</div>
+<div class="resource-actions">
+<a class="pill" href={path('/help/')}>{t('web.common.exploreHelp')} <span aria-hidden="true">↗</span>
+</a>
+<a class="pill" href={path('/contact/')}>{t('web.common.contactUs')} <span aria-hidden="true">↗</span>
+</a>
+<p class="response-hours" set:html={html('web.common.hours')}></p>
+</div>
+</section>
+</main><Footer lang={lang} />
+<Dialogs lang={lang} />
+</body>
+</html>

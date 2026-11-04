@@ -1,0 +1,113 @@
+---
+// The newsroom (from the demo page src/pages/newsroom/index.html): every article, a search and category filters.
+// newsroom.js searches the articles' words, which this page hands over in #fh-posts in the page's language.
+import Header from '../../../components/Header.astro';
+import Navigation from '../../../components/Navigation.astro';
+import Footer from '../../../components/Footer.astro';
+import Dialogs from '../../../components/Dialogs.astro';
+import Seo from '../../../components/Seo.astro';
+import { css, js } from '../../../lib/site';
+import { langOf, languagePaths, texts, type WebKey } from '../../../lib/i18n';
+import { ARTICLES, CATEGORIES, PHOTO_FALLBACK, PUBLISHED, SECTIONS, photoUrl } from '../../../lib/articles';
+
+export function getStaticPaths() {
+  return languagePaths();
+}
+
+const { lang, t, html, path, monthYear } = texts(langOf(Astro.params.lang));
+const text = (slug: string, part: string) => t(`web.article.${slug}.${part}` as WebKey);
+const title = t('web.common.pageTitle', { page: t('web.nav.newsroom') });
+const description = t('web.newsroom.description');
+const date = monthYear(PUBLISHED.month, PUBLISHED.year);
+const posts = ARTICLES.map(({ slug, category }) => ({
+  title: text(slug, 'title'),
+  category,
+  categoryName: t(`web.category.${category}`),
+  body: SECTIONS.map((n) => [text(slug, `s${n}.title`), text(slug, `s${n}.text`)]),
+}));
+const postsJson = JSON.stringify(posts).replace(/</g, '\\u003c');
+---
+<!doctype html>
+<html lang={lang}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#ffffff">
+<title>{title}</title>
+<meta name="description" content={description}>
+<link rel="stylesheet" href={css("landing.css")}>
+<script is:inline src={js("site-config.js")} defer>
+</script>
+<script is:inline src={js("site.js")} defer>
+</script>
+<script is:inline src={js("newsroom.js")} defer>
+</script>
+<link rel="stylesheet" href={css("monochrome.css")}>
+<link rel="stylesheet" href={css("labs.css")}>
+<link rel="stylesheet" href={css("newsroom.css")}>
+<link rel="stylesheet" href={css("welcome.css")}>
+<script is:inline src={js("welcome.js")} defer>
+</script>
+<script is:inline src={js("motion.js")} defer></script>
+<link rel="stylesheet" href={css("design-system.css")}>
+<link rel="stylesheet" href={css("tailwind.css")}>
+<Seo lang={lang} route="/newsroom/" title={title} description={description} headline={t('web.newsroom.headline')} />
+</head>
+<body class="tw-antialiased">
+<a class="skip" href="#main">{t('web.common.skip')}</a>
+<Header lang={lang} />
+<Navigation lang={lang} />
+<main id="main" class="newsroom-page">
+<section class="section newsroom-intro" data-theme="light">
+<p class="label">{t('web.nav.newsroom')}</p>
+<h1 set:html={html('web.newsroom.heading')}></h1>
+<div class="news-search">
+<svg viewBox="0 0 24 24" aria-hidden="true">
+<circle cx="10.5" cy="10.5" r="7"/>
+<path d="m16 16 5 5"/>
+</svg>
+<label class="sr-only" for="news-search">{t('web.newsroom.searchLabel')}</label>
+<input id="news-search" type="search" placeholder={t('web.newsroom.searchPlaceholder')} autocomplete="off">
+</div>
+<div class="news-filters" role="group" aria-label={t('web.newsroom.filters')}>
+<button type="button" data-filter="all" aria-pressed="true">{t('web.category.all')}</button>
+{CATEGORIES.map((category) => (
+<button type="button" data-filter={category} aria-pressed="false">{t(`web.category.${category}`)}</button>
+))}
+</div>
+</section>
+<section class="section newsroom-feed" data-theme="light" aria-label={t('web.newsroom.feed')}>
+<p id="news-status" class="sr-only" role="status" aria-live="polite">
+</p>
+<div class="news-grid" id="news-results">
+{ARTICLES.map((article, index) => (
+<article class="news-card" data-index={index} hidden={index >= 3}>
+<a class="article-open" href={path(`/newsroom/${article.slug}/`)}>
+<div class="article-image">
+<img src={photoUrl(article.photo, 1600)} alt="" data-stock-fallback={PHOTO_FALLBACK} loading="lazy" decoding="async">
+</div>
+<div class="article-meta">
+<span class="article-category">{t(`web.category.${article.category}`)}</span>
+<time class="article-date" datetime={PUBLISHED.datetime}>{date}</time>
+</div>
+<h2>{text(article.slug, 'title')}</h2>
+<span class="article-tag">{t('web.article.readStory')} <span aria-hidden="true">↗</span>
+</span>
+</a>
+</article>
+))}
+</div>
+<div id="news-empty" hidden>
+<h2>{t('web.newsroom.emptyTitle')}</h2>
+<p id="empty-copy">{t('web.newsroom.emptyText')}</p>
+<button class="pill" id="reset-news">{t('web.newsroom.viewAll')}</button>
+</div>
+<div class="all-posts">
+<button class="pill" id="load-news" aria-expanded="false" aria-controls="news-results">{t('web.js.news.more')}</button>
+</div>
+</section>
+</main><Footer lang={lang} />
+<Dialogs lang={lang} />
+<script type="application/json" id="fh-posts" set:html={postsJson} />
+</body>
+</html>

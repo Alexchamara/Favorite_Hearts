@@ -1,0 +1,224 @@
+---
+// Converted from the demo page src/pages/mission/index.html; its words are in the website catalogue (web.mission.*).
+import Header from '../../../components/Header.astro';
+import Navigation from '../../../components/Navigation.astro';
+import Footer from '../../../components/Footer.astro';
+import Dialogs from '../../../components/Dialogs.astro';
+import Seo from '../../../components/Seo.astro';
+import { css, js } from '../../../lib/site';
+import { langOf, languagePaths, texts } from '../../../lib/i18n';
+
+export function getStaticPaths() {
+  return languagePaths();
+}
+
+const { lang, t, html } = texts(langOf(Astro.params.lang));
+const title = t('web.common.pageTitle', { page: t('web.mission.title') });
+const description = t('web.mission.description');
+---
+<!doctype html>
+<html lang={lang}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#ffffff">
+<title>{title}</title>
+<meta name="description" content={description}>
+<link rel="stylesheet" href={css("landing.css")}>
+<script is:inline src={js("site-config.js")} defer>
+</script>
+<script is:inline src={js("site.js")} defer>
+</script>
+<script is:inline src={js("mission.js")} defer>
+</script>
+<link rel="stylesheet" href={css("monochrome.css")}>
+<link rel="stylesheet" href={css("mission.css")}>
+<link rel="stylesheet" href={css("welcome.css")}>
+<script is:inline src={js("welcome.js")} defer>
+</script>
+<script is:inline src={js("motion.js")} defer></script>
+<link rel="stylesheet" href={css("design-system.css")}>
+<link rel="stylesheet" href={css("tailwind.css")}>
+<Seo lang={lang} route="/mission/" title={title} description={description} headline={t('web.mission.headline')} />
+</head>
+<body class="tw-antialiased">
+<a class="skip" href="#main">{t('web.common.skip')}</a>
+<Header lang={lang} />
+<Navigation lang={lang} />
+<main id="main" class="mission-page">
+<section class="mission-opening" data-theme="light">
+<div class="mission-cover">
+<img src="https://images.pexels.com/photos/6271529/pexels-photo-6271529.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=2400&amp;q=90" alt={t('web.mission.aCoupleHoldingHands')} fetchpriority="high" data-stock-fallback="/assets/date.jpg" decoding="async">
+</div>
+</section>
+<section class="section mission-statement" data-theme="light">
+<p class="label">{t('web.mission.title')}</p>
+<h1 data-reveal>{t('web.mission.headline')}</h1>
+<svg class="mission-draw-arrow reference-arrow" viewBox="0 0 120 180" aria-hidden="true">
+<defs>
+<filter id="arrow-rough" x="-20%" y="-10%" width="140%" height="120%">
+<feTurbulence type="fractalNoise" baseFrequency=".6" numOctaves="3" seed="7" result="rough"/>
+<feDisplacementMap in="SourceGraphic" in2="rough" scale="2.3" xChannelSelector="R" yChannelSelector="G"/>
+</filter>
+<mask id="arrow-drawing-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="120" height="180">
+<path class="arrow-reveal" pathLength="1" d="M86 5 C99 58 79 114 42 152 M41 130 L39 158 L71 143" fill="none" stroke="white" stroke-width="25" stroke-linecap="round" stroke-linejoin="round"/>
+</mask>
+</defs>
+<g mask="url(#arrow-drawing-mask)">
+<path class="arrow-shape" filter="url(#arrow-rough)" d="M85 7 C91 29 92 48 88 69 C84 98 66 127 43 149 L45 132 Q42 127 38 131 L35 164 L68 147 Q73 143 69 140 L48 150 C73 126 90 99 94 70 C98 46 93 25 85 7Z"/>
+</g>
+</svg>
+<h2 data-reveal>{t('web.mission.byBringingPeopleTogether')}</h2>
+</section>
+<section class="section mission-values" data-theme="dark">
+<p class="label">{t('web.mission.ourValues')}</p>
+<h2 data-reveal set:html={html('web.mission.aSharedFutureHuman')}></h2>
+<p class="mission-body values-intro" data-reveal>{t('web.mission.marriageIsDeeplyPersonal')}</p>
+<div class="value-list">
+<article>
+<span class="value-number" data-number="01">01</span>
+<div data-reveal>
+<h3>{t('web.mission.beYourself')}</h3>
+<p>{t('web.mission.thereIsMoreTo')}</p>
+</div>
+</article>
+<article>
+<span class="value-number" data-number="02">02</span>
+<div data-reveal>
+<h3>{t('web.mission.chooseFreely')}</h3>
+<p>{t('web.mission.familyCanBePart')}</p>
+</div>
+</article>
+<article>
+<span class="value-number" data-number="03">03</span>
+<div data-reveal>
+<h3>{t('web.mission.leadWithCare')}</h3>
+<p>{t('web.mission.behindEveryProfileIs')}</p>
+</div>
+</article>
+</div>
+</section>
+<div class="mission-photo" data-theme="light">
+<img src="https://images.pexels.com/photos/5910748/pexels-photo-5910748.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=2400&amp;q=90" alt={t('web.mission.aCoupleLaughingTogether')} loading="lazy" data-stock-fallback="/assets/date.jpg" decoding="async">
+</div>
+<section class="section mission-principles" data-theme="light">
+<p class="label">{t('web.mission.ourPrinciples')}</p>
+<h2 data-reveal set:html={html('web.mission.smallIntentionsLastingMeaning')}></h2>
+<p class="mission-body" data-reveal>{t('web.mission.aFewSimpleBeliefs')}</p>
+<div class="principles-track" tabindex="0" role="region" aria-roledescription="carousel" aria-label={t('web.mission.ourFourPrinciples')}>
+<article class="principle" aria-label={t('web.mission.principleOf', { n: 1, count: 4 })}>
+<span>01</span>
+<h3>{t('web.mission.startWithWhatMatters')}</h3>
+<p>{t('web.mission.sharedValuesExpectationsAnd')}</p>
+</article>
+<article class="principle" aria-label={t('web.mission.principleOf', { n: 2, count: 4 })}>
+<span>02</span>
+<h3>{t('web.mission.makeRoomForReal')}</h3>
+<p>{t('web.mission.careersCulturesFamiliesAnd')}</p>
+</article>
+<article class="principle" aria-label={t('web.mission.principleOf', { n: 3, count: 4 })}>
+<span>03</span>
+<h3>{t('web.mission.letTrustTakeIts')}</h3>
+<p>{t('web.mission.aConnectionShouldGrow')}</p>
+</article>
+<article class="principle" aria-label={t('web.mission.principleOf', { n: 4, count: 4 })}>
+<span>04</span>
+<h3>{t('web.mission.keepTheChoiceHuman')}</h3>
+<p>{t('web.mission.aThoughtfulIntroductionCan')}</p>
+</article>
+</div>
+<div class="principle-controls">
+<div class="review-indicators principle-dashes" aria-hidden="true">
+<span class="active">
+</span>
+<span>
+</span>
+<span>
+</span>
+<span>
+</span>
+</div>
+</div>
+</section>
+<section class="section mission-difference" data-theme="dark">
+<p class="label">{t('web.common.ourApproach')}</p>
+<h2 data-reveal set:html={html('web.mission.matrimonyWithMoreHeart')}></h2>
+<div class="mission-accordion">
+<div class="accordion-item">
+<h3>
+<button aria-expanded="false" aria-controls="answer-0" id="question-0">{t('web.mission.aPersonBeyondA')}<span aria-hidden="true">+</span>
+</button>
+</h3>
+<div class="accordion-answer" id="answer-0" role="region" aria-labelledby="question-0" inert>
+<div>
+<p>{t('web.mission.weBelieveAnIntroduction')}</p>
+</div>
+</div>
+</div>
+<div class="accordion-item">
+<h3>
+<button aria-expanded="false" aria-controls="answer-1" id="question-1">{t('web.mission.conversationsWithIntention')}<span aria-hidden="true">+</span>
+</button>
+</h3>
+<div class="accordion-answer" id="answer-1" role="region" aria-labelledby="question-1" inert>
+<div>
+<p>{t('web.mission.whatDoesAShared')}</p>
+</div>
+</div>
+</div>
+<div class="accordion-item">
+<h3>
+<button aria-expanded="false" aria-controls="answer-2" id="question-2">{t('web.mission.familyWithYourVoice')}<span aria-hidden="true">+</span>
+</button>
+</h3>
+<div class="accordion-answer" id="answer-2" role="region" aria-labelledby="question-2" inert>
+<div>
+<p>{t('web.mission.supportFromLovedOnes')}</p>
+</div>
+</div>
+</div>
+<div class="accordion-item">
+<h3>
+<button aria-expanded="false" aria-controls="answer-3" id="question-3">{t('web.mission.connectionAcrossBorders')}<span aria-hidden="true">+</span>
+</button>
+</h3>
+<div class="accordion-answer" id="answer-3" role="region" aria-labelledby="question-3" inert>
+<div>
+<p>{t('web.mission.beingFarFromSri')}</p>
+</div>
+</div>
+</div>
+<div class="accordion-item">
+<h3>
+<button aria-expanded="false" aria-controls="answer-4" id="question-4">{t('web.mission.respectAtEveryStep')}<span aria-hidden="true">+</span>
+</button>
+</h3>
+<div class="accordion-answer" id="answer-4" role="region" aria-labelledby="question-4" inert>
+<div>
+<p>{t('web.mission.aKindBeginningMatters')}</p>
+</div>
+</div>
+</div>
+<div class="accordion-item">
+<h3>
+<button aria-expanded="false" aria-controls="answer-5" id="question-5">{t('web.mission.aFutureNotA')}<span aria-hidden="true">+</span>
+</button>
+</h3>
+<div class="accordion-answer" id="answer-5" role="region" aria-labelledby="question-5" inert>
+<div>
+<p>{t('web.mission.theWeddingIsOne')}</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<section class="section begin join" data-theme="light">
+<p class="label">{t('web.common.nextChapter')}</p>
+<h2 data-reveal set:html={html('web.mission.aLifetimeStartsWith')}></h2>
+<p>{t('web.mission.findSomeoneWhoWants')}</p>
+<button class="pill start">{t('web.header.join')}</button>
+</section>
+</main><Footer lang={lang} />
+<Dialogs lang={lang} />
+</body>
+</html>

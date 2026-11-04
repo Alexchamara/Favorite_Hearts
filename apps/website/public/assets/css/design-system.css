@@ -95,3 +95,12 @@ body .menu-toggle span{transition:transform .45s var(--fh-ease)}
 
 /* Disclosures use the shared small-copy scale. */
 .testimonial-disclosure{font:400 .875rem/1.6 var(--font-body, "DM Sans", sans-serif);max-width:44rem;margin:1rem 0 2rem;color:#ddd;}
+
+/* The other language beside the menu button (Stage 5d); on narrow phones the menu carries it instead. */
+.header-start{display:flex;align-items:center;gap:1.25rem;justify-self:start;min-width:0}
+.language-link{color:inherit;font-size:.875rem;font-weight:600;line-height:1.2;text-decoration:none;white-space:nowrap;border-bottom:1px solid currentColor;padding:.25rem 0}
+.language-link:hover{opacity:.7}
+.language-link:focus-visible{outline:2px solid currentColor;outline-offset:4px}
+@media(max-width:600px){.language-link{display:none}}
+/* The floated legend is a grid item: give it the whole first row so the two language cards sit side by side. */
+.welcome-languages legend{grid-column:1/-1}

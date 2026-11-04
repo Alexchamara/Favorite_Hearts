@@ -1,14 +1,17 @@
 # Legal and accounting review
 
 31 October 2026. What the owner's lawyer and accountant must check before launch (OWNER-DECISIONS Part 2). The
-drafts are the website's [terms](../apps/website/src/pages/terms/index.astro) and
-[privacy policy](../apps/website/src/pages/privacy/index.astro) (live at `/terms/` and `/privacy/`, marked "Draft for
-legal review"), and the refund points members confirm at the payment step
+drafts are the website's [terms](../apps/website/src/pages/[...lang]/terms/index.astro) and
+[privacy policy](../apps/website/src/pages/[...lang]/privacy/index.astro) (live at `/terms/` and `/privacy/`, marked "Draft for
+legal review"; their words are `web.terms.*` and `web.privacy.*` in `packages/shared/src/i18n/<language>/website.json`), and the refund points members confirm at the payment step
 ([`labels.ts`](../apps/member/src/features/billing/labels.ts), version `refund-v1`). English is the official version
 (owner, 31 October 2026). Sinhala drafts of the legal wording inside the app are in the reviewer's spreadsheet
 (`npm run text:export`, rows noted "Legal wording": the manager's declaration, the self-declaration, the caste consent,
-the four refund points and the "cannot be undone" tick); they go to the lawyer with the Sinhala terms and privacy
-policy, which follow with the website in Stage 5d.
+the four refund points and the "cannot be undone" tick). The Sinhala terms and privacy policy (4 November 2026, Stage
+5d) are at `/si/terms/` and `/si/privacy/`, marked draft like the English, with a notice that the English text is the
+official version; the terms (§1) also say a Sinhala translation is provided for convenience and the English applies if
+they differ. They are drafts by the developer, not a certified translation: the reviewer checks the Sinhala in the
+spreadsheet's Website tab (rows noted "Legal wording"), and the lawyer then checks both versions say the same.
 
 ## To fill in
 

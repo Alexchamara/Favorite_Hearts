@@ -1,0 +1,106 @@
+---
+// Converted from the demo page src/pages/index.html; its words are in the website catalogue (web.home.*).
+import Header from '../../components/Header.astro';
+import Navigation from '../../components/Navigation.astro';
+import Footer from '../../components/Footer.astro';
+import Dialogs from '../../components/Dialogs.astro';
+import Seo from '../../components/Seo.astro';
+import { css, js } from '../../lib/site';
+import { langOf, languagePaths, texts } from '../../lib/i18n';
+
+export function getStaticPaths() {
+  return languagePaths();
+}
+
+const { lang, t, html, path } = texts(langOf(Astro.params.lang));
+const title = t('web.home.title');
+const description = t('web.home.description');
+// "Build your forever." with its circled word, which can sit mid-sentence (Sinhala puts the verb last).
+const [before, circled, after] = t('web.home.build').split(/<\/?circled>/);
+---
+<!doctype html>
+<html lang={lang}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#e8c7b1">
+<title>{title}</title>
+<meta name="description" content={description}>
+<link rel="stylesheet" href={css("landing.css")}>
+<script is:inline src={js("site-config.js")} defer>
+</script>
+<script is:inline src={js("site.js")} defer>
+</script>
+<link rel="stylesheet" href={css("monochrome.css")}>
+<link rel="stylesheet" href={css("welcome.css")}>
+<script is:inline src={js("welcome.js")} defer>
+</script>
+<script is:inline src={js("motion.js")} defer></script>
+<link rel="stylesheet" href={css("design-system.css")}>
+<link rel="stylesheet" href={css("tailwind.css")}>
+<Seo lang={lang} route="/" title={title} description={description} headline={t('web.home.headline')} />
+</head>
+<body class="tw-antialiased" data-home="true">
+<a class="skip" href="#main">{t('web.common.skip')}</a>
+<Header lang={lang} />
+<Navigation lang={lang} />
+<main id="main">
+<section class="hero" data-theme="dark">
+<img src="/assets/date.jpg" alt={t('web.home.aCoupleLaughingTogether')} fetchpriority="high" decoding="async">
+<div class="shade">
+</div>
+<h1 set:html={html('web.home.yourPersonYourForever')}></h1>
+<span class="hero-note">
+<span>FAVORITE HEARTS</span>
+<span class="hero-divider" aria-hidden="true">
+</span>
+<span>{t('web.home.sriLankaBeyond')}</span>
+</span>
+</section>
+<section class="approach section" id="approach" data-theme="light">
+<p class="label">{t('web.common.ourApproach')}</p>
+<h2>{t('web.home.findYourPerson')}<br>{before}<span class="circled">{circled}<svg class="draw-circle" viewBox="0 0 330 120" preserveAspectRatio="none" aria-hidden="true">
+<defs>
+<filter id="ink" x="-15%" y="-15%" width="130%" height="130%">
+<feTurbulence type="fractalNoise" baseFrequency=".32" numOctaves="3" seed="8" result="rough"/>
+<feDisplacementMap in="SourceGraphic" in2="rough" scale="1.65" xChannelSelector="R" yChannelSelector="G"/>
+</filter>
+</defs>
+<path filter="url(#ink)" pathLength="1" d="M63 17 C109-3 198-3 250 15 C295 29 317 54 302 78 C286 106 227 115 166 114 C100 114 41 103 23 79 C5 55 22 29 51 20"/>
+</svg>
+</span>{after}
+</h2>
+<div class="offset">
+<p>{t('web.home.sharedValuesHonestIntentions')}</p>
+<a class="pill" href={path('/mission/')}>{t('web.home.howWeSeeIt')}</a>
+</div>
+</section>
+<section class="connection" id="labs" data-theme="light">
+<div class="photo">
+<img src="/assets/labs-couple.jpg" alt={t('web.home.aCoupleLaughingTogether2')} loading="lazy" decoding="async">
+</div>
+<div class="section peach">
+<p class="label">{t('web.nav.labs')}</p>
+<h2 set:html={html('web.home.ideasForAShared')}></h2>
+<div class="offset">
+<p>{t('web.home.whatTurnsAConnection')}</p>
+<a class="pill" href={path('/labs/')}>{t('web.home.exploreFavoriteLabs')}</a>
+</div>
+</div>
+</section>
+<section class="begin section join" id="join" data-theme="light">
+<p class="label">{t('web.home.yourForeverStartsSomewhere')}</p>
+<h2 set:html={html('web.home.makeRoomForYour')}></h2>
+<p>{t('web.home.aSharedHomeSmall')}</p>
+<button class="pill start">{t('web.header.join')}</button>
+</section>
+<section class="begin section press" id="press" data-theme="dark">
+<p class="label">{t('web.home.press')}</p>
+<h2 set:html={html('web.home.goodStoriesDeserveTo')}></h2>
+<p>{t('web.home.aCloserLookAt')}</p>
+<a class="pill" href={path('/newsroom/')}>{t('web.common.visitNewsroom')}</a>
+</section>
+</main><Footer lang={lang} />
+<Dialogs lang={lang} />
+</body>
+</html>

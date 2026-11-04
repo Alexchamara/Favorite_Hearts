@@ -1,5 +1,6 @@
 // The text catalogues (packages/shared/src/i18n, see packages/shared/src/text.ts) and the reviewer's spreadsheet:
-// exporting every text members see with its current translation, and reading the reviewer's corrections back in.
+// exporting every text members and visitors see (app, server messages, emails, the public website) with its current
+// translation, and reading the reviewer's corrections back in.
 // A text counts as reviewed when the review record (i18n/review/<language>.json) holds the English it was reviewed
 // against; when the English changes later, it is a draft again.
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -8,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { readWorkbook, writeWorkbook } from './xlsx.mjs';
 
 export const DEFAULT_ROOT = fileURLToPath(new URL('../../packages/shared/src/i18n/', import.meta.url));
-export const AREAS = ['app', 'shared', 'api', 'validation', 'email'];
+export const AREAS = ['app', 'shared', 'api', 'validation', 'email', 'website'];
 export const LANGUAGE_NAMES = { si: 'Sinhala', ta: 'Tamil' };
 export const STATUSES = ['Draft', 'Approved', 'Needs discussion'];
 
@@ -41,16 +42,16 @@ async function saveArea(root, language, area, english, texts) {
   await writeFile(join(root, language, `${area}.json`), `${JSON.stringify(ordered, null, 2)}\n`);
 }
 
-/** Placeholders ({name}) and tags (<strong>) a translation must keep, as in the English. */
+/** Placeholders ({name}) and tags (<strong>, and marks such as <email/>) a translation must keep, as in the English. */
 export function marks(text) {
   const placeholders = [...new Set(text.match(/\{\w+\}/g) ?? [])].sort();
-  const tags = [...new Set(text.match(/<\/?\w+>/g) ?? [])].sort();
+  const tags = [...new Set(text.match(/<\/?\w+\/?>/g) ?? [])].sort();
   return { placeholders, tags, all: [...placeholders, ...tags.filter((tag) => !tag.startsWith('</'))] };
 }
 const sameMarks = (a, b) => JSON.stringify(marks(a).placeholders) === JSON.stringify(marks(b).placeholders) && JSON.stringify(marks(a).tags) === JSON.stringify(marks(b).tags);
 
 const areaOf = (key) =>
-  key.startsWith('api.') ? 'api' : key.startsWith('validation.') ? 'validation' : key.startsWith('email.') ? 'email' : key.startsWith('date.') ? 'shared' : 'app';
+  key.startsWith('api.') ? 'api' : key.startsWith('validation.') ? 'validation' : key.startsWith('email.') ? 'email' : key.startsWith('date.') ? 'shared' : key.startsWith('web.') ? 'website' : 'app';
 
 // --- Where each text appears, for the reviewer ------------------------------------------------------------------------
 
@@ -73,7 +74,18 @@ const PLACES = {
   billing: 'Plans and payments', country: 'Country names', date: 'Dates (app and emails)',
 };
 
+/** The website's pages and parts (keys web.<part>.…). */
+const WEBSITE_PLACES = {
+  common: 'many pages', lang: 'the language link', seo: 'search results and link previews', header: 'the header',
+  nav: 'the menu', footer: 'the footer', dialog: 'a pop-up', welcome: 'the language and country pop-up',
+  js: 'messages shown by the page', category: 'newsroom categories', newsroom: 'the newsroom', article: 'a newsroom article',
+  legal: 'terms and privacy (layout)', home: 'the home page', contact: 'the contact page', labs: 'Favorite Labs',
+  mission: 'the mission page', security: 'the security page', trust: 'the trust and safety page', pricing: 'the pricing page',
+  help: 'help and FAQ', terms: 'the terms (draft)', privacy: 'the privacy policy (draft)', notFound: 'page not found',
+};
+
 export function whereOf(key) {
+  if (key.startsWith('web.')) return `Website: ${WEBSITE_PLACES[key.split('.')[1]] ?? key.split('.')[1]}`;
   if (key.startsWith('validation.')) return 'Form check message';
   if (key.startsWith('email.sms.')) return 'Text message (SMS)';
   if (key.startsWith('email.')) return 'Email';
@@ -82,6 +94,12 @@ export function whereOf(key) {
   if (group === 'option') return `Choices in lists: ${second}`;
   return PLACES[group] ?? group;
 }
+
+const MARK_MEANINGS = {
+  operator: 'the operator’s legal name and address go', email: 'our email address goes (as a link)', link: 'a link',
+  link2: 'a link', link3: 'a link', circled: 'the words circled by hand', underlined: 'the words underlined by hand',
+  strong: 'bold',
+};
 
 const PLACEHOLDER_MEANINGS = {
   name: 'a name', candidate: 'the candidate’s name', manager: 'the manager’s name', managerName: 'the manager’s name',
@@ -95,6 +113,8 @@ const PLACEHOLDER_MEANINGS = {
   min: 'a number', max: 'a number', used: 'a number', cap: 'a number', daily: 'a number', monthly: 'a number',
   number: 'a number', kind: 'phone, email or social link', person: 'candidate or manager', months: 'a number of months',
   hours: 'a number of hours', code: 'the code', endsAt: 'a date and time',
+  page: 'the page’s name', title: 'the page’s name', month: 'a month name', year: 'a year', day: 'a day of the month',
+  network: 'Facebook, Instagram or TikTok', shown: 'a number', n: 'a number', email: 'our email address',
 };
 
 const LEGAL = /^(create\.(self|manager)\.declare|details\.caste\.consent|billing\.refundTerm\.\d|checkout\.termsRead|account\.dialog\.understand)$/;
@@ -106,11 +126,14 @@ export function notesFor(key, english) {
     notes.push(`${placeholder} becomes ${PLACEHOLDER_MEANINGS[name] ?? 'a value the app fills in'}; keep it exactly.`);
   }
   for (const tag of marks(english).tags.filter((tag) => !tag.startsWith('</'))) {
-    notes.push(`Keep ${tag}…${tag.replace('<', '</')} around the same words (bold or a link).`);
+    if (tag.endsWith('/>')) notes.push(`Keep ${tag} where ${MARK_MEANINGS[tag.slice(1, -2)] ?? 'the page puts something in'}.`);
+    else if (tag === '<br>') notes.push('Keep <br> where the line breaks.');
+    else notes.push(`Keep ${tag}…${tag.replace('<', '</')} around the same words (${MARK_MEANINGS[tag.slice(1, -1)] ?? 'bold or a link'}).`);
   }
   if (/_one$/.test(key)) notes.push('Used when the number is 1 (in Sinhala also 0).');
   if (/_other$/.test(key)) notes.push('Used for other numbers.');
-  if (LEGAL.test(key)) notes.push('Legal wording: the lawyer reviews this too.');
+  if (LEGAL.test(key) || /^web\.(terms|privacy)\.|^web\.legal\.draft$/.test(key)) notes.push('Legal wording: the lawyer reviews this too.');
+  if (key.startsWith('web.seo.') || /^web\.\w+\.(title|description)$/.test(key)) notes.push('Shown in search results and link previews: keep it short.');
   if (key.startsWith('email.sms.')) notes.push('A text message: keep it short (Sinhala texts cost more per message).');
   if (key.startsWith('country.')) notes.push('The draft is the Unicode CLDR country name; change it only if members would say it differently.');
   if (/^date\.(day|when|whenLong)$/.test(key)) notes.push('The order of a date: move the parts, keep each {part}.');
@@ -123,6 +146,7 @@ const TABS = [
   { name: 'App', areas: ['app', 'shared'] },
   { name: 'Messages', areas: ['api', 'validation'] },
   { name: 'Emails and texts', areas: ['email'] },
+  { name: 'Website', areas: ['website'] },
 ];
 
 /** The reviewer's workbook for `language`, and counts for the export report. */
@@ -165,14 +189,14 @@ export async function buildWorkbook({ root = DEFAULT_ROOT, language = 'si' } = {
     plain: true,
     columns: [{ title: `Favorite Hearts: ${languageName} text for review`, width: 120 }],
     rows: [
-      [`Exported ${new Date().toISOString().slice(0, 10)}. Every text members see in the app, in messages from the server, and in emails and text messages.`],
+      [`Exported ${new Date().toISOString().slice(0, 10)}. Every text members see in the app, in messages from the server, in emails and text messages, and on the public website.`],
       [''],
       ['How to review'],
-      [`1. In the tabs App, Messages and Emails and texts, read the English and the ${languageName} now.`],
+      [`1. In the tabs App, Messages, Emails and texts, and Website, read the English and the ${languageName} now.`],
       [`2. If the ${languageName} is right, set Status to Approved and leave “Your ${languageName}” empty.`],
       [`3. If it needs changing, write the whole corrected text in “Your ${languageName}”. You do not need to change Status.`],
       ['4. If you are unsure, set Status to Needs discussion and explain in “Your notes”.'],
-      ['5. Keep everything named in “Keep as is”: words in {curly brackets} are filled in by the app (a name, a date, a number), and words between <strong> and </strong> are shown in bold or as a link.'],
+      ['5. Keep everything named in “Keep as is”: words in {curly brackets} are filled in by the app (a name, a date, a number), words between <strong> and </strong> or <link> and </link> are shown in bold or as a link, and a mark such as <email/> is replaced by the page (an email address, a name).'],
       ['6. Do not change the Key, Where it appears or English columns, and do not add or remove rows. Save as .xlsx and send the file back.'],
       [''],
       ['Status: Draft = not reviewed yet. Approved = reviewed. English changed = reviewed before, but the English has changed since, so please check it again.'],

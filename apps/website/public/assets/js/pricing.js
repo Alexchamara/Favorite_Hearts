@@ -1,7 +1,8 @@
 /**
  * Pricing page (OWNER-DECISIONS section 2): the plans and their LKR and USD prices come from the live catalogue the
  * owner manages in the app (GET /api/v1/plans), so this page never shows a price members would not pay. Plan names and
- * descriptions are the owner's own text, so the cards are built with textContent, never as HTML.
+ * descriptions are the owner's own text, so the cards are built with textContent, never as HTML. They are shown as the
+ * owner wrote them; the page's own words come from FH_TEXT (site.js) in the page's language.
  */
 (() => {
   'use strict';
@@ -28,11 +29,11 @@
   };
   const amount = (minor) =>
     new Intl.NumberFormat('en-US', { minimumFractionDigits: minor % 100 ? 2 : 0, maximumFractionDigits: 2 }).format(minor / 100);
-  const term = (months) => `${months} month${months === 1 ? '' : 's'}`;
+  const term = (months) => FH_TEXT('web.js.pricing.months', { count: months });
   const limits = (plan) =>
     plan.monthlyRequestCap === null
-      ? `Unlimited requests (fair use applies: up to ${plan.dailyRequestCap} a day)`
-      : `${plan.dailyRequestCap} requests a day, ${plan.monthlyRequestCap} a month`;
+      ? FH_TEXT('web.js.pricing.unlimited', { daily: plan.dailyRequestCap })
+      : FH_TEXT('web.js.pricing.limits', { daily: plan.dailyRequestCap, monthly: plan.monthlyRequestCap });
 
   function icon(index) {
     const wrap = el('span', 'plan-icon');
@@ -50,7 +51,7 @@
 
   function card(plan, currency, index) {
     const article = el('article', 'plan-card');
-    article.setAttribute('aria-label', `${plan.name} plan`);
+    article.setAttribute('aria-label', FH_TEXT('web.js.pricing.planLabel', { name: plan.name }));
     const top = el('div', 'plan-topline');
     top.append(el('p', 'label', 'Favorite Hearts'), icon(index));
     article.append(top, el('h3', '', plan.name));
@@ -58,13 +59,13 @@
     const price = plan.prices.find((p) => p.currency === currency);
     const line = el('p', 'plan-price');
     if (price) line.append(el('span', 'plan-currency', currency), document.createTextNode(' '), el('span', '', amount(price.amountMinor)));
-    else line.append(el('span', 'plan-currency', `Not offered in ${currency}`));
+    else line.append(el('span', 'plan-currency', FH_TEXT('web.js.pricing.notOffered', { currency })));
     article.append(line, el('p', 'plan-period', term(plan.termMonths)));
     const list = el('ul');
-    for (const text of [limits(plan), 'See who is interested', 'Accept requests', 'Contact details after you both accept']) {
+    for (const text of [limits(plan), FH_TEXT('web.js.pricing.interested'), FH_TEXT('web.js.pricing.accept'), FH_TEXT('web.js.pricing.contact')]) {
       list.append(el('li', '', text));
     }
-    article.append(list, el('p', 'plan-selection', 'Choose it in the app, for one profile'));
+    article.append(list, el('p', 'plan-selection', FH_TEXT('web.js.pricing.choose')));
     return article;
   }
 
@@ -75,7 +76,7 @@
       ...plans.map((plan, i) => {
         const button = el('button');
         button.type = 'button';
-        button.setAttribute('aria-label', `Show ${plan.name}`);
+        button.setAttribute('aria-label', FH_TEXT('web.js.pricing.show', { name: plan.name }));
         button.setAttribute('aria-current', String(i === 0));
         const mark = el('span');
         mark.setAttribute('aria-hidden', 'true');
@@ -93,8 +94,8 @@
     const description = document.querySelector('#market-description');
     if (description) {
       description.textContent = diaspora
-        ? 'For members living outside Sri Lanka. Prices in USD.'
-        : 'For members living in Sri Lanka. Prices in LKR.';
+        ? FH_TEXT('web.js.pricing.overseas')
+        : FH_TEXT('web.js.pricing.local');
     }
     if (plans.length) render();
   }
@@ -124,6 +125,6 @@
       render();
     })
     .catch(() => {
-      status.textContent = 'We could not load today’s prices. You will see them in the app when you choose a plan, or you can ask us.';
+      status.textContent = FH_TEXT('web.js.pricing.failed');
     });
 })();
