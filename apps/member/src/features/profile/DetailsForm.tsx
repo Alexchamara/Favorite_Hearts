@@ -1,6 +1,8 @@
 /**
  * The profile editor in four steps (spec 5.2: essentials, story, family, lifestyle). Each step
  * saves on its own, sending only what changed with the version it was based on (spec A05).
+ * While a new profile is being set up, each step's button is "Save and continue": it saves, then takes the member to
+ * the next step, and the last one on to Photos (SetupSteps.tsx).
  */
 import { useState, type ReactNode } from 'react';
 import { useMutation } from '@tanstack/react-query';
@@ -17,6 +19,8 @@ import { options, SPOKEN_LANGUAGES, SRI_LANKA_DISTRICTS, suggestionLabel, useCou
 
 type Key = Exclude<keyof ProfileFields, 'caste' | 'adultDeclaredAt'>;
 type FormValue = string | string[];
+/** Where "Save and continue" goes: this step's id (to be scrolled to) and what to do after saving. */
+type Flow = { id: string; onContinue?: () => void; last?: boolean };
 
 const REQUIRED = new Set<Key>(['displayName', 'gender', 'birthDate', 'countryCode', 'city', 'occupation', 'education', 'heightCm', 'maritalStatus', 'bio']);
 
@@ -50,8 +54,8 @@ function useStep(profile: ProfileView, fields: Key[]) {
   const text = (key: Key) => values[key] as string;
   const list = (key: Key) => values[key] as string[];
 
-  /** Validates the changed fields like the server will, then saves them. */
-  function submit(extra: Record<string, unknown> = {}) {
+  /** Validates the changed fields like the server will, then saves them; `after` runs once saved (or if nothing changed). */
+  function submit(extra: Record<string, unknown> = {}, after?: () => void) {
     const payload: Record<string, unknown> = { ...extra };
     const found: Record<string, string> = {};
     for (const key of fields) {
@@ -66,17 +70,20 @@ function useStep(profile: ProfileView, fields: Key[]) {
     }
     setErrors(found);
     if (Object.keys(found).length) return;
-    if (!Object.keys(payload).length) return toast(say('details.nothingChanged'));
-    save.mutate(payload);
+    if (!Object.keys(payload).length) return after ? after() : toast(say('details.nothingChanged'));
+    save.mutate(payload, { onSuccess: () => after?.() });
   }
   return { values, set, text, list, errors, submit, saving: save.isPending, failed: save.error };
 }
 
-function Step({ title, intro, children, onSave, saving, failed, canEdit }: { title: string; intro?: string; children: ReactNode; onSave: () => void; saving: boolean; failed: unknown; canEdit: boolean }) {
+function Step({ title, intro, children, onSave, saving, failed, canEdit, flow }: { title: string; intro?: string; children: ReactNode; onSave: () => void; saving: boolean; failed: unknown; canEdit: boolean; flow: Flow }) {
   const { t } = useI18n();
+  const label = !flow.onContinue ? t('common.save') : flow.last ? t('details.saveContinuePhotos') : t('details.saveContinue');
   return (
-    <Card>
-      <h2 className="font-serif text-2xl">{title}</h2>
+    <Card className="scroll-mt-6">
+      <h2 id={flow.id} tabIndex={-1} className="font-serif text-2xl outline-none">
+        {title}
+      </h2>
       {intro && <p className="mt-2 text-sm text-muted-foreground">{intro}</p>}
       <form
         className="mt-5 flex flex-col gap-5"
@@ -92,7 +99,7 @@ function Step({ title, intro, children, onSave, saving, failed, canEdit }: { tit
         {canEdit && (
           <div>
             <Button type="submit" className="h-11" disabled={saving}>
-              {saving ? t('common.saving') : t('common.save')}
+              {saving ? t('common.saving') : label}
             </Button>
           </div>
         )}
@@ -103,14 +110,14 @@ function Step({ title, intro, children, onSave, saving, failed, canEdit }: { tit
 
 const full = 'sm:col-span-2';
 
-function Essentials({ profile }: { profile: ProfileView }) {
+function Essentials({ profile, flow }: { profile: ProfileView; flow: Flow }) {
   const f = useStep(profile, ['displayName', 'gender', 'birthDate', 'countryCode', 'region', 'city', 'occupation', 'education', 'heightCm', 'maritalStatus', 'religion', 'languages', 'motherTongue']);
   const inSriLanka = f.text('countryCode') === 'LK';
   const { t } = useI18n();
   const { genderLabels, maritalLabels, religionLabels } = useLabels();
   const countries = useCountries();
   return (
-    <Step title={t('details.essentials.title')} intro={t('details.essentials.intro')} onSave={() => f.submit()} saving={f.saving} failed={f.failed} canEdit={profile.me.canEdit}>
+    <Step title={t('details.essentials.title')} intro={t('details.essentials.intro')} onSave={() => f.submit({}, flow.onContinue)} flow={flow} saving={f.saving} failed={f.failed} canEdit={profile.me.canEdit}>
       <TextField label={t('details.name')} maxLength={60} value={f.text('displayName')} onChange={f.set('displayName')} error={f.errors.displayName} />
       <SelectField label={t('details.gender')} value={f.text('gender')} onChange={f.set('gender')} options={options(genderLabels)} error={f.errors.gender} />
       <TextField label={t('details.birthDate')} type="date" value={f.text('birthDate')} onChange={f.set('birthDate')} error={f.errors.birthDate} hint={t('details.birthDate.hint')} />
@@ -156,7 +163,7 @@ function Essentials({ profile }: { profile: ProfileView }) {
   );
 }
 
-function About({ profile }: { profile: ProfileView }) {
+function About({ profile, flow }: { profile: ProfileView; flow: Flow }) {
   const f = useStep(profile, ['bio', 'values', 'hobbies', 'timeline', 'relocation', 'horoscopeImportance', 'incomeRange']);
   const { t } = useI18n();
   const { horoscopeLabels, incomeLabels, relocationLabels, timelineLabels, valueLabels } = useLabels();
@@ -164,7 +171,7 @@ function About({ profile }: { profile: ProfileView }) {
     <Step
       title={t('details.about.title')}
       intro={t('details.about.intro')}
-      onSave={() => f.submit()}
+      onSave={() => f.submit({}, flow.onContinue)} flow={flow}
       saving={f.saving}
       failed={f.failed}
       canEdit={profile.me.canEdit}
@@ -191,12 +198,12 @@ function About({ profile }: { profile: ProfileView }) {
   );
 }
 
-function Family({ profile }: { profile: ProfileView }) {
+function Family({ profile, flow }: { profile: ProfileView; flow: Flow }) {
   const f = useStep(profile, ['familyStory', 'motherName', 'motherOccupation', 'fatherName', 'fatherOccupation', 'sisters', 'brothers', 'familyInvolvement']);
   const { t } = useI18n();
   const { involvementLabels } = useLabels();
   return (
-    <Step title={t('details.family.title')} intro={t('details.family.intro')} onSave={() => f.submit()} saving={f.saving} failed={f.failed} canEdit={profile.me.canEdit}>
+    <Step title={t('details.family.title')} intro={t('details.family.intro')} onSave={() => f.submit({}, flow.onContinue)} flow={flow} saving={f.saving} failed={f.failed} canEdit={profile.me.canEdit}>
       <TextAreaField className={full} label={t('details.familyStory')} maxLength={600} value={f.text('familyStory')} onChange={f.set('familyStory')} error={f.errors.familyStory} />
       <TextField label={t('details.motherName')} maxLength={80} value={f.text('motherName')} onChange={f.set('motherName')} error={f.errors.motherName} />
       <TextField label={t('details.motherOccupation')} maxLength={100} value={f.text('motherOccupation')} onChange={f.set('motherOccupation')} error={f.errors.motherOccupation} />
@@ -209,7 +216,7 @@ function Family({ profile }: { profile: ProfileView }) {
   );
 }
 
-function Lifestyle({ profile }: { profile: ProfileView }) {
+function Lifestyle({ profile, flow }: { profile: ProfileView; flow: Flow }) {
   const f = useStep(profile, ['diet', 'smoking', 'drinking', 'childrenPlan', 'communityOpenness']);
   const savedCaste = profile.fields.caste?.value ?? '';
   // Section 6: "prefer not to say" is an explicit choice, and the default.
@@ -225,7 +232,8 @@ function Lifestyle({ profile }: { profile: ProfileView }) {
     <Step
       title={t('details.lifestyle.title')}
       intro={t('details.lifestyle.intro')}
-      onSave={() => f.submit(casteChanged ? { caste: wanted ? { value: wanted, consent } : null } : {})}
+      onSave={() => f.submit(casteChanged ? { caste: wanted ? { value: wanted, consent } : null } : {}, flow.onContinue)}
+      flow={flow}
       saving={f.saving}
       failed={f.failed}
       canEdit={profile.me.canEdit}
@@ -277,15 +285,30 @@ function Lifestyle({ profile }: { profile: ProfileView }) {
   );
 }
 
-export function DetailsForm({ profile }: { profile: ProfileView }) {
+const STEP_IDS = ['details-essentials', 'details-about', 'details-family', 'details-lifestyle'] as const;
+
+/** Brings the next step into view and moves focus to its heading, so keyboard and screen-reader users follow too. */
+function showStep(id: string) {
+  const heading = document.getElementById(id);
+  heading?.closest('section')?.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  heading?.focus({ preventScroll: true });
+}
+
+/** `onDone` (while setting up) makes each step "Save and continue", the last one going on with `onDone`. */
+export function DetailsForm({ profile, onDone }: { profile: ProfileView; onDone?: () => void }) {
   const { t } = useI18n();
+  const flow = (index: number): Flow => ({
+    id: STEP_IDS[index]!,
+    onContinue: onDone && (index === STEP_IDS.length - 1 ? onDone : () => showStep(STEP_IDS[index + 1]!)),
+    last: index === STEP_IDS.length - 1,
+  });
   return (
     <div className="flex flex-col gap-6">
       {!profile.me.canEdit && <Notice>{t('details.viewOnly')}</Notice>}
-      <Essentials profile={profile} />
-      <About profile={profile} />
-      <Family profile={profile} />
-      <Lifestyle profile={profile} />
+      <Essentials profile={profile} flow={flow(0)} />
+      <About profile={profile} flow={flow(1)} />
+      <Family profile={profile} flow={flow(2)} />
+      <Lifestyle profile={profile} flow={flow(3)} />
     </div>
   );
 }

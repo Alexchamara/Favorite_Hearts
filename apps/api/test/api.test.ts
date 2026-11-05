@@ -6,19 +6,17 @@
 import assert from 'node:assert/strict';
 import { before, describe, test } from 'node:test';
 import { eq, sql } from 'drizzle-orm';
-import sharp from 'sharp';
 import { operationsFlag } from '../src/db/schema/operations.ts';
 import { verificationCase } from '../src/db/schema/trust.ts';
 import { auditEvent } from '../src/db/schema/operations.ts';
 import { entitlementEvent } from '../src/db/schema/billing.ts';
 import { purgeDocuments } from '../src/jobs/purge-documents.ts';
 import { addStaff, revokeStaff } from '../src/lib/staff-accounts.ts';
-import { Client, createTestApp, latestCode, latestInvitationToken, totp, type Res } from './harness.ts';
+import { Client, createTestApp, latestCode, latestInvitationToken, photoForm, totp, type Res } from './harness.ts';
 
 let t: Awaited<ReturnType<typeof createTestApp>>;
 let owner: Client;
 let reviewer: Client;
-let documentImage: Buffer;
 
 const STAFF_PASSWORD = 'correct horse battery staple';
 
@@ -54,16 +52,9 @@ async function completeProfile(client: Client, profile: { id: string; version: n
   return updated;
 }
 
-function documentForm(documentType = 'nic', file: Blob = new Blob([new Uint8Array(documentImage)], { type: 'image/jpeg' })) {
-  const form = new FormData();
-  form.set('documentType', documentType);
-  form.set('file', new File([file], 'document.jpg', { type: 'image/jpeg' }));
-  return form;
-}
-
 /** Uploads a document for the signed-in member and has the backup reviewer approve it. */
 async function verifyIdentity(client: Client) {
-  const submitted = ok(await client.post('/api/v1/verification', documentForm()), 201);
+  const submitted = ok(await client.sendDocument(), 201);
   ok(await reviewer.post(`/api/v1/staff/verification/${submitted.id}/decision`, { decision: 'approved' }));
 }
 
@@ -81,7 +72,6 @@ async function enableTwoFactor(client: Client) {
 
 before(async () => {
   t = await createTestApp();
-  documentImage = await sharp({ create: { width: 900, height: 560, channels: 3, background: '#d8d2c4' } }).jpeg().toBuffer();
   owner = await staffClient('owner@favoritehearts.test', 'owner');
   reviewer = await staffClient('reviewer@favoritehearts.test', 'backup_reviewer');
   await enableTwoFactor(owner);
@@ -172,12 +162,18 @@ describe('documents, staff review and publishing (P02, P05, P09, S04)', () => {
     rejected(await reviewer.get('/api/v1/profiles'), 403, 'STAFF_ACCOUNT');
   });
 
+  test('a document photo bigger than the JSON limit is read as an image, not refused as too large', async () => {
+    const member = await t.client().signIn('sameera@example.test');
+    const large = photoForm('front', new Blob([new Uint8Array(200 * 1024)], { type: 'image/jpeg' }));
+    rejected(await member.post('/api/v1/verification/drafts', large), 400, 'INVALID_DOCUMENT');
+  });
+
   test('a fake image is refused and nothing is stored (P09)', async () => {
     const member = await t.client().signIn('sameera@example.test');
     const before = t.files.size;
-    const fake = documentForm('passport', new Blob(['%PDF-1.7 not really a photo'], { type: 'image/jpeg' }));
-    rejected(await member.post('/api/v1/verification', fake), 400, 'INVALID_DOCUMENT');
-    rejected(await member.post('/api/v1/verification', documentForm('national_id')), 400, 'VALIDATION');
+    const fake = photoForm('front', new Blob(['%PDF-1.7 not really a photo'], { type: 'image/jpeg' }));
+    rejected(await member.post('/api/v1/verification/drafts', fake), 400, 'INVALID_DOCUMENT');
+    rejected(await member.post('/api/v1/verification', { documentType: 'national_id' }), 400, 'VALIDATION');
     assert.equal(t.files.size, before);
   });
 
@@ -194,9 +190,9 @@ describe('documents, staff review and publishing (P02, P05, P09, S04)', () => {
     assert.match(unverified.body.message, /phone number verified by SMS code and an approved identity document/);
 
     ok(await member.verifyPhone('+94771234501'));
-    const first = ok(await member.post('/api/v1/verification', documentForm('passport')), 201);
+    const first = ok(await member.sendDocument('passport'), 201);
     assert.equal(first.status, 'pending');
-    rejected(await member.post('/api/v1/verification', documentForm()), 409, 'VERIFICATION_PENDING');
+    rejected(await member.sendDocument(), 409, 'VERIFICATION_PENDING');
     rejected(await member.post(`/api/v1/profiles/${profile.id}/publish`), 403, 'VERIFICATION_REQUIRED');
 
     const queue = ok(await reviewer.get('/api/v1/staff/verification')).cases;
@@ -209,7 +205,7 @@ describe('documents, staff review and publishing (P02, P05, P09, S04)', () => {
     const mine = ok(await member.get('/api/v1/verification')).cases;
     assert.equal(mine[0].decisionReason, 'The photo is blurred.');
 
-    const second = ok(await member.post('/api/v1/verification', documentForm('driving_licence')), 201);
+    const second = ok(await member.sendDocument('driving_licence'), 201);
     ok(await reviewer.post(`/api/v1/staff/verification/${second.id}/decision`, { decision: 'approved' }));
     const published = ok(await member.post(`/api/v1/profiles/${profile.id}/publish`));
     assert.equal(published.status, 'published');
@@ -221,7 +217,7 @@ describe('documents, staff review and publishing (P02, P05, P09, S04)', () => {
 
   test('viewing a document is audited and gives a short-lived link', async () => {
     const member = await t.client().signIn('kasun@example.test');
-    const submitted = ok(await member.post('/api/v1/verification', documentForm()), 201);
+    const submitted = ok(await member.sendDocument(), 201);
     const view = ok(await owner.get(`/api/v1/staff/verification/${submitted.id}/document`));
     assert.match(view.url, /^https:\/\/storage\.test\/private\/documents\//);
     assert.equal(view.expiresInSeconds, 120);
@@ -344,7 +340,7 @@ describe('invitations and the candidate (I01–I09)', () => {
 describe('document retention (X01, S05)', () => {
   test('files are deleted 90 days after the decision; a failed delete is retried', async () => {
     const member = await t.client().signIn('purge@example.test');
-    const submitted = ok(await member.post('/api/v1/verification', documentForm()), 201);
+    const submitted = ok(await member.sendDocument(), 201);
     ok(await reviewer.post(`/api/v1/staff/verification/${submitted.id}/decision`, { decision: 'approved' }));
     const [decided] = await t.db.select().from(verificationCase).where(eq(verificationCase.id, submitted.id));
     assert.ok(decided?.purgeAfter && decided.purgeAfter.getTime() - decided.reviewedAt!.getTime() === 90 * 86_400_000);

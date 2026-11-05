@@ -24,6 +24,7 @@ import type {
   SentInterestView,
   ServiceStatus,
   VerificationCaseView,
+  VerificationDraftsView,
 } from '@fh/shared';
 import { api, ApiError } from './api';
 import { env } from './env';
@@ -35,6 +36,7 @@ export const keys = {
   profiles: ['profiles'] as const,
   profile: (id: string) => ['profiles', id] as const,
   cases: ['verification'] as const,
+  drafts: ['verification', 'drafts'] as const,
   staffQueue: (status: string) => ['staff', 'verification', status] as const,
   staffReports: (status: string) => ['staff', 'reports', status] as const,
   discover: (filters: string) => ['discover', filters] as const,
@@ -104,6 +106,16 @@ export function useProfiles(enabled = true) {
 
 export function useProfile(id: string) {
   return useQuery({ queryKey: keys.profile(id), queryFn: () => api<ProfileView>(`/profiles/${id}`) });
+}
+
+/** Document photos added but not sent yet; checked every 3 seconds while a phone link (QR code) is open. */
+export function useDrafts(enabled = true) {
+  return useQuery({
+    queryKey: keys.drafts,
+    queryFn: () => api<VerificationDraftsView>('/verification/drafts'),
+    enabled,
+    refetchInterval: (query) => (query.state.data?.phoneLink ? 3000 : false),
+  });
 }
 
 export function useMyCases(enabled = true) {

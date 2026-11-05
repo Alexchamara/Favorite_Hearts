@@ -4,25 +4,27 @@
  * are uploaded only here (section 8: never by WhatsApp or email).
  */
 import { useState, type FormEvent } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
-import { normalizePhone, type DocumentType, type VerificationCaseView } from '@fh/shared';
-import { PhoneField, SelectField, TextField } from '@/components/form/fields';
+import { normalizePhone } from '@fh/shared';
+import { PhoneField, TextField } from '@/components/form/fields';
 import { AppShell, Card, Loading, Notice, PageTitle } from '@/components/layout';
 import { useBotCheck } from '@/components/turnstile';
 import { Button } from '@/components/ui/button';
-import { errorMessage, post } from '@/lib/api';
 import { authClient } from '@/lib/auth-client';
-import { keys, useHealth, useMe, useMyCases, useServiceStatus } from '@/lib/queries';
+import { useHealth, useMe, useMyCases, useProfile } from '@/lib/queries';
 import { queryClient } from '@/lib/query-client';
 import { authErrorMessage } from '@/features/auth/login-code';
-import { options, useLabels } from '@/features/profile/options';
+import { useLabels } from '@/features/profile/options';
 import { formatDay } from '@/lib/format';
+import { DocumentUpload } from './DocumentUpload';
 import { say, useI18n } from '@/lib/i18n';
 
 export default function VerifyPage() {
   const { t } = useI18n();
+  // Opened from a profile's setup guide (?profile=…): offer the way back to publish it.
+  const [params] = useSearchParams();
+  const fromProfile = params.get('profile');
   return (
     <AppShell>
       <Link to="/" className="text-sm text-muted-foreground underline underline-offset-4">
@@ -35,9 +37,23 @@ export default function VerifyPage() {
         <div className="flex flex-col gap-6">
           <PhoneCheck />
           <DocumentCheck />
+          {fromProfile && <BackToProfile id={fromProfile} />}
         </div>
       </div>
     </AppShell>
+  );
+}
+
+function BackToProfile({ id }: { id: string }) {
+  const { t } = useI18n();
+  const profile = useProfile(id);
+  if (!profile.data) return null;
+  return (
+    <Card>
+      <Button asChild className="h-11">
+        <Link to={`/profiles/${id}`}>{t('verify.backToProfile', { name: profile.data.fields.displayName ?? t('card.untitled') })} →</Link>
+      </Button>
+    </Card>
   );
 }
 
@@ -125,26 +141,8 @@ function PhoneCheck() {
 
 function DocumentCheck() {
   const cases = useMyCases();
-  const paused = Boolean(useServiceStatus().data?.documentSubmissionsPaused);
-  const [type, setType] = useState<DocumentType | ''>('');
-  const [file, setFile] = useState<File | null>(null);
   const { t } = useI18n();
   const { caseStatusLabels, documentLabels } = useLabels();
-  const upload = useMutation({
-    mutationFn: () => {
-      const form = new FormData();
-      form.set('documentType', type);
-      form.set('file', file!);
-      return post<VerificationCaseView>('/verification', form);
-    },
-    onSuccess: async () => {
-      toast.success(say('verify.document.sent'));
-      setFile(null);
-      setType('');
-      await queryClient.invalidateQueries({ queryKey: keys.cases });
-      await queryClient.invalidateQueries({ queryKey: keys.profiles });
-    },
-  });
   if (cases.isPending) return <Loading />;
   const list = cases.data ?? [];
   const pending = list.some((c) => c.status === 'pending');
@@ -166,41 +164,7 @@ function DocumentCheck() {
           ))}
         </ul>
       )}
-      {pending ? (
-        <p className="mt-4 text-sm text-muted-foreground">{t('verify.document.pending')}</p>
-      ) : approved ? null : (
-        <form
-          className="mt-5 flex flex-col gap-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            upload.mutate();
-          }}
-        >
-          {paused && (
-            <Notice tone="warning" title={t('verify.document.paused.title')}>
-              {t('verify.document.paused.body')}
-            </Notice>
-          )}
-          {upload.isError && <Notice tone="error">{errorMessage(upload.error)}</Notice>}
-          <SelectField label={t('verify.document.type')} value={type} onChange={setType} options={options(documentLabels)} />
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="document-file" className="text-[13px] font-semibold">
-              {t('verify.document.photo')}
-            </label>
-            <input
-              id="document-file"
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-              className="text-sm file:mr-3 file:min-h-10 file:rounded-[10px] file:border file:bg-card file:px-4 file:font-semibold"
-            />
-            <p className="text-xs text-muted-foreground">{t('verify.document.hint')}</p>
-          </div>
-          <Button type="submit" className="h-11 self-start" disabled={paused || upload.isPending || !type || !file}>
-            {upload.isPending ? t('verify.document.uploading') : t('verify.document.submit')}
-          </Button>
-        </form>
-      )}
+      {pending ? <p className="mt-4 text-sm text-muted-foreground">{t('verify.document.pending')}</p> : approved ? null : <DocumentUpload />}
     </Card>
   );
 }

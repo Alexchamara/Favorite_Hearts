@@ -9,6 +9,8 @@ import { fileURLToPath } from 'node:url';
 import { PGlite } from '@electric-sql/pglite';
 import { drizzle } from 'drizzle-orm/pglite';
 import { migrate } from 'drizzle-orm/pglite/migrator';
+import sharp from 'sharp';
+import { DOCUMENT_PAGES, type DocumentType } from '@fh/shared';
 import { createApp } from '../src/app.ts';
 import { createAuth } from '../src/auth.ts';
 import type { Config } from '../src/config.ts';
@@ -162,6 +164,19 @@ export class Client {
   put = (path: string, body: unknown) => this.request('PUT', path, body);
   delete = (path: string) => this.request('DELETE', path);
 
+  /**
+   * Adds the photos a document needs (the front, and the back of an NIC or driving licence, or `sides`), then sends them
+   * for review: what the verification page does. Returns the first refusal, or the new case.
+   */
+  async sendDocument(documentType: string = 'nic', sides?: string[]): Promise<Res> {
+    const photo = await testDocumentPhoto();
+    for (const side of sides ?? DOCUMENT_PAGES[documentType as DocumentType] ?? ['front']) {
+      const added = await this.post('/api/v1/verification/drafts', photoForm(side, photo));
+      if (added.status !== 201) return added;
+    }
+    return this.post('/api/v1/verification', { documentType });
+  }
+
   /** Passwordless sign-in (creates the account on first use), optionally setting the display name. */
   async signIn(email: string, name?: string): Promise<this> {
     const sent = await this.post('/api/auth/email-otp/send-verification-otp', { email, type: 'sign-in' });
@@ -181,4 +196,17 @@ export class Client {
       updatePhoneNumber: true,
     });
   }
+}
+
+let documentPhoto: Promise<Buffer> | null = null;
+/** A plain test photo of a document, large enough to be read (MIN_DOCUMENT_PIXELS). */
+export const testDocumentPhoto = () =>
+  (documentPhoto ??= sharp({ create: { width: 900, height: 560, channels: 3, background: '#d8d2c4' } }).jpeg().toBuffer());
+
+/** The form the verification page sends for one photo. */
+export function photoForm(side: string, photo: Buffer | Blob) {
+  const form = new FormData();
+  form.set('side', side);
+  form.set('file', new File([photo instanceof Blob ? photo : new Uint8Array(photo)], 'document.jpg', { type: 'image/jpeg' }));
+  return form;
 }

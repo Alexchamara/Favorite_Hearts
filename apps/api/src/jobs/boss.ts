@@ -15,7 +15,7 @@ import PgBoss from 'pg-boss';
 import type { Config } from '../config.ts';
 import type { Db } from '../db/types.ts';
 import { log } from '../lib/log.ts';
-import { drainStorageDeletions } from '../lib/storage-cleanup.ts';
+import { drainStorageDeletions, purgeExpiredDrafts } from '../lib/storage-cleanup.ts';
 import type { Messenger } from '../messaging/messenger.ts';
 import type { Storage } from '../storage/storage.ts';
 import { sendNotifications } from './notifications.ts';
@@ -58,6 +58,7 @@ export async function startJobs(deps: JobDeps, connectionString: string): Promis
     if (result.files.failed) throw new Error(`retention.sweep: ${result.files.failed} file(s) not deleted (run ${result.runId})`);
   });
   await boss.work(QUEUES.storageCleanup, async () => {
+    await purgeExpiredDrafts(deps);
     await drainStorageDeletions(deps);
   });
   await boss.work(QUEUES.planExpiry, async () => {

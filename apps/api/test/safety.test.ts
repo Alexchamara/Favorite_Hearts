@@ -62,12 +62,6 @@ async function staffClient(app: App, email: string, role: 'owner' | 'backup_revi
 }
 
 const file = (name: string, type = 'image/jpeg') => new File([new Uint8Array(image)], name, { type });
-function documentForm() {
-  const form = new FormData();
-  form.set('documentType', 'nic');
-  form.set('file', file('nic.jpg'));
-  return form;
-}
 function imageForm(name = 'photo.jpg') {
   const form = new FormData();
   form.set('file', file(name));
@@ -77,7 +71,7 @@ function imageForm(name = 'photo.jpg') {
 async function verifiedClient(email: string, name: string, phone = nextPhone()): Promise<Client> {
   const client = await t.client().signIn(email, name);
   ok(await client.verifyPhone(phone));
-  const submitted = ok(await client.post('/api/v1/verification', documentForm()), 201);
+  const submitted = ok(await client.sendDocument(), 201);
   ok(await reviewer.post(`/api/v1/staff/verification/${submitted.id}/decision`, { decision: 'approved' }));
   return client;
 }
@@ -272,18 +266,31 @@ describe('the owner pauses sign-ups and document submissions (section 10)', () =
     const { flags } = ok(await owner.get('/api/v1/owner/operations'));
     assert.deepEqual(
       flags.map((f: { key: string; enabled: boolean }) => [f.key, f.enabled]),
-      [['signups_paused', false], ['document_submissions_paused', false]],
+      [['signups_paused', false], ['document_submissions_paused', false], ['selfie_required', false]],
     );
     rejected(await owner.put('/api/v1/owner/operations/everything', { enabled: true }), 400, 'VALIDATION');
 
     const paused = ok(await owner.put('/api/v1/owner/operations/signups_paused', { enabled: true, reason: 'Review queue is full' }));
     assert.deepEqual([paused.enabled, paused.reason], [true, 'Review queue is full']);
-    assert.deepEqual(ok(await t.client().get('/api/v1/service-status')), { signupsPaused: true, documentSubmissionsPaused: false });
+    assert.deepEqual(ok(await t.client().get('/api/v1/service-status')), { signupsPaused: true, documentSubmissionsPaused: false, selfieRequired: false });
     const [entry] = await t.db
       .select()
       .from(auditEvent)
       .where(and(eq(auditEvent.entityType, 'operations_flag'), eq(auditEvent.entityId, 'signups_paused')));
     assert.deepEqual([entry!.action, entry!.reason, entry!.actorRole], ['operations.paused', 'Review queue is full', 'owner']);
+
+    // The selfie switch has no row until the owner first sets it; setting it creates one, audited like the others.
+    rejected(await reviewer.put('/api/v1/owner/operations/selfie_required', { enabled: true }), 403, 'FORBIDDEN');
+    const selfie = ok(await owner.put('/api/v1/owner/operations/selfie_required', { enabled: true, reason: 'Fake profiles seen' }));
+    assert.equal(selfie.enabled, true);
+    assert.equal(ok(await t.client().get('/api/v1/service-status')).selfieRequired, true);
+    const [turned] = await t.db
+      .select()
+      .from(auditEvent)
+      .where(and(eq(auditEvent.entityType, 'operations_flag'), eq(auditEvent.entityId, 'selfie_required')));
+    assert.equal(turned!.action, 'operations.selfie_required');
+    ok(await owner.put('/api/v1/owner/operations/selfie_required', { enabled: false }));
+    assert.equal(ok(await t.client().get('/api/v1/service-status')).selfieRequired, false);
   });
 
   test('while sign-ups are paused, members already signed up sign in, but no new account is made', async () => {
@@ -307,10 +314,10 @@ describe('the owner pauses sign-ups and document submissions (section 10)', () =
     assert.equal(ok(await t.client().get('/api/v1/service-status')).documentSubmissionsPaused, true);
     const member = await t.client().signIn('paused-docs@example.test', 'Dilu');
     const stored = t.files.size;
-    rejected(await member.post('/api/v1/verification', documentForm()), 403, 'DOCUMENTS_PAUSED');
+    rejected(await member.sendDocument(), 403, 'DOCUMENTS_PAUSED');
     assert.equal(t.files.size, stored);
     ok(await owner.put('/api/v1/owner/operations/document_submissions_paused', { enabled: false }));
-    ok(await member.post('/api/v1/verification', documentForm()), 201);
+    ok(await member.sendDocument(), 201);
   });
 });
 

@@ -7,7 +7,7 @@ export const LOGIN_CHANNELS = ['email', 'sms'] as const;
 export type LoginChannel = (typeof LOGIN_CHANNELS)[number];
 
 /** SMS providers the API knows. `none` = not configured yet; `log` = local development only. */
-export const SMS_PROVIDERS = ['none', 'log'] as const;
+export const SMS_PROVIDERS = ['none', 'log', 'smslenz'] as const;
 export type SmsProvider = (typeof SMS_PROVIDERS)[number];
 
 export const CODE_LENGTH = 6;

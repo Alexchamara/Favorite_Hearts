@@ -80,6 +80,11 @@ export const LIMITS: Limit[] = [
   { name: 'invitation-code', method: 'POST', path: /^\/api\/v1\/invitations\/(preview|code|accept|decline)$/, rule: { window: MINUTE, max: 10 }, per: 'ip' },
   { name: 'photo-uploads', method: 'POST', path: /^\/api\/v1\/profiles\/[^/]+\/photos$/, rule: { window: HOUR, max: 30 }, per: 'account' },
   { name: 'document-uploads', method: 'POST', path: /^\/api\/v1\/verification$/, rule: { window: HOUR, max: 5 }, per: 'account' },
+  // Document photos (owner, 5 Nov 2026): a few retakes per side are normal; a phone link is per visitor address.
+  { name: 'document-photos', method: 'POST', path: /^\/api\/v1\/verification\/drafts$/, rule: { window: HOUR, max: 40 }, per: 'account' },
+  { name: 'phone-links', method: 'POST', path: /^\/api\/v1\/verification\/phone-link$/, rule: { window: HOUR, max: 10 }, per: 'account' },
+  { name: 'phone-photos', method: 'POST', path: /^\/api\/v1\/verification-link\/drafts$/, rule: { window: HOUR, max: 40 }, per: 'ip' },
+  { name: 'phone-link-checks', method: 'GET', path: /^\/api\/v1\/verification-link$/, rule: { window: MINUTE, max: 60 }, per: 'ip' },
   { name: 'receipt-uploads', method: 'POST', path: /^\/api\/v1\/payments\/[^/]+\/proof$/, rule: { window: HOUR, max: 10 }, per: 'account' },
   { name: 'payments', method: 'POST', path: /^\/api\/v1\/profiles\/[^/]+\/payments$/, rule: { window: HOUR, max: 10 }, per: 'account' },
   { name: 'profiles', method: 'POST', path: /^\/api\/v1\/profiles$/, rule: { window: DAY, max: 10 }, per: 'account' },

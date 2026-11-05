@@ -20,7 +20,10 @@ const { db, pool } = createDb(env.DATABASE_URL);
 const messenger: Messenger = {
   smsEnabled: env.SMS_PROVIDER !== 'none',
   sendEmail: createResendSender({ apiKey: env.RESEND_API_KEY, from: env.EMAIL_FROM, replyTo: env.EMAIL_REPLY_TO }),
-  sendSms: createSmsSender(env.SMS_PROVIDER),
+  sendSms: createSmsSender(env.SMS_PROVIDER, {
+    senderId: env.SMS_SENDER_ID,
+    smslenz: { userId: env.SMSLENZ_USER_ID, apiKey: env.SMSLENZ_API_KEY, baseUrl: env.SMSLENZ_BASE_URL },
+  }),
 };
 const storage = createR2Storage({
   accountId: env.R2_ACCOUNT_ID,

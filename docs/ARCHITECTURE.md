@@ -494,6 +494,30 @@ languages too (Stage 5d, below).
   English text is the official version (the terms also say a Sinhala translation is provided for convenience and the
   English applies if they differ). The lawyer reviews both (`LEGAL-REVIEW.md`).
 
+## Identity documents (owner, 5 Nov 2026)
+
+- **Photos per document** (`DOCUMENT_PAGES` in `packages/shared`): the front and back of an NIC or driving licence, a
+  passport's photo page, and a selfie holding the document while the owner's switch `selfie_required` is on (Service
+  page; it applies to new submissions only). A case keeps them as `evidence_key`, `evidence_back_key` and `selfie_key`.
+- **Drafts.** Each photo is uploaded as soon as it is chosen (shrunk on the device first, then re-encoded by the server,
+  so no location data is kept) into `verification_draft`, one per side, replaced when retaken. Only its owner sees a
+  smaller preview, streamed by the API (`/verification/drafts/:id/preview`), never a storage link. Drafts not sent
+  within 24 hours are deleted with their files (`app.purge_expired_drafts`, run by `storage.cleanup`). Photos under
+  800 px on the long side are refused as unreadable.
+- **Phone link.** "Use your phone instead" shows a QR code (`uqr`) for `/app/verify/phone?document=…#token`. The token
+  (32 random bytes, only its SHA-256 stored) lets a phone add drafts for 15 minutes without signing in, through
+  `/api/v1/verification-link` with an `x-upload-token` header; the phone page never learns whose photos they are and
+  takes the token out of the address bar. A new link, closing it, sending the document or deleting the account ends
+  it. The computer's list refreshes every 3 seconds while a link is open.
+- **Camera.** Phones open their own camera app (`capture`); computers open a webcam window (`getUserMedia`), allowed on
+  `/app/*` only (`Permissions-Policy: camera=(self)`), with the file chooser and the phone link as alternatives.
+- **No photo is left behind.** Every draft change goes through database functions (0014: `add_draft`, `remove_draft`,
+  `submit_document`, `add_draft_via_link`) that queue replaced or unused files in `storage_deletion`; the app role can
+  only read drafts. Purging a case queues its back and selfie with the front; deleting a case or an account queues all
+  of its files.
+- **Staff** open each side separately (`/staff/verification/:id/document?side=`), and each look is audited with its
+  side.
+
 ## Accessibility (Stage 5e)
 
 The aim is WCAG 2.2 level AA on the website and the member app, in both languages and both of the app's themes

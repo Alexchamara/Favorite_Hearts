@@ -121,6 +121,10 @@ without output.
 | 2026-11-04 | A first visit is never redirected by the browser's language: every page links to its other-language version (header, or the menu on phones), and the footer's language dialog opens it. The choice is saved for the app. | Proposed — confirm |
 | 2026-11-04 | Each website page is one file built at its English address and under `/si/`; the website's words are a `website` catalogue (`web.*`) in the reviewer's spreadsheet (Website tab); the ten article pages became one template. | Engineering |
 | 2026-11-05 | Accessibility target: WCAG 2.2 level AA for the website and the member app, both languages and both themes; checked with axe-core 4.14.0 (a pinned development tool, never deployed) and the site check's accessibility area. | Engineering |
+| 2026-11-05 | Identity documents: both sides of an NIC or driving licence, a passport's photo page; photos chosen from files, the phone or computer camera, or a phone via a QR code; previews and removal before sending. | Owner |
+| 2026-11-05 | The QR code's phone link needs no sign-in: one-time, 15 minutes, it can only add photos to that member's unsent document. Unsent photos are deleted after 24 hours. Computers may also use the webcam. | Owner |
+| 2026-11-05 | A selfie holding the document, with an owner switch to require it or not (new submissions only). | Owner |
+| 2026-11-05 | Every identity photo change goes through database functions that queue unused files for deletion; photos under 800 px on the long side are refused; previews are streamed by the API, never storage links. | Engineering |
 
 ## Step 5 evidence
 

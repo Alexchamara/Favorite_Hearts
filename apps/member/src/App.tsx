@@ -11,6 +11,7 @@ const ProfilePage = lazy(() => import('@/features/profile/ProfilePage'));
 const BrowsePage = lazy(() => import('@/features/browse/BrowsePage'));
 const MemberPage = lazy(() => import('@/features/browse/MemberPage'));
 const VerifyPage = lazy(() => import('@/features/trust/VerifyPage'));
+const PhoneUploadPage = lazy(() => import('@/features/trust/PhoneUploadPage'));
 const InvitePage = lazy(() => import('@/features/invite/InvitePage'));
 const StaffApp = lazy(() => import('@/features/staff/StaffApp'));
 
@@ -35,6 +36,8 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/profiles/:id" element={<MemberOnly><ProfilePage /></MemberOnly>} />
             <Route path="/verify" element={<MemberOnly><VerifyPage /></MemberOnly>} />
+            {/* A document QR code's page on a phone: its link token, not a session (no sign-in). */}
+            <Route path="/verify/phone" element={<PhoneUploadPage />} />
             <Route path="/browse" element={<MemberOnly><BrowsePage /></MemberOnly>} />
             <Route path="/members/:id" element={<MemberOnly><MemberPage /></MemberOnly>} />
             <Route path="/invite" element={<InvitePage />} />

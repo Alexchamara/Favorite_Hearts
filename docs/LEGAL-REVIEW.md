@@ -34,6 +34,14 @@ spreadsheet's Website tab (rows noted "Legal wording"), and the lawyer then chec
 | 6 | Obligations when content involving a minor is reported; the staff procedure. | Terms §12 (a report about a minor hides the profile at once). |
 | 7 | Whether Sri Lanka's data protection law applies, and any registration or duties. | Privacy §8 points members to the data protection authority of their country; adjust once confirmed. |
 
+## Identity document photos (owner, 5 Nov 2026)
+
+- Members now send both sides of an NIC or driving licence (or a passport's photo page) and, while the owner turns it
+  on, a selfie holding the document. The draft privacy policy (§2 and §7) says so; the lawyer checks whether a selfie
+  (a face image used to match the document) needs more than this wording and the 90-day deletion.
+- Photos a member adds but does not send are kept at most 24 hours. A phone link (QR code) lets a phone add photos
+  for 15 minutes without signing in; it can only add photos, which the member sees and can delete before sending.
+
 ## Accountant (Part 2)
 
 | # | Point | Where |

@@ -32,7 +32,12 @@ const schema = z.object({
     .transform((v) => v?.trim().toLowerCase() || undefined),
 
   SMS_PROVIDER: z.enum(SMS_PROVIDERS).default('none'),
+  /** The sender name SMSlenz approved for the account, exactly (case sensitive). */
   SMS_SENDER_ID: z.string().default('FavHearts'),
+  /** SMSlenz (https://smslenz.lk/developers/api): the account's User ID and API key, from its settings page. */
+  SMSLENZ_USER_ID: z.string().default(''),
+  SMSLENZ_API_KEY: z.string().default(''),
+  SMSLENZ_BASE_URL: z.url().default('https://smslenz.lk/api'),
 
   R2_ACCOUNT_ID: z.string().default(''),
   R2_ACCESS_KEY_ID: z.string().default(''),
@@ -56,6 +61,11 @@ export const isLocal = env.NODE_ENV === 'development' || env.NODE_ENV === 'test'
 
 if (env.SMS_PROVIDER === 'log' && !isLocal) {
   console.error('SMS_PROVIDER=log is only allowed in development.');
+  process.exit(1);
+}
+
+if (env.SMS_PROVIDER === 'smslenz' && (!env.SMSLENZ_USER_ID || !env.SMSLENZ_API_KEY)) {
+  console.error('SMS_PROVIDER=smslenz needs SMSLENZ_USER_ID and SMSLENZ_API_KEY (SMSlenz settings page).');
   process.exit(1);
 }
 

@@ -17,6 +17,7 @@ import {
   operationsFlagKeySchema,
   operationsFlagSchema,
   ownerNoteSchema,
+  OPERATIONS_FLAGS,
   PAYMENT_CHANNELS,
   PAYMENT_STATUSES,
   paymentSettingSchema,
@@ -198,25 +199,33 @@ const flagView = (row: typeof operationsFlag.$inferSelect): OperationsFlagView =
   updatedAt: row.updatedAt,
 });
 
+/** Every switch, in a fixed order; one that was never set (a new switch has no row yet) is shown as off. */
 owner.get('/operations', async (c) => {
-  const flags = await withActor(c, (tx) => tx.select().from(operationsFlag).orderBy(operationsFlag.key));
-  return c.json({ flags: flags.map(flagView) });
+  const saved = await withActor(c, (tx) => tx.select().from(operationsFlag));
+  const flags = OPERATIONS_FLAGS.map((key): OperationsFlagView => {
+    const row = saved.find((flag) => flag.key === key);
+    return row ? flagView(row) : { key, enabled: false, reason: null, updatedAt: new Date(0).toISOString() };
+  });
+  return c.json({ flags });
 });
 
-/** Pauses or resumes new sign-ups or document submissions; members already signed up keep using the app. */
+/**
+ * Pauses or resumes new sign-ups or document submissions (members already signed up keep using the app), or turns the
+ * selfie requirement on or off for new document submissions.
+ */
 owner.put('/operations/:key', async (c) => {
   const key = parse(operationsFlagKeySchema, c.req.param('key'));
   const input = parse(operationsFlagSchema, await readJson(c));
   const saved = await withActor(c, async (tx) => {
     const [before] = await tx.select().from(operationsFlag).where(eq(operationsFlag.key, key));
-    const [row] = await tx
-      .update(operationsFlag)
-      .set({ enabled: input.enabled, reason: input.reason || null, updatedByUserId: c.var.user!.id, updatedAt: new Date() })
-      .where(eq(operationsFlag.key, key))
-      .returning();
+    const values = { enabled: input.enabled, reason: input.reason || null, updatedByUserId: c.var.user!.id, updatedAt: new Date() };
+    const [row] = before
+      ? await tx.update(operationsFlag).set(values).where(eq(operationsFlag.key, key)).returning()
+      : await tx.insert(operationsFlag).values({ key, ...values }).returning();
     if (!row) fail(404, 'NOT_FOUND', 'api.staff.switchNotFound');
+    const turned = key === 'selfie_required' ? (row.enabled ? 'operations.selfie_required' : 'operations.selfie_optional') : null;
     await audit(c, tx, {
-      action: row.enabled ? 'operations.paused' : 'operations.resumed',
+      action: turned ?? (row.enabled ? 'operations.paused' : 'operations.resumed'),
       entityType: 'operations_flag',
       entityId: key,
       reason: row.reason ?? undefined,

@@ -8,6 +8,7 @@ import { storageDeletion } from '../db/schema/operations.ts';
 import type { Db } from '../db/types.ts';
 import type { Bucket, Storage } from '../storage/storage.ts';
 import { log } from './log.ts';
+import { rows } from './profile-view.ts';
 
 export type CleanupResult = { deleted: number; failed: number };
 
@@ -30,6 +31,16 @@ export async function drainStorageDeletions({ db, storage }: { db: Db; storage: 
   }
   if (queued.length) log.info('storage.cleanup', { deleted, failed });
   return { deleted, failed };
+}
+
+/**
+ * Document photos chosen but never sent are deleted after DOCUMENT_DRAFT_HOURS (owner, 5 Nov 2026): the database queues
+ * their files (app.purge_expired_drafts), then the queue is drained. Run by storage.cleanup every 10 minutes.
+ */
+export async function purgeExpiredDrafts(deps: { db: Db; storage: Storage }): Promise<number> {
+  const purged = Number(rows<{ purged: number }>(await deps.db.execute(sql`select app.purge_expired_drafts() as purged`))[0]?.purged ?? 0);
+  if (purged) log.info('documents.drafts_expired', { purged });
+  return purged;
 }
 
 /** After a deletion has committed: a failure here never fails the member's request, the job retries it. */

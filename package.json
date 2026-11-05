@@ -27,7 +27,9 @@
     "test": "npm run test --workspaces --if-present && node --test scripts/text/*.test.mjs",
     "db:generate": "npm run db:generate -w @fh/api",
     "db:migrate": "npm run db:migrate -w @fh/api",
-    "db:studio": "npm run db:studio -w @fh/api"
+    "db:studio": "npm run db:studio -w @fh/api",
+    "sms:check": "npm run sms:check -w @fh/api",
+    "seed:dev": "npm run seed:dev -w @fh/api --"
   },
   "devDependencies": {
     "axe-core": "4.14.0",

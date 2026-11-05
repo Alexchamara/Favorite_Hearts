@@ -7,6 +7,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import {
+  DOCUMENT_SIDES,
   REPORT_STATUSES,
   reportDecisionSchema,
   VERIFICATION_STATUSES,
@@ -34,16 +35,21 @@ staff.get('/verification', async (c) => {
   return c.json({ cases: queue });
 });
 
-/** A short-lived link to the document image; audited. Gone once the 90-day purge has run. */
+/**
+ * A short-lived link to one photo of the document (?side=front, back or selfie; front by default); each look is
+ * audited with its side. Gone once the 90-day purge has run.
+ */
 staff.get('/verification/:id/document', async (c) => {
   const id = parse(z.uuid(), c.req.param('id'));
+  const side = parse(z.enum(DOCUMENT_SIDES).default('front'), c.req.query('side'));
   const { storage } = c.var.deps;
   const key = await withActor(c, async (tx) => {
     const [row] = await tx.select().from(verificationCase).where(eq(verificationCase.id, id));
     if (!row) fail(404, 'NOT_FOUND', 'api.staff.caseNotFound');
-    if (!row.evidenceKey) fail(410, 'DOCUMENT_DELETED', 'api.staff.documentDeleted');
-    await audit(c, tx, { action: 'verification.document_viewed', entityType: 'verification_case', entityId: id });
-    return row.evidenceKey;
+    const sideKey = side === 'front' ? row.evidenceKey : side === 'back' ? row.evidenceBackKey : row.selfieKey;
+    if (!sideKey) fail(410, 'DOCUMENT_DELETED', 'api.staff.documentDeleted');
+    await audit(c, tx, { action: 'verification.document_viewed', entityType: 'verification_case', entityId: id, metadata: { side } });
+    return sideKey;
   });
   return c.json({ url: await storage.signedGetUrl('private', key), expiresInSeconds: c.var.deps.config.signedUrlTtlSeconds });
 });

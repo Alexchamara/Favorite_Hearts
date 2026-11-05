@@ -12,6 +12,9 @@
 # Turnstile, the API and photo links that the website's policy above would block. Framing stays denied by X-Frame-Options.
 /app/*
   ! Content-Security-Policy
+  # Document photos can be taken with the computer's camera (owner, 5 Nov 2026); only the app's own pages may ask.
+  ! Permissions-Policy
+  Permissions-Policy: camera=(self), microphone=(), geolocation=(), payment=(), usb=()
   X-Robots-Tag: noindex, nofollow
 /app/assets/*
   Cache-Control: public, max-age=31536000, immutable

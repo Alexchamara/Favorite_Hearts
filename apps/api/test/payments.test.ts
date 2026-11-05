@@ -60,17 +60,10 @@ async function staffClient(email: string, role: 'owner' | 'backup_reviewer'): Pr
   return client;
 }
 
-function documentForm() {
-  const form = new FormData();
-  form.set('documentType', 'nic');
-  form.set('file', new File([new Uint8Array(image)], 'nic.jpg', { type: 'image/jpeg' }));
-  return form;
-}
-
 async function verifiedClient(email: string, name: string, phone = nextPhone()): Promise<Client> {
   const client = await t.client().signIn(email, name);
   ok(await client.verifyPhone(phone));
-  const submitted = ok(await client.post('/api/v1/verification', documentForm()), 201);
+  const submitted = ok(await client.sendDocument(), 201);
   ok(await reviewer.post(`/api/v1/staff/verification/${submitted.id}/decision`, { decision: 'approved' }));
   return client;
 }

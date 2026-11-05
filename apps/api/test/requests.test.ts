@@ -47,10 +47,7 @@ type Member = { client: Client; profileId: string };
 async function verifiedClient(email: string, name: string): Promise<Client> {
   const client = await t.client().signIn(email, name);
   ok(await client.verifyPhone(nextPhone()));
-  const form = new FormData();
-  form.set('documentType', 'nic');
-  form.set('file', new File([new Uint8Array(image)], 'nic.jpg', { type: 'image/jpeg' }));
-  const submitted = ok(await client.post('/api/v1/verification', form), 201);
+  const submitted = ok(await client.sendDocument(), 201);
   ok(await reviewer.post(`/api/v1/staff/verification/${submitted.id}/decision`, { decision: 'approved' }));
   return client;
 }

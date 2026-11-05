@@ -8,7 +8,7 @@ import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { renderSVG } from 'uqr';
-import type { StaffQueueItem, VerificationCaseView } from '@fh/shared';
+import type { DocumentSide, StaffQueueItem, VerificationCaseView } from '@fh/shared';
 import { CheckboxField, TextAreaField, TextField } from '@/components/form/fields';
 import { AppShell, Card, Loading, Notice, PageTitle } from '@/components/layout';
 import { useBotCheck } from '@/components/turnstile';
@@ -307,13 +307,32 @@ function ReviewQueue({ role }: { role: 'owner' | 'backup_reviewer' }) {
   );
 }
 
-function CaseDetail({ item }: { item: StaffQueueItem }) {
-  const [reason, setReason] = useState('');
+const sideNames: Record<DocumentSide, string> = { front: 'Front', back: 'Back', selfie: 'Selfie holding the document' };
+
+function DocumentSideView({ item, side }: { item: StaffQueueItem; side: DocumentSide }) {
   const [image, setImage] = useState<string | null>(null);
   const show = useMutation({
-    mutationFn: () => api<{ url: string }>(`/staff/verification/${item.id}/document`),
+    mutationFn: () => api<{ url: string }>(`/staff/verification/${item.id}/document?side=${side}`),
     onSuccess: (document) => setImage(document.url),
   });
+  const name = item.documentType === 'passport' && side === 'front' ? 'Photo page' : sideNames[side];
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-sm font-semibold">{name}</p>
+      {image ? (
+        <img src={image} alt={`${name} of the ${documentLabels[item.documentType]} submitted by ${item.subject.name || 'the member'}`} className="w-full rounded-[10px] border" />
+      ) : (
+        <Button variant="outline" className="h-11 self-start" disabled={show.isPending} onClick={() => show.mutate()}>
+          Show {name.toLowerCase()} (logged)
+        </Button>
+      )}
+      {show.isError && <Notice tone="error">{errorMessage(show.error)}</Notice>}
+    </div>
+  );
+}
+
+function CaseDetail({ item }: { item: StaffQueueItem }) {
+  const [reason, setReason] = useState('');
   const decide = useMutation({
     mutationFn: (decision: 'approved' | 'rejected') =>
       post(`/staff/verification/${item.id}/decision`, decision === 'approved' ? { decision } : { decision, reason }),
@@ -351,14 +370,14 @@ function CaseDetail({ item }: { item: StaffQueueItem }) {
       <div className="mt-5">
         {!item.evidenceAvailable ? (
           <Notice>The document was deleted under the 90-day rule. The decision is kept.</Notice>
-        ) : image ? (
-          <img src={image} alt={`${documentLabels[item.documentType]} submitted by ${subject.name || 'the member'}`} className="w-full rounded-[10px] border" />
         ) : (
-          <Button variant="outline" className="h-11" disabled={show.isPending} onClick={() => show.mutate()}>
-            Show the document (logged)
-          </Button>
+          // Each side is opened on its own, and each look is logged with its side (routes/staff.ts).
+          <div className="grid gap-4 sm:grid-cols-2">
+            {(item.sides ?? ['front']).map((side) => (
+              <DocumentSideView key={side} item={item} side={side} />
+            ))}
+          </div>
         )}
-        {show.isError && <Notice tone="error">{errorMessage(show.error)}</Notice>}
       </div>
       {item.status === 'pending' ? (
         <div className="mt-6 flex flex-col gap-4">

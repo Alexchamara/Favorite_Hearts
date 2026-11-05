@@ -83,6 +83,26 @@ export type DocumentType = (typeof DOCUMENT_TYPES)[number];
 export const VERIFICATION_STATUSES = ['pending', 'approved', 'rejected'] as const;
 /** §8: documents are deleted 90 days after the decision. */
 export const DOCUMENT_RETENTION_DAYS = 90;
+/**
+ * The photos a submission is made of (owner, 5 Nov 2026): the front and back of an NIC or driving licence, a passport's
+ * photo (bio-data) page as its front, and, while the owner requires it, a selfie holding the document.
+ */
+export const DOCUMENT_SIDES = ['front', 'back', 'selfie'] as const;
+export type DocumentSide = (typeof DOCUMENT_SIDES)[number];
+export const DOCUMENT_PAGES: Record<DocumentType, readonly Exclude<DocumentSide, 'selfie'>[]> = {
+  nic: ['front', 'back'],
+  passport: ['front'],
+  driving_licence: ['front', 'back'],
+};
+/** The sides a submission of `type` needs. */
+export const requiredSides = (type: DocumentType, selfieRequired: boolean): DocumentSide[] => [
+  ...DOCUMENT_PAGES[type],
+  ...(selfieRequired ? (['selfie'] as const) : []),
+];
+/** Photos chosen but not yet sent for review are deleted after this long (owner, 5 Nov 2026). */
+export const DOCUMENT_DRAFT_HOURS = 24;
+/** The QR code's link for adding photos from a phone works this long (owner, 5 Nov 2026). */
+export const UPLOAD_LINK_MINUTES = 15;
 
 // --- Requests, connections and safety --------------------------------------
 
@@ -122,5 +142,8 @@ export const ENTITLEMENT_KINDS = ['grant', 'replace', 'forfeit', 'refund', 'revo
 
 export const NOTIFICATION_CHANNELS = ['email', 'sms'] as const;
 export const NOTIFICATION_STATUSES = ['queued', 'sending', 'sent', 'failed', 'cancelled'] as const;
-/** §10: the owner can pause new signups or document submissions when the queue is overwhelmed. */
-export const OPERATIONS_FLAGS = ['signups_paused', 'document_submissions_paused'] as const;
+/**
+ * §10: the owner can pause new signups or document submissions when the queue is overwhelmed, and choose whether a
+ * document submission must include a selfie holding the document (owner, 5 Nov 2026).
+ */
+export const OPERATIONS_FLAGS = ['signups_paused', 'document_submissions_paused', 'selfie_required'] as const;

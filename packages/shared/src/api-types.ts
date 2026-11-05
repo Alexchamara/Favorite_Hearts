@@ -8,6 +8,7 @@ import type {
   CONTACT_PERSONS,
   CURRENCIES,
   DOCUMENT_TYPES,
+  DocumentSide,
   ENTITLEMENT_KINDS,
   INTEREST_STATUSES,
   INVITATION_CHANNELS,
@@ -126,8 +127,26 @@ export type VerificationCaseView = {
   decisionReason: string | null;
 };
 
+/** A document photo chosen but not yet sent for review; only its uploader sees it, until it is sent or expires. */
+export type VerificationDraftView = { id: string; side: DocumentSide; via: 'device' | 'phone'; createdAt: ApiDate; expiresAt: ApiDate };
+
+export type VerificationDraftsView = {
+  drafts: VerificationDraftView[];
+  /** The phone link (QR code) that is open now, if any. */
+  phoneLink: { expiresAt: ApiDate } | null;
+  selfieRequired: boolean;
+};
+
+/** A new phone link: `url` is what the QR code shows (its token is never stored by us). */
+export type PhoneLinkView = { url: string; expiresAt: ApiDate };
+
+/** What the phone page may know: when its link ends and which photos are in, never who the member is. */
+export type PhoneUploadStatus = { expiresAt: ApiDate; selfieRequired: boolean; uploaded: DocumentSide[] };
+
 export type StaffQueueItem = VerificationCaseView & {
   evidenceAvailable: boolean;
+  /** The photos of this submission, each shown on its own audited request. */
+  sides: DocumentSide[];
   subject: {
     name: string | null;
     email: string | null;
@@ -456,7 +475,7 @@ export type OwnerProfilePlan = {
 // --- Safety: service switches, deletion and export (Stage 5a) -----------------------------------------------
 
 /** Public: whether the owner has paused new sign-ups or document submissions (section 10). */
-export type ServiceStatus = { signupsPaused: boolean; documentSubmissionsPaused: boolean };
+export type ServiceStatus = { signupsPaused: boolean; documentSubmissionsPaused: boolean; selfieRequired: boolean };
 
 export type OperationsFlagView = {
   key: (typeof OPERATIONS_FLAGS)[number];

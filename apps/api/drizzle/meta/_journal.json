@@ -92,6 +92,20 @@
       "when": 1793867904725,
       "tag": "0012_height_decimal",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793871739333,
+      "tag": "0013_document_sides",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793871793254,
+      "tag": "0014_document_side_rules",
+      "breakpoints": true
     }
   ]
 }

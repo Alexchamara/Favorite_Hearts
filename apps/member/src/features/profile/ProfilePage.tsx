@@ -23,6 +23,7 @@ import { useLabels } from './options';
 import { say, useI18n, type Translate } from '@/lib/i18n';
 import { PeoplePanel } from './PeoplePanel';
 import { PhotosPanel } from './PhotosPanel';
+import { inSetup, NextStep, SetupGuide, type SetupTab } from './SetupSteps';
 import { DeleteProfileCard, EngagedCard, PlanCard } from './StandingCards';
 
 export default function ProfilePage() {
@@ -62,12 +63,23 @@ function ProfileScreen({ profile }: { profile: ProfileView }) {
   const current = tab === 'people' && !showPeople ? 'overview' : tab;
   const { t } = useI18n();
   const { relationshipLabels, statusLabels } = useLabels();
+  const setup = inSetup(profile);
+  /** Opens a tab from the setup guide or a "continue" button: back to the top of the tabs, focus in the new panel. */
+  const goTo = (next: SetupTab) => {
+    setTab(next);
+    requestAnimationFrame(() => {
+      const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      document.getElementById('profile-tabs')?.scrollIntoView({ block: 'start', behavior: reduce ? 'auto' : 'smooth' });
+      document.querySelector<HTMLElement>(`[role="tabpanel"][data-state="active"]`)?.focus({ preventScroll: true });
+    });
+  };
   return (
     <>
       <PageTitle kicker={roleLine(t, relationshipLabels, profile)} title={profile.fields.displayName ?? t('card.untitled')}>
         <span className="inline-flex rounded-full border px-3 py-1 text-xs font-semibold text-foreground">{statusLabels[profile.status]}</span>
       </PageTitle>
-      <Tabs value={current} onValueChange={setTab} className="gap-6">
+      {setup && <SetupGuide profile={profile} onOpen={goTo} />}
+      <Tabs id="profile-tabs" value={current} onValueChange={setTab} className="scroll-mt-6 gap-6">
         <TabsList className="h-auto w-full flex-wrap justify-start gap-1 bg-[var(--ui-soft)] p-1">
           <TabsTrigger value="overview" className="min-h-10 flex-none px-4">
             {t('profile.tab.overview')}
@@ -97,16 +109,22 @@ function ProfileScreen({ profile }: { profile: ProfileView }) {
           )}
         </TabsList>
         <TabsContent value="overview">
-          <Overview profile={profile} onOpenPlans={() => setTab('plan')} />
+          <Overview profile={profile} onOpenPlans={() => setTab('plan')} onOpen={goTo} />
         </TabsContent>
         <TabsContent value="details">
-          <DetailsForm profile={profile} />
+          <DetailsForm profile={profile} onDone={setup ? () => goTo('photos') : undefined} />
         </TabsContent>
         <TabsContent value="photos">
-          <PhotosPanel profile={profile} />
+          <div className="flex flex-col gap-6">
+            <PhotosPanel profile={profile} />
+            <NextStep profile={profile} after="photos" onOpen={goTo} />
+          </div>
         </TabsContent>
         <TabsContent value="contacts">
-          <ContactsPanel profile={profile} />
+          <div className="flex flex-col gap-6">
+            <ContactsPanel profile={profile} />
+            <NextStep profile={profile} after="contacts" onOpen={goTo} />
+          </div>
         </TabsContent>
         <TabsContent value="requests">
           <RequestsPanel profile={profile} />
@@ -127,7 +145,7 @@ function ProfileScreen({ profile }: { profile: ProfileView }) {
   );
 }
 
-function Overview({ profile, onOpenPlans }: { profile: ProfileView; onOpenPlans: () => void }) {
+function Overview({ profile, onOpenPlans, onOpen }: { profile: ProfileView; onOpenPlans: () => void; onOpen: (tab: SetupTab) => void }) {
   const publish = useMutation({
     mutationFn: () => post<ProfileView>(`/profiles/${profile.id}/publish`),
     onSuccess: async (updated) => {
@@ -179,8 +197,13 @@ function Overview({ profile, onOpenPlans }: { profile: ProfileView; onOpenPlans:
           <div className="mt-4">
             <p className="text-sm font-semibold">{t('profile.stillNeeded')}</p>
             <ul className="mt-1 list-disc pl-5 text-sm text-muted-foreground">
+              {/* Each missing detail opens the tab where it is filled in. */}
               {profile.missing.map((key) => (
-                <li key={key}>{fieldLabels[key] ?? key}</li>
+                <li key={key}>
+                  <button type="button" className="text-left underline underline-offset-4 hover:text-foreground" onClick={() => onOpen(key === 'contactPhone' ? 'contacts' : 'details')}>
+                    {fieldLabels[key] ?? key}
+                  </button>
+                </li>
               ))}
             </ul>
           </div>

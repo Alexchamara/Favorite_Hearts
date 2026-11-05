@@ -49,6 +49,14 @@ nothing is pre-filled. To try the Turnstile widget too, start it with Cloudflare
 `VITE_TURNSTILE_SITE_KEY=1x00000000000000000000AA` for the member app. The API is not reloaded on code changes:
 restart the sandbox after pulling.
 
+Test data in your development database (Neon dev, never production): `npm run seed:dev -- --inbox you@gmail.com` adds
+ten synthetic candidates and a family manager. Each uses a plus-address of that inbox (you+fh-seed-amaya@gmail.com …),
+so every sign-in code arrives there. They cover published members with and without plans, one abroad, one managed by
+her mother (sign in as Sunethra), a half-filled draft (Dilan), a document waiting for review with sample photos
+(Hiruni), a rejected one (Sahan), a reported profile (Tharushi) and a paused one (Chamod). Running it again changes
+nothing. Staff accounts: `npm run staff -w @fh/api -- add --email you@example.com --name "Your Name" --role owner`,
+then sign in at `/app/staff`.
+
 One deployable folder for static hosting: `npm run build:site` → `dist/site/`
 (website at `/`, member app at `/app/`). The build ends with the site check (`npm run check:site`), which fails on SEO
 mistakes such as a repeated title, a wrong canonical link, a broken link or a sitemap that misses a page. Preview it with `npm run preview:site` (http://localhost:8080): it applies

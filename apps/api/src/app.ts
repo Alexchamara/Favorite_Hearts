@@ -22,7 +22,7 @@ import { reports } from './routes/reports.ts';
 import { connections, interests, profileRequests } from './routes/requests.ts';
 import { serviceStatus } from './routes/service-status.ts';
 import { staff } from './routes/staff.ts';
-import { verification } from './routes/verification.ts';
+import { verification, verificationLink } from './routes/verification.ts';
 
 type Answer = [status: 400 | 403 | 404 | 409 | 429, code: string, message: Say];
 
@@ -164,6 +164,8 @@ export function createApp(deps: Deps) {
   const upload = bodyLimit({ maxSize: 6 * 1024 * 1024 });
   const isUpload = (path: string) =>
     path === '/api/v1/verification' ||
+    path === '/api/v1/verification/drafts' ||
+    path === '/api/v1/verification-link/drafts' ||
     /^\/api\/v1\/profiles\/[^/]+\/photos$/.test(path) ||
     /^\/api\/v1\/payments\/[^/]+\/proof$/.test(path);
   app.use('/api/*', (c, next) => (c.req.method === 'POST' && isUpload(c.req.path) ? upload : small)(c, next));
@@ -201,6 +203,8 @@ export function createApp(deps: Deps) {
     .route('/reports', reports)
     .route('/invitations', invitations)
     .route('/verification', verification)
+    // The phone page of a QR code: a link token, no session (routes/verification.ts).
+    .route('/verification-link', verificationLink)
     .route('/staff', staff)
     .route('/owner', owner);
   app.route('/api/v1', v1);
