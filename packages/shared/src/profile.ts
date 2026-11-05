@@ -78,7 +78,7 @@ export const profileFieldsSchema = z
     education: text(1, 200),
     heightCm: z
       .number({ error: 'validation.heightNumber' })
-      .int('validation.heightWhole')
+      .refine((height) => Number.isInteger(Math.round(height * 10)) && Math.abs(height * 10 - Math.round(height * 10)) < 1e-6, 'validation.heightWhole')
       .min(MIN_HEIGHT_CM, 'validation.heightRange')
       .max(MAX_HEIGHT_CM, 'validation.heightRange'),
     maritalStatus: choice(MARITAL_STATUSES),

@@ -1,0 +1,1 @@
+ALTER TABLE "profile" ALTER COLUMN "height_cm" SET DATA TYPE numeric(4, 1);

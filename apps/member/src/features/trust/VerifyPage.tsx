@@ -8,7 +8,7 @@ import { useMutation } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
 import { normalizePhone, type DocumentType, type VerificationCaseView } from '@fh/shared';
-import { SelectField, TextField } from '@/components/form/fields';
+import { PhoneField, SelectField, TextField } from '@/components/form/fields';
 import { AppShell, Card, Loading, Notice, PageTitle } from '@/components/layout';
 import { useBotCheck } from '@/components/turnstile';
 import { Button } from '@/components/ui/button';
@@ -97,7 +97,7 @@ function PhoneCheck() {
           {error && <Notice tone="error">{error}</Notice>}
           {!sentTo ? (
             <form onSubmit={send} className="flex flex-col gap-4">
-              <TextField label={t('signIn.mobile')} type="tel" autoComplete="tel" placeholder="+94 77 123 4567" value={phone} onChange={setPhone} />
+              <PhoneField label={t('signIn.mobile')} value={phone} onChange={setPhone} />
               {bot.widget}
               <Button type="submit" className="h-11 self-start" disabled={busy || !phone.trim() || !bot.ready}>
                 {busy ? t('signIn.sending') : t('verify.phone.send')}

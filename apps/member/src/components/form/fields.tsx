@@ -2,7 +2,12 @@
  * Form controls in the demo's style (46px fields, 10px radius, labels above). Every control has a
  * visible label, an optional hint, and an error announced to screen readers.
  */
-import { useId, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
+import { DEFAULT_PHONE_COUNTRY, DIAL_CODES, formatNational, joinPhone, nationalDigits, splitPhone } from '@fh/shared';
+import { ChevronDown } from 'lucide-react';
+import 'flag-icons/css/flag-icons.min.css';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useCountries } from '@/features/profile/options';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
@@ -43,7 +48,7 @@ export function TextField({
   onChange,
   type = 'text',
   ...props
-}: Common & { value: string; onChange: (value: string) => void; type?: string; placeholder?: string; autoComplete?: string; inputMode?: 'text' | 'numeric' | 'email' | 'tel'; maxLength?: number; min?: number; max?: number }) {
+}: Common & { value: string; onChange: (value: string) => void; type?: string; placeholder?: string; autoComplete?: string; inputMode?: 'text' | 'numeric' | 'decimal' | 'email' | 'tel'; maxLength?: number; min?: number; max?: number; step?: string }) {
   const { label, hint, error, className, ...input } = props;
   return (
     <Field label={label} hint={hint} error={error} className={className}>
@@ -58,6 +63,98 @@ export function TextField({
           className={control}
           {...input}
         />
+      )}
+    </Field>
+  );
+}
+
+/** A country's flag, from the bundled flag-icons set; decorative, the name is always beside it. */
+const Flag = ({ code }: { code: string }) => <span aria-hidden="true" className={`fi fi-${code.toLowerCase()} shrink-0 rounded-[2px]`} />;
+
+/**
+ * A phone number: a country dropdown (flag, name and code, with search) and the number typed in groups
+ * ("70 593 4920"). The value it hands up is the full international number ("+94705934920"), or '' while nothing
+ * is typed.
+ */
+export function PhoneField({ value, onChange, ...props }: Common & { value: string; onChange: (value: string) => void; autoComplete?: string }) {
+  const { label, hint, error, className, disabled } = props;
+  const { t } = useI18n();
+  const countries = useCountries().filter(({ code }) => DIAL_CODES[code]);
+  const [country, setCountry] = useState(() => splitPhone(value)?.country ?? DEFAULT_PHONE_COUNTRY);
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const code = DIAL_CODES[country] ?? '';
+  const digits = value.startsWith(`+${code}`) ? value.slice(code.length + 1) : '';
+  const needle = search.trim().toLowerCase().replace(/^\+/, '');
+  const shown = needle ? countries.filter((option) => option.name.toLowerCase().includes(needle) || DIAL_CODES[option.code]!.startsWith(needle)) : countries;
+  const choose = (next: string) => {
+    setCountry(next);
+    onChange(joinPhone(next, digits));
+    setOpen(false);
+  };
+  return (
+    <Field label={label} hint={hint} error={error} className={className}>
+      {(id, describedBy) => (
+        <div className="flex gap-2">
+          <Popover
+            open={open}
+            onOpenChange={(next) => {
+              setOpen(next);
+              if (!next) setSearch('');
+            }}
+          >
+            <PopoverTrigger
+              type="button"
+              disabled={disabled}
+              aria-label={`${t('fields.phoneCountry')}: ${countries.find((option) => option.code === country)?.name ?? ''} +${code}`}
+              className={cn(control, 'flex w-[6.5rem] shrink-0 items-center gap-2 px-3 text-left')}
+            >
+              <Flag code={country} />
+              <span>+{code}</span>
+              <ChevronDown aria-hidden="true" className="ml-auto size-4 text-muted-foreground" />
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-[min(20rem,calc(100vw-2rem))] p-0">
+              <input
+                type="search"
+                autoFocus
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder={t('fields.phoneSearch')}
+                aria-label={t('fields.phoneSearch')}
+                className="block w-full rounded-t-md border-b bg-transparent px-3 py-2.5 text-sm outline-hidden"
+              />
+              <ul role="listbox" aria-label={t('fields.phoneCountry')} className="max-h-64 overflow-y-auto py-1">
+                {shown.map((option) => (
+                  <li key={option.code} role="option" aria-selected={option.code === country}>
+                    <button
+                      type="button"
+                      onClick={() => choose(option.code)}
+                      className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-[var(--ui-soft)] aria-selected:font-semibold"
+                      aria-selected={option.code === country}
+                    >
+                      <Flag code={option.code} />
+                      <span className="min-w-0 flex-1 truncate">{option.name}</span>
+                      <span className="text-muted-foreground">+{DIAL_CODES[option.code]}</span>
+                    </button>
+                  </li>
+                ))}
+                {shown.length === 0 && <li className="px-3 py-2 text-sm text-muted-foreground">{t('fields.phoneNone')}</li>}
+              </ul>
+            </PopoverContent>
+          </Popover>
+          <input
+            id={id}
+            type="tel"
+            inputMode="tel"
+            autoComplete={props.autoComplete ?? 'tel-national'}
+            disabled={disabled}
+            value={formatNational(digits)}
+            onChange={(event) => onChange(joinPhone(country, nationalDigits(country, event.target.value)))}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={describedBy}
+            className={control}
+          />
+        </div>
       )}
     </Field>
   );

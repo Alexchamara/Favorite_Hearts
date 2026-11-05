@@ -85,6 +85,13 @@
       "when": 1793332334392,
       "tag": "0011_safety_rules",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793867904725,
+      "tag": "0012_height_decimal",
+      "breakpoints": true
     }
   ]
 }

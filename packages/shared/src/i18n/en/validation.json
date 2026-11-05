@@ -17,7 +17,7 @@
   "validation.ageRange": "Enter an age between {minAge} and {maxAge}.",
   "validation.ageOrder": "The highest age must be at least the lowest.",
   "validation.heightNumber": "Enter the height in centimetres.",
-  "validation.heightWhole": "Enter whole centimetres.",
+  "validation.heightWhole": "Use at most one decimal place, for example 172.5.",
   "validation.heightRange": "Enter a height between {minHeightCm} and {maxHeightCm} cm.",
   "validation.heightOrder": "The greatest height must be at least the smallest.",
   "validation.candidateAge": "The candidate must be between {minAge} and {maxAge}.",

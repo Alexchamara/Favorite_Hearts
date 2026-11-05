@@ -3,6 +3,7 @@
 export * from './api-types.ts';
 export * from './billing.ts';
 export * from './contact.ts';
+export * from './dial-codes.ts';
 export * from './domain.ts';
 export * from './login-channels.ts';
 export * from './profile.ts';

@@ -137,7 +137,7 @@ function Essentials({ profile }: { profile: ProfileView }) {
         <TextField label={t('details.region')} maxLength={80} value={f.text('region')} onChange={f.set('region')} error={f.errors.region} />
       )}
       <TextField label={t('details.city')} maxLength={80} value={f.text('city')} onChange={f.set('city')} error={f.errors.city} />
-      <TextField label={t('details.height')} type="number" inputMode="numeric" min={100} max={230} value={f.text('heightCm')} onChange={f.set('heightCm')} error={f.errors.heightCm} />
+      <TextField label={t('details.height')} type="number" inputMode="decimal" step="0.1" min={100} max={230} value={f.text('heightCm')} onChange={f.set('heightCm')} error={f.errors.heightCm} />
       <TextField label={t('details.occupation')} maxLength={100} value={f.text('occupation')} onChange={f.set('occupation')} error={f.errors.occupation} />
       <TextField label={t('details.education')} maxLength={200} value={f.text('education')} onChange={f.set('education')} error={f.errors.education} />
       <SelectField label={t('details.religion')} value={f.text('religion')} onChange={f.set('religion')} options={options(religionLabels)} error={f.errors.religion} />

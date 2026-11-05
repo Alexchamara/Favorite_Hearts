@@ -8,7 +8,7 @@ import { useMutation } from '@tanstack/react-query';
 import { Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { contactSchema, type ContactInput, type ContactView, type ProfileView } from '@fh/shared';
-import { SelectField, TextField } from '@/components/form/fields';
+import { PhoneField, SelectField, TextField } from '@/components/form/fields';
 import { Card, Notice } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -148,20 +148,38 @@ function AddContact({ profile }: { profile: ProfileView }) {
             ]}
           />
         )}
-        <SelectField label={t('contacts.add.type')} value={kind} onChange={(next) => next && setKind(next)} options={options(contactKindLabels)} />
+        <SelectField
+          label={t('contacts.add.type')}
+          value={kind}
+          onChange={(next) => {
+            if (!next) return;
+            setKind(next);
+            setValue('');
+          }}
+          options={options(contactKindLabels)}
+        />
         {kind === 'social' && (
           <SelectField label={t('contacts.add.platform')} value={platform} onChange={setPlatform} options={options(platformLabels)} error={errors.platform} />
         )}
-        <TextField
-          className="sm:col-span-2"
-          label={t(kind === 'phone' ? 'contacts.add.phone' : kind === 'email' ? 'contacts.add.email' : 'contacts.add.social')}
-          type={kind === 'email' ? 'email' : kind === 'phone' ? 'tel' : 'text'}
-          placeholder={kind === 'phone' ? '+94 77 123 4567' : undefined}
-          value={value}
-          onChange={setValue}
-          error={errors.value}
-          hint={person === 'candidate' && profile.me.role === 'manager' && kind === 'phone' ? t('contacts.add.phoneHint') : undefined}
-        />
+        {kind === 'phone' ? (
+          <PhoneField
+            className="sm:col-span-2"
+            label={t('contacts.add.phone')}
+            value={value}
+            onChange={setValue}
+            error={errors.value}
+            hint={person === 'candidate' && profile.me.role === 'manager' ? t('contacts.add.phoneHint') : undefined}
+          />
+        ) : (
+          <TextField
+            className="sm:col-span-2"
+            label={t(kind === 'email' ? 'contacts.add.email' : 'contacts.add.social')}
+            type={kind === 'email' ? 'email' : 'text'}
+            value={value}
+            onChange={setValue}
+            error={errors.value}
+          />
+        )}
         <div className="sm:col-span-2">
           <Button type="submit" className="h-11" disabled={add.isPending || !value.trim()}>
             {add.isPending ? t('contacts.add.adding') : t('contacts.add.submit')}

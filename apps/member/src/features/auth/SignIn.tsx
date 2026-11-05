@@ -5,7 +5,7 @@
  */
 import { useState, type FormEvent } from 'react';
 import type { LoginChannel } from '@fh/shared';
-import { TextField } from '@/components/form/fields';
+import { PhoneField, TextField } from '@/components/form/fields';
 import { Notice } from '@/components/layout';
 import { useBotCheck } from '@/components/turnstile';
 import { Button } from '@/components/ui/button';
@@ -86,7 +86,10 @@ export function SignIn({ onSignedIn, intro }: { onSignedIn?: () => void; intro?:
                   type="button"
                   role="radio"
                   aria-checked={channel === option}
-                  onClick={() => setChannel(option)}
+                  onClick={() => {
+                    setChannel(option);
+                    setContact('');
+                  }}
                   className="min-h-11 flex-1 rounded-[10px] border text-sm font-semibold aria-checked:border-primary aria-checked:bg-primary aria-checked:text-primary-foreground"
                 >
                   {t(option === 'email' ? 'signIn.channel.email' : 'signIn.channel.sms')}
@@ -94,15 +97,11 @@ export function SignIn({ onSignedIn, intro }: { onSignedIn?: () => void; intro?:
               ))}
             </div>
           )}
-          <TextField
-            label={t(channel === 'email' ? 'signIn.email' : 'signIn.mobile')}
-            type={channel === 'email' ? 'email' : 'tel'}
-            inputMode={channel === 'email' ? 'email' : 'tel'}
-            autoComplete={channel === 'email' ? 'email' : 'tel'}
-            placeholder={channel === 'email' ? 'you@example.com' : '+94 77 123 4567'}
-            value={contact}
-            onChange={setContact}
-          />
+          {channel === 'email' ? (
+            <TextField label={t('signIn.email')} type="email" inputMode="email" autoComplete="email" placeholder="you@example.com" value={contact} onChange={setContact} />
+          ) : (
+            <PhoneField label={t('signIn.mobile')} value={contact} onChange={setContact} />
+          )}
           {bot.widget}
           <Button type="submit" className="h-11" disabled={busy || !contact.trim() || !bot.ready}>
             {busy ? t('signIn.sending') : t('signIn.send')}

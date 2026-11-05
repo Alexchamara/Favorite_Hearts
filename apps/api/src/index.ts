@@ -3,6 +3,7 @@ import type PgBoss from 'pg-boss';
 import { createApp } from './app.ts';
 import { createAuth } from './auth.ts';
 import { createDb } from './db/client.ts';
+import { appliedMigrations, EXPECTED_MIGRATIONS } from './db/migrations.ts';
 import { configFromEnv, env } from './env.ts';
 import type { Deps } from './http.ts';
 import { startJobs } from './jobs/boss.ts';
@@ -35,6 +36,13 @@ const app = createApp(deps);
 
 const server = serve({ fetch: app.fetch, port: env.PORT }, (info) => {
   log.info('api.listening', { port: info.port, env: env.NODE_ENV });
+});
+
+// A database behind the code answers every /api request with a 500 (the newer tables are missing): say so at once.
+void appliedMigrations(db).then((applied) => {
+  if (applied !== null && applied < EXPECTED_MIGRATIONS) {
+    log.error('db.migrations_behind', { applied, expected: EXPECTED_MIGRATIONS, fix: 'npm run db:migrate' });
+  }
 });
 
 let boss: PgBoss | null = null;

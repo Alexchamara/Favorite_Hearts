@@ -17,7 +17,7 @@
   "validation.ageRange": "{minAge} සහ {maxAge} අතර වයසක් ඇතුළත් කරන්න.",
   "validation.ageOrder": "ඉහළම වයස අවම වශයෙන් අඩුම වයසට සමාන විය යුතුය.",
   "validation.heightNumber": "උස සෙන්ටිමීටරවලින් ඇතුළත් කරන්න.",
-  "validation.heightWhole": "සම්පූර්ණ සෙන්ටිමීටර ඇතුළත් කරන්න.",
+  "validation.heightWhole": "දශම ස්ථානයක් දක්වා පමණක් භාවිත කරන්න, උදා: 172.5.",
   "validation.heightRange": "සෙ.මී. {minHeightCm} සහ {maxHeightCm} අතර උසක් ඇතුළත් කරන්න.",
   "validation.heightOrder": "වැඩිම උස අවම වශයෙන් අඩුම උසට සමාන විය යුතුය.",
   "validation.candidateAge": "අපේක්ෂකයාගේ වයස {minAge} සහ {maxAge} අතර විය යුතුය.",

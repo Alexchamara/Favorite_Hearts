@@ -71,8 +71,8 @@ export default function BrowsePage() {
               <TextField label={t('browse.ageTo')} type="number" inputMode="numeric" min={18} max={100} value={draft.ageMax} onChange={set('ageMax')} error={error?.fields.ageMax} />
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <TextField label={t('browse.heightFrom')} type="number" inputMode="numeric" min={100} max={230} value={draft.heightMin} onChange={set('heightMin')} error={error?.fields.heightMin} />
-              <TextField label={t('browse.heightTo')} type="number" inputMode="numeric" min={100} max={230} value={draft.heightMax} onChange={set('heightMax')} error={error?.fields.heightMax} />
+              <TextField label={t('browse.heightFrom')} type="number" inputMode="decimal" step="0.1" min={100} max={230} value={draft.heightMin} onChange={set('heightMin')} error={error?.fields.heightMin} />
+              <TextField label={t('browse.heightTo')} type="number" inputMode="decimal" step="0.1" min={100} max={230} value={draft.heightMax} onChange={set('heightMax')} error={error?.fields.heightMax} />
             </div>
             <SelectField label={t('details.religion')} value={draft.religion} onChange={set('religion')} options={options(religionLabels)} placeholder={any} />
             <SelectField label={t('details.marital')} value={draft.maritalStatus} onChange={set('maritalStatus')} options={options(maritalLabels)} placeholder={any} />

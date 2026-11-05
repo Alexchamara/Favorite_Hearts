@@ -7,7 +7,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import type { InvitationSent, ProfileView } from '@fh/shared';
-import { SelectField, TextField } from '@/components/form/fields';
+import { PhoneField, SelectField, TextField } from '@/components/form/fields';
 import { Card, Notice } from '@/components/layout';
 import { Confirm } from '@/components/confirm';
 import { Button } from '@/components/ui/button';
@@ -154,19 +154,22 @@ function InviteForm({ profile }: { profile: ProfileView }) {
         <SelectField
           label={t('inviteForm.sendBy')}
           value={channel}
-          onChange={(next) => next && setChannel(next)}
+          onChange={(next) => {
+            if (!next) return;
+            setChannel(next);
+            setContact('');
+          }}
           options={[
             { value: 'email', label: t('signIn.channel.email') },
             ...(sms ? [{ value: 'phone' as const, label: t('inviteForm.sms') }] : []),
           ]}
           hint={sms ? undefined : t('inviteForm.smsUnavailable')}
         />
-        <TextField
-          label={t(channel === 'email' ? 'inviteForm.candidateEmail' : 'inviteForm.candidateMobile')}
-          type={channel === 'email' ? 'email' : 'tel'}
-          value={contact}
-          onChange={setContact}
-        />
+        {channel === 'email' ? (
+          <TextField label={t('inviteForm.candidateEmail')} type="email" value={contact} onChange={setContact} />
+        ) : (
+          <PhoneField label={t('inviteForm.candidateMobile')} value={contact} onChange={setContact} />
+        )}
         <div className="sm:col-span-2">
           <Button type="submit" className="h-11" disabled={invite.isPending || !contact.trim()}>
             {invite.isPending ? t('signIn.sending') : t('inviteForm.submit')}

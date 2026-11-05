@@ -13,6 +13,7 @@ export const SHARING_POLICY_VERSION = 'sharing-v1';
 export const DISCOVER_PAGE_SIZE = 20;
 
 const uuid = (message: string) => z.uuid({ error: message });
+const decimal = (min: number, max: number, message: string) => z.coerce.number({ error: message }).min(min, message).max(max, message);
 const whole = (min: number, max: number, message: string) => z.coerce.number({ error: message }).int(message).min(min, message).max(max, message);
 
 /** Discovery filters, read from the query string. All optional. */
@@ -24,8 +25,8 @@ export const discoverQuerySchema = z
     countryCode: z.string().regex(/^[A-Z]{2}$/, 'validation.country').optional(),
     religion: z.enum(RELIGIONS, { error: 'validation.chooseOption' }).optional(),
     maritalStatus: z.enum(MARITAL_STATUSES, { error: 'validation.chooseOption' }).optional(),
-    heightMin: whole(MIN_HEIGHT_CM, MAX_HEIGHT_CM, 'validation.heightRange').optional(),
-    heightMax: whole(MIN_HEIGHT_CM, MAX_HEIGHT_CM, 'validation.heightRange').optional(),
+    heightMin: decimal(MIN_HEIGHT_CM, MAX_HEIGHT_CM, 'validation.heightRange').optional(),
+    heightMax: decimal(MIN_HEIGHT_CM, MAX_HEIGHT_CM, 'validation.heightRange').optional(),
     caste: z.string().trim().min(1).max(80).optional(),
     cursor: z.string().max(200).optional(),
   })

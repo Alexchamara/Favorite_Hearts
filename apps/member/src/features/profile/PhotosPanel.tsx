@@ -27,14 +27,21 @@ export function PhotosPanel({ profile }: { profile: ProfileView }) {
     ]);
   const onError = (error: unknown) => toast.error(errorMessage(error));
   const upload = useMutation({
-    mutationFn: (file: File) => {
-      const form = new FormData();
-      form.set('file', file);
-      return post(`/profiles/${profile.id}/photos`, form);
-    },
-    onSuccess: async () => {
-      toast.success(say('photos.added'));
-      await refresh();
+    mutationFn: async (files: File[]) => {
+      let added = 0;
+      try {
+        for (const file of files) {
+          const form = new FormData();
+          form.set('file', file);
+          await post(`/profiles/${profile.id}/photos`, form);
+          added += 1;
+        }
+      } finally {
+        if (added) {
+          toast.success(say('photos.added'));
+          await refresh();
+        }
+      }
     },
     onError,
     onSettled: () => {
@@ -50,6 +57,7 @@ export function PhotosPanel({ profile }: { profile: ProfileView }) {
   });
   const canEdit = profile.me.canEdit;
   const list = photos.data ?? [];
+  const room = MAX_PHOTOS - list.length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -107,10 +115,12 @@ export function PhotosPanel({ profile }: { profile: ProfileView }) {
               id="photo-upload"
               type="file"
               accept="image/jpeg,image/png,image/webp"
+              multiple
               className="sr-only"
               onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) upload.mutate(file);
+                const files = Array.from(event.target.files ?? []);
+                if (files.length > room) toast.error(say('photos.tooMany', { count: room }));
+                if (room > 0 && files.length) upload.mutate(files.slice(0, room));
               }}
             />
             <Button asChild variant="outline" className="h-11">

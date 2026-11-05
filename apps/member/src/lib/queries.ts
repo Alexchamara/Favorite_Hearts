@@ -65,10 +65,16 @@ export function refreshRelations() {
 
 export type Health = { ok: boolean; database: boolean; email: boolean; sms: boolean; storage: boolean };
 
-/** The signed-in account, or null when signed out. */
+/**
+ * The signed-in account, or null when signed out. Every screen waits for it, so an answer from the server, even an
+ * error, is final: only a request that never arrived (a network blip) is tried once more. The sign-in page then
+ * shows at once, with a notice, instead of after several slow retries.
+ */
 export function useMe() {
   return useQuery({
     queryKey: keys.me,
+    retry: (count, error) => count < 1 && !(error instanceof ApiError),
+    retryDelay: 300,
     queryFn: async () => {
       try {
         return await api<MeView>('/me');
@@ -232,7 +238,8 @@ export function useOwnerProfilePlan(profileId: string) {
 
 /** Whether the owner has paused new sign-ups or document submissions (section 10). */
 export function useServiceStatus() {
-  return useQuery({ queryKey: keys.serviceStatus, queryFn: () => api<ServiceStatus>('/service-status'), staleTime: 60_000 });
+  // Only a notice on the sign-in page: never retried, so it cannot hold anything up.
+  return useQuery({ queryKey: keys.serviceStatus, queryFn: () => api<ServiceStatus>('/service-status'), staleTime: 60_000, retry: false });
 }
 
 export function useOwnerOperations() {

@@ -31,6 +31,11 @@ export default function Home() {
           <PageTitle kicker={t('home.kicker')} title={t('home.title')}>
             {t('home.intro')}
           </PageTitle>
+          {me.isError && (
+            <div className="mb-4">
+              <Notice tone="warning">{t('home.serviceProblem')}</Notice>
+            </div>
+          )}
           <Card>
             <SignIn />
           </Card>
