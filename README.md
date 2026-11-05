@@ -57,6 +57,8 @@ before a deploy. With `API_ORIGIN=http://127.0.0.1:8788` it also passes `/api` t
 allow the preview's origin (`SANDBOX_MEMBER_ORIGIN=http://localhost:8080`).
 
 Checks: `npm run typecheck`, `npm test`, `npm run build`, and `npm run build:site` (with its site check).
+Accessibility (see `docs/ARCHITECTURE.md`, "Accessibility"): the site check covers what the HTML shows; for the rest, open
+a page in `npm run preview:site` and run `(await import('/__audit/run.js')).audit()` in the browser's console.
 
 Text and translations (English and Sinhala; see `docs/ARCHITECTURE.md`, "Languages"): the app, emails and the website
 are in both languages, the website's Sinhala pages under `/si/` (e.g. http://localhost:4321/si/pricing/). `npm run

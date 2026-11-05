@@ -219,7 +219,7 @@ function CheckoutDialog({
   }
   return (
     <Dialog open onOpenChange={(open) => !open && close()}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto">
+      <DialogContent>
         <form onSubmit={submit} className="flex flex-col gap-4">
           <DialogHeader>
             <DialogTitle>{t('checkout.title', { plan: option.name, term: termText(option.termMonths) })}</DialogTitle>

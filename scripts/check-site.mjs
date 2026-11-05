@@ -7,7 +7,11 @@
 //             both versions and English as the default with hreflang links that exist and name it back;
 //   links     every link and asset on the site's own domain resolves, and every #anchor exists on its page;
 //   sitemap   lists every page except the 404 page, once, at its canonical address;
-//   robots    robots.txt follows "indexable" in site.config.json, and the member app (/app/) is never indexed.
+//   robots    robots.txt follows "indexable" in site.config.json, and the member app (/app/) is never indexed;
+//   accessibility  images have alt text; links, buttons and form fields have a name, and a name set with aria-label
+//             contains the visible words (WCAG 2.5.3); every id is unique and every id reference exists; zoom is
+//             not blocked; no positive tabindex; inline lang values are en or si. Contrast, focus and keyboard use need
+//             a browser: see docs/ARCHITECTURE.md, "Accessibility".
 // A title or description longer than search results show is reported as a note, not a failure.
 // Run via `npm run check:site` (also the last step of `npm run build:site`).
 import { readFile, readdir, stat } from 'node:fs/promises';
@@ -286,6 +290,69 @@ const headers = await readFile(join(root, '_headers'), 'utf8').catch(() => '');
 const appRule = headers.split(/\n(?=\S)/).find((block) => block.startsWith('/app/*'));
 if (!appRule || !/^\s+X-Robots-Tag:.*\bnoindex\b/m.test(appRule)) fail('robots.txt', '_headers', '/app/* has no X-Robots-Tag: noindex');
 
+// --- Accessibility (what can be read from the HTML; the browser audit covers the rest) --------------------------------
+
+const textOf = (html) =>
+  decode(
+    html
+      .replace(/<(\w+)\b[^>]*aria-hidden="true"[^>]*>[\s\S]*?<\/\1>/gi, ' ')
+      .replace(/<img\b[^>]*\balt="([^"]*)"[^>]*>/gi, ' $1 ')
+      .replace(/<svg\b[\s\S]*?<\/svg>/gi, ' ')
+      .replace(/<[^>]+>/g, ' '),
+  )
+    .replace(/\s+/g, ' ')
+    .trim();
+const visibleTextOf = (html) => textOf(html.replace(/<(\w+)\b[^>]*class="[^"]*\bsr-only\b[^"]*"[^>]*>[\s\S]*?<\/\1>/gi, ' '));
+let namedCount = 0;
+let fieldCount = 0;
+for (const page of pages) {
+  const where = page.route;
+  const html = markup(page.html);
+  const ids = new Map();
+  for (const { attrs } of page.tags) if (attrs.id) ids.set(attrs.id, (ids.get(attrs.id) ?? 0) + 1);
+  for (const [id, n] of ids) if (n > 1) fail('accessibility', where, `id "${id}" is used ${n} times`);
+  for (const { name, attrs } of page.tags) {
+    for (const key of ['aria-labelledby', 'aria-describedby', 'aria-controls', 'for']) {
+      if (!attrs[key] || (key === 'for' && name !== 'label')) continue;
+      for (const id of attrs[key].split(/\s+/)) if (!ids.has(id)) fail('accessibility', where, `${name} ${key}="${id}" names no element`);
+    }
+    if (name === 'img' && !('alt' in attrs)) fail('accessibility', where, `an image has no alt text (${attrs.src})`);
+    if (Number(attrs.tabindex) > 0) fail('accessibility', where, `${name} has tabindex ${attrs.tabindex}`);
+    if ('lang' in attrs && !['en', 'si'].includes(attrs.lang)) fail('accessibility', where, `lang="${attrs.lang}"`);
+    if (name === 'meta' && attrs.name === 'viewport' && /user-scalable\s*=\s*(no|0)|maximum-scale\s*=\s*1(\.0)?\b/.test(attrs.content ?? '')) {
+      fail('accessibility', where, `the viewport blocks zoom (${attrs.content})`);
+    }
+  }
+  // Links and buttons: a name, and a name that starts from the words on screen.
+  for (const m of html.matchAll(/<(a|button)\b((?:[^>"']|"[^"]*"|'[^']*')*)>([\s\S]*?)<\/\1>/gi)) {
+    const [, tag, rawAttrs, inner] = m;
+    const attrs = elements(`<x${rawAttrs}>`, 'x')[0]?.attrs ?? {};
+    if (tag.toLowerCase() === 'a' && !('href' in attrs)) continue;
+    namedCount++;
+    const label = attrs['aria-label']?.trim();
+    const visible = visibleTextOf(inner);
+    const name = label || (attrs['aria-labelledby'] ? 'labelled' : textOf(inner)) || attrs.title;
+    const short = visible.slice(0, 40) || attrs.href || '(empty)';
+    if (!name) fail('accessibility', where, `${tag.toLowerCase() === 'a' ? 'a link' : 'a button'} has no name (${short})`);
+    // A symbol such as × is not words on screen, so only text with letters must be in the name.
+    else if (label && /\p{L}/u.test(visible) && !label.toLowerCase().includes(visible.toLowerCase())) {
+      fail('accessibility', where, `${tag} "${visible}" is named "${label}", which does not contain the words on screen`);
+    }
+  }
+  // Form fields: a label, by for/id, by wrapping, or by aria-label.
+  const wrapped = [...html.matchAll(/<label\b[^>]*>([\s\S]*?)<\/label>/gi)].map((m) => m[1]).join('\n');
+  for (const { name, attrs } of page.tags.filter((t) => ['input', 'select', 'textarea'].includes(t.name))) {
+    if (name === 'input' && ['hidden', 'submit', 'button', 'reset', 'image'].includes(attrs.type)) continue;
+    fieldCount++;
+    const labelled =
+      attrs['aria-label']?.trim() ||
+      attrs['aria-labelledby'] ||
+      (attrs.id && page.tags.some((t) => t.name === 'label' && t.attrs.for === attrs.id)) ||
+      (attrs.name && new RegExp(`<${name}\\b[^>]*name="${attrs.name}"`).test(wrapped));
+    if (!labelled) fail('accessibility', where, `${name}${attrs.id ? `#${attrs.id}` : ''} has no label`);
+  }
+}
+
 const summary = [
   ['titles', `${listed.length} unique`],
   ['descriptions', `${listed.length} unique`],
@@ -296,6 +363,7 @@ const summary = [
   ['language', `lang set on ${pages.length} pages`],
   ['languages', `${listed.filter((p) => langOf(p.route) === 'en').length} pages in English and ${listed.filter((p) => langOf(p.route) === 'si').length} in Sinhala, lang matches; ${alternateCount} hreflang links resolve to each other`],
   ['structured data', `valid JSON-LD on ${listed.length} pages`],
+  ['accessibility', `${namedCount} links and buttons named, ${fieldCount} form fields labelled, ids unique and references found on ${pages.length} pages`],
   ['links', `${linkCount} links and assets on this site resolve, ${anchorCount} anchors found`],
   ['sitemap', `${listed.length} pages listed once each, the 404 page left out`],
   ['robots.txt', config.indexable ? `Allow: / and Sitemap: ${base}/sitemap.xml; /app/ noindex` : 'Disallow: / while not indexable; /app/ noindex'],

@@ -15,9 +15,9 @@ const counterpart = texts(other).path(routeOf(Astro.url.pathname));
 <span>
 </span>
 </button>
-<a class="language-link" href={counterpart} hreflang={other} lang={other} aria-label={t(`web.lang.to.${other}`)}>{t(`web.lang.name.${other}`)}</a>
+<a class="language-link" href={counterpart} hreflang={other}><span lang={other}>{t(`web.lang.name.${other}`)}</span><span class="sr-only">{t(`web.lang.to.${other}`)}</span></a>
 </div>
-<a class="logo" href={path('/')} aria-label={t('web.header.home')}>favorite<span>hearts</span>
+<a class="logo" href={path('/')}>favorite <span>hearts</span><span class="sr-only">{t('web.header.home')}</span>
 </a>
 <button class="pill start">{t('web.header.join')}</button>
 </header>

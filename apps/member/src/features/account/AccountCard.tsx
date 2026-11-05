@@ -66,7 +66,7 @@ function DeleteAccountDialog({ open, onClose }: { open: boolean; onClose: () => 
   };
   return (
     <Dialog open={open} onOpenChange={(next) => !next && close()}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>{t('account.dialog.title')}</DialogTitle>
           <DialogDescription>{t('account.dialog.body')}</DialogDescription>

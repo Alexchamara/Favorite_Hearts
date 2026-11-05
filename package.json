@@ -30,8 +30,9 @@
     "db:studio": "npm run db:studio -w @fh/api"
   },
   "devDependencies": {
-    "typescript": "^5.9.2",
-    "concurrently": "^9.0.0"
+    "axe-core": "4.14.0",
+    "concurrently": "^9.0.0",
+    "typescript": "^5.9.2"
   },
   "engines": {
     "node": ">=22.22.0"

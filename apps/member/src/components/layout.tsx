@@ -74,8 +74,10 @@ export function AppShell({ children, home = '/' }: { children: ReactNode; home?:
             </>
           )}
           {showSupport && (
-            <Button variant="ghost" size="sm" lang={other} onClick={switchLanguage} aria-label={t(`layout.languageTo.${other}`)}>
-              {LANGUAGE_NAMES[other]}
+            // The spoken name starts with the visible word (WCAG 2.5.3), then says what it does.
+            <Button variant="ghost" size="sm" onClick={switchLanguage}>
+              <span lang={other}>{LANGUAGE_NAMES[other]}</span>
+              <span className="sr-only">{t(`layout.languageTo.${other}`)}</span>
             </Button>
           )}
           <Button

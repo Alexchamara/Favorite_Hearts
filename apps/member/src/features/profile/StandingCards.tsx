@@ -151,7 +151,7 @@ function DeleteProfileDialog({ profile, open, onClose }: { profile: ProfileView;
   const manager = profile.me.role === 'candidate' && profile.management === 'manager' ? profile.manager : null;
   return (
     <Dialog open={open} onOpenChange={(next) => !next && close()}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>{t('deleteProfile.dialog.title', { name: profile.fields.displayName ?? t('deleteProfile.thisProfile') })}</DialogTitle>
           <DialogDescription>{t('deleteProfile.dialog.body')}</DialogDescription>

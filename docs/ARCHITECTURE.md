@@ -494,6 +494,37 @@ languages too (Stage 5d, below).
   English text is the official version (the terms also say a Sinhala translation is provided for convenience and the
   English applies if they differ). The lawyer reviews both (`LEGAL-REVIEW.md`).
 
+## Accessibility (Stage 5e)
+
+The aim is WCAG 2.2 level AA on the website and the member app, in both languages and both of the app's themes
+(spec 10.4 and U02).
+
+- **Names.** Every link, button and field has a spoken name, and a name always starts from the words on screen
+  (WCAG 2.5.3): the language links say "සිංහල, read this page in Sinhala" with the hint in an `sr-only` span rather
+  than an `aria-label` that drops the visible word, and the logo reads "favorite hearts, home page". Fields have
+  visible labels (`components/form/fields.tsx`); an error is linked to its field with `aria-describedby` and announced
+  (`role="alert"`), and notices are `alert` or `status`.
+- **Contrast.** Text is at least 4.5:1 against its background: the website's grey for small text is #6b6b6b on white
+  (5.3:1; #777 was 4.47:1), the app's unselected tabs use the muted text colour (4.64:1 light, checked in dark too),
+  and links inside the legal text are underlined, not told apart by colour alone.
+- **Keyboard.** Everything works with Tab, Shift+Tab, Enter, Space, Escape and the arrow keys (tabs, carousels).
+  Every focus stop shows a ring, the tab panel included. The website's menu and dialogs keep focus inside while open
+  and give it back when closed; in the app, `lib/return-focus.ts` puts focus back on whatever opened a dialog, since
+  most dialogs open from state and Radix would otherwise drop focus to the top of the page.
+- **Short screens and zoom.** Dialogs, sheets and confirmations are at most the screen's height and scroll inside
+  themselves (`max-h-[calc(100dvh-2rem)]`), so their buttons stay reachable on a phone held sideways or at 200% zoom.
+  Screen heights use `dvh`/`svh` (a `vh` value appears only as the fallback before them), so a phone's moving
+  address bar never hides a dialog's end. Pages never scroll sideways at 360 px or at 640 px (a 1280 px screen at
+  200%). Zoom is never blocked.
+- **Motion.** With "reduce motion" on, the website stops its reveals, carousels and smooth scrolling, and the app
+  turns off every animation and transition (`styles/index.css`).
+- **Checks.** The site check's "accessibility" area reads every built page: alt text on images, a name on every link
+  and button (and one that contains its visible words), a label on every field, unique ids and existing id
+  references, no blocked zoom, no positive `tabindex`, and only `en`/`si` as inline languages. What only a browser
+  can see (contrast, focus, open menus and dialogs) is checked with axe-core: `npm run preview:site` serves it at
+  `/__audit/` (never deployed), and `(await import('/__audit/run.js')).audit()` in the browser's console audits the
+  page as it is on screen against WCAG 2.2 A/AA and axe's best practices.
+
 ## Database access
 
 Tables (`apps/api/src/db/schema/`) follow spec 12.1. Discoverable profile fields live in `profile`. Private data has

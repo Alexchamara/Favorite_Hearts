@@ -20,7 +20,7 @@ without output.
 | 2 Accounts and verification (codes, invites, takeover, badges, staff 2FA, documents) | **done (2a server, 2b screens), awaiting owner review.** SMS **BLOCKED** until a provider is chosen; evidence below. |
 | 3 Requests, connections and privacy | **done (3a server, 3b screens), awaiting owner review.** Evidence below. |
 | 4 Plans, payments, email, Turnstile | **done (4a server, 4b screens), awaiting owner review.** Real payment details, Turnstile keys and email to members are **BLOCKED** on the owner; evidence below. |
-| 5 Content, safety and quality | **5a (safety), 5b (website text and SEO), 5c (English and Sinhala in the app, emails and the reviewer's spreadsheet) and 5d (the website in Sinhala) done, awaiting owner review.** The terms and privacy policy wait for the owner's lawyer (`docs/LEGAL-REVIEW.md`); all Sinhala waits for the owner's reviewer. 5e (accessibility) not started. Evidence below. |
+| 5 Content, safety and quality | **5a (safety), 5b (website text and SEO), 5c (English and Sinhala in the app, emails and the reviewer's spreadsheet), 5d (the website in Sinhala) and 5e (accessibility) done, awaiting owner review.** The terms and privacy policy wait for the owner's lawyer (`docs/LEGAL-REVIEW.md`); all Sinhala waits for the owner's reviewer. Evidence below. |
 | 6 Test, harden and hand over | not started |
 
 ## Decisions recorded during setup
@@ -120,6 +120,7 @@ without output.
 | 2026-11-04 | The Sinhala terms and privacy policy are drafted now, marked draft like the English, and say the English is the official version; the lawyer reviews both together. | Proposed — confirm |
 | 2026-11-04 | A first visit is never redirected by the browser's language: every page links to its other-language version (header, or the menu on phones), and the footer's language dialog opens it. The choice is saved for the app. | Proposed — confirm |
 | 2026-11-04 | Each website page is one file built at its English address and under `/si/`; the website's words are a `website` catalogue (`web.*`) in the reviewer's spreadsheet (Website tab); the ten article pages became one template. | Engineering |
+| 2026-11-05 | Accessibility target: WCAG 2.2 level AA for the website and the member app, both languages and both themes; checked with axe-core 4.14.0 (a pinned development tool, never deployed) and the site check's accessibility area. | Engineering |
 
 ## Step 5 evidence
 
@@ -646,10 +647,12 @@ Open:
 - [ ] **Owner action:** the reviewer goes through the spreadsheet's Website tab (712 texts); the lawyer compares the
   Sinhala terms and privacy policy with the English (`docs/LEGAL-REVIEW.md`).
 
-5e, accessibility:
+5e, accessibility (done):
 
-- [ ] Accessibility fixes on the website and the member app (spec 10.4: keyboard-only use, visible focus, contrast,
+- [x] Accessibility fixes on the website and the member app (spec 10.4: keyboard-only use, visible focus, contrast,
   labels and errors, reduced motion, modals that scroll, safe mobile heights, 200% zoom).
+- [ ] Stage 6: the same checks on real phones (iOS Safari with VoiceOver, Android Chrome with TalkBack) against
+  staging (spec U01, U02).
 
 **Stage 6: Harden and hand over.** Unchanged from spec 17.1.
 
@@ -2534,3 +2537,102 @@ were not touched.
   ප්‍රතිපත්තිය" (Privacy Policy); the help status says "පිළිතුරු 0ක් හමු විය." when nothing matches.
 - 5e: accessibility.
 - Pushing to GitHub and Neon migrations 0008–0011: on request, as before (5d adds no migration).
+
+## Stage 5e evidence (5 Nov 2026): accessibility
+
+Scope (Part 3 "Stage 5": "accessibility fixes"; spec 10.4: "keyboard-only navigation, visible focus, readable
+contrasts, labels/errors, reduced motion, modals with internal scrolling, safe mobile viewport heights and 200% zoom";
+U02: "focus retained/restored, errors announced… no trapped modal"). Real phones with screen readers are Stage 6
+(U01, U02 against staging).
+
+### How it was checked
+
+- **axe-core 4.14.0** (a pinned development tool) in the browser, against WCAG 2.2 A and AA and axe's best practices,
+  on every website page in English and Sinhala, the 404 page, the menu, the language dialog and an open help answer;
+  and in the member app (signed in as the sandbox's synthetic member Bina) on the sign-in page, dashboard, each of the
+  profile's 7 tabs, browse, another member's profile, the report dialog, the verification page, the create-profile,
+  download and delete dialogs, the invitation page, staff sign-in and the app's not-found page, in English and
+  Sinhala and in the dark theme.
+- **Keyboard** with real key presses: Tab order and a visible focus ring at every stop, Escape and focus return in the
+  menu and dialogs, focus kept inside open dialogs, arrow keys in the profile tabs.
+- **Widths and zoom**: 360 px (the spec's smallest phone) and 640×400 (a 1280×800 screen at 200%); dialogs and the
+  menu checked for scrolling inside at that height.
+
+### Problems found, all fixed
+
+| Found | Fix |
+| --- | --- |
+| The language link and the logo were named apart from their visible words ("Read this page in Sinhala" for "සිංහල", "Favorite Hearts home" for "favorite hearts"), on all 42 pages; the app's language button the same (WCAG 2.5.3). | The name now starts with the visible words, the hint in an `sr-only` span: "සිංහල, read this page in Sinhala", "favorite hearts, home page", "සිංහල, show the app in Sinhala". |
+| Grey small text at 4.47:1 (#777 on white): the legal pages' contents list, the pricing currency labels and plan details, a contact note. | #6b6b6b (5.33:1). |
+| Links inside the terms and privacy text were told apart from the words around them only by colour (1.1:1). | Underlined. |
+| The app's unselected tabs at 3.73:1 (60% transparent text). | The muted text colour, 4.64:1. |
+| The app's dialogs had no height limit: at 200% zoom or on a phone held sideways their end, often the buttons, was off screen with no way to scroll. | Every dialog, confirmation and sheet is at most the screen's height and scrolls inside itself. |
+| Closing an app dialog (Escape, Cancel) dropped focus to the top of the page, because the dialogs open from state rather than a Radix trigger. | `lib/return-focus.ts` returns focus to what opened the dialog; checked with real key presses on the delete-account dialog. |
+| The app's tab panel took focus with no ring (its outline was switched off). | A focus ring like every other control. |
+| The app ignored "reduce motion" except for one switch. | All animations and transitions are off when it is on. |
+| The invitation page had no heading when the link is incomplete. | "This invitation cannot be used" as its heading. |
+| The footer's language dialog: its two cards were staggered (found in 5d). | Fixed in 5d. |
+
+Checked and found fine: field labels (the 5c note that the sign-in email field is "announced by its placeholder"
+came from the inspection tool's own tree; axe-core computes its name as "Email address", from its `<label>`), errors
+announced (`role="alert"`, linked with `aria-describedby`), no sideways scrolling at 360 px or 640 px on any page
+checked, the website's menu and language dialog scroll inside themselves at 400 px tall, and the website already
+honoured "reduce motion".
+
+### axe-core after the fixes
+
+```text
+/ => none                /contact/ => none            /help/ => none               /labs/ => none
+/mission/ => none        /newsroom/ => none           /newsroom/belonging-across-borders/ => none
+/pricing/ => none        /privacy/ => none            /security/ => none           /terms/ => none
+/trust-and-safety/ => none                            /si/ => none                 /si/contact/ => none
+/si/help/ => none        /si/labs/ => none            /si/mission/ => none         /si/newsroom/ => none
+/si/newsroom/before-marriage/ => none                 /si/pricing/ => none         /si/privacy/ => none
+/si/security/ => none    /si/terms/ => none           /si/trust-and-safety/ => none
+/si/nowhere/ (404) => none                            language dialog => none      help answer open => none
+app (si) /app/ sign-in => none     dashboard => none  browse => none               another member => none
+report dialog => none    verify => none               create / download / delete dialogs => none
+profile tabs (7, light and dark) => none              staff sign-in (en) => none   not found => none
+```
+
+With the menu open, axe reports "no main landmark" and "no h1": the page behind the menu is made inert on purpose
+while it is open, which hides both.
+
+### Site check, now with an accessibility area
+
+```text
+  ✓ accessibility    1406 links and buttons named, 132 form fields labelled, ids unique and references found on 43 pages
+No problems found.
+```
+
+Each break below was made alone in a built page, the site check run, and the page restored:
+
+```text
+CAUGHT the language link is named apart from its words again  — /: a "සිංහල" is named "Read this page in Sinhala", which does not contain the words on screen
+CAUGHT the logo link loses its text
+CAUGHT a photo has no alt text
+CAUGHT two elements share an id  — /help/: id "help-search" is used 2 times
+CAUGHT aria-controls names a missing element  — /newsroom/: button aria-controls="news-list" names no element
+CAUGHT the viewport blocks zoom  — /terms/: the viewport blocks zoom (width=device-width,initial-scale=1,maximum-scale=1)
+CAUGHT the newsroom search loses its label  — /si/newsroom/: input#news-search has no label
+CAUGHT a positive tabindex  — /contact/: a has tabindex 2
+CAUGHT an unknown inline language  — /si/help/: lang="english"
+CAUGHT a button with no name  — /pricing/: a button has no name ((empty))
+10/10 caught
+```
+
+### `npm test`, `npm run typecheck` and `npm run build:site`
+
+- `npm test`: 158 tests, all passing (api 144, website 5, scripts 9).
+- `npm run typecheck`: exit 0 (`astro check`: 0 errors, 0 warnings, 0 hints).
+- `npm run build:site`: exit 0, "No problems found." Member app main chunk 710.56 kB (211.08 kB compressed).
+- `release` is now `5e-1`, so browsers fetch the changed stylesheets.
+
+### Not done in 5e
+
+- Real phones with VoiceOver and TalkBack, against staging: Stage 6 (U01, U02).
+- The app's screens have no automated accessibility test (the app has no browser test runner); they were audited by
+  hand as above. A browser test runner for both is a Stage 6 candidate.
+- `npm audit` still reports the two moderate findings noted before (`@hono/node-server`, and esbuild inside
+  drizzle-kit's development tools); the `@hono/node-server` upgrade is proposed for Stage 6.
+- Pushing to GitHub and Neon migrations 0008–0011: on request, as before (5e adds no migration).

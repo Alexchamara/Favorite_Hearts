@@ -169,9 +169,15 @@
     opacity: 1;
   }
 
+  /* Members who ask for less motion get none: dialogs, sheets, tabs and toasts appear without zooming or sliding. */
   @media (prefers-reduced-motion: reduce) {
-    [data-slot="switch-thumb"] {
-      transition: none;
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
     }
   }
 }

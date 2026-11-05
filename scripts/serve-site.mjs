@@ -3,6 +3,8 @@
 //   _redirects  the first matching rule applies, even when a file exists at that path; 200 serves another path.
 //   _headers    every matching rule applies; a header set twice is joined with ", "; "! Name" removes one.
 // With API_ORIGIN set, /api and /health go to that API, as they would through the production domain.
+// It also serves the browser accessibility audit at /__audit/ (scripts/a11y-audit.js and axe-core), which is never
+// part of dist/site and so never deployed.
 // Run via `npm run preview:site` (PORT, default 8080; API_ORIGIN optional).
 import { createReadStream } from 'node:fs';
 import { readFile, stat } from 'node:fs/promises';
@@ -11,6 +13,10 @@ import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../dist/site/', import.meta.url));
+const auditFiles = {
+  '/__audit/run.js': fileURLToPath(new URL('./a11y-audit.js', import.meta.url)),
+  '/__audit/axe.js': fileURLToPath(new URL('../node_modules/axe-core/axe.min.js', import.meta.url)),
+};
 const port = Number(process.env.PORT ?? 8080);
 const api = process.env.API_ORIGIN ? new URL(process.env.API_ORIGIN) : null;
 const types = {
@@ -90,6 +96,13 @@ createServer(async (req, res) => {
     );
     upstream.on('error', () => res.writeHead(502).end('API not reachable'));
     req.pipe(upstream);
+    return;
+  }
+
+  if (auditFiles[url.pathname]) {
+    for (const [name, value] of headersFor(headers, url.pathname)) res.setHeader(name, value);
+    res.writeHead(200, { 'Content-Type': types['.js'] });
+    createReadStream(auditFiles[url.pathname]).pipe(res);
     return;
   }
 

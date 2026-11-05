@@ -43,7 +43,10 @@ export default function InvitePage() {
   return (
     <AppShell>
       {!token ? (
-        <Notice tone="error">{t('invite.incomplete')}</Notice>
+        <>
+          <PageTitle title={t('invite.unusable.title')} />
+          <Notice tone="error">{t('invite.incomplete')}</Notice>
+        </>
       ) : preview.isPending ? (
         <Loading />
       ) : preview.isError ? (

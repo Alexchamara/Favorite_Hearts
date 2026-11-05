@@ -26,7 +26,7 @@ const counterpart = texts(other).path(routeOf(Astro.url.pathname));
 </a>
 <a href={path('/terms/')}>{t('web.nav.terms')} <span class="menu-link-arrow" aria-hidden="true">↗</span>
 </a>
-<a class="menu-language" href={counterpart} hreflang={other} lang={other} aria-label={t(`web.lang.to.${other}`)}>{t(`web.lang.name.${other}`)} <span class="menu-link-arrow" aria-hidden="true">↗</span>
+<a class="menu-language" href={counterpart} hreflang={other}><span lang={other}>{t(`web.lang.name.${other}`)}</span><span class="sr-only">{t(`web.lang.to.${other}`)}</span> <span class="menu-link-arrow" aria-hidden="true">↗</span>
 </a>
 </div>
 <div class="menu-bottom-row">
