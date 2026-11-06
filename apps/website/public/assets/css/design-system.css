@@ -33,7 +33,7 @@ main .section>h2,.resource-page h2,.mission-page h2,.help-contact h2,.contact-gu
 .resource-card h3,.plan-card h3,.contact-card h2{font-size:var(--fh-text-card);line-height:1.2;font-weight:400}
 .resource-card p,.contact-card>p:not(.contact-phone):not(.contact-service-label):not(.contact-hours){font-size:var(--fh-text-body);line-height:1.65}
 body .pill,body .resource-actions .pill,body .help-contact-actions .pill{font:600 1rem/1.25 var(--fh-sans);min-height:3.25rem;padding:1rem 1.75rem;max-width:100%;border-radius:100px;transition:background-color var(--fh-motion),color var(--fh-motion),transform var(--fh-motion)}
-body header>.pill{min-height:2.75rem;padding:.75rem 1.25rem;font-size:.875rem;white-space:nowrap}
+body header .header-end>.pill{min-height:2.75rem;padding:.75rem 1.25rem;font-size:.875rem;white-space:nowrap}
 body .welcome-continue{justify-content:center;text-align:center;width:100%}
 body .help-filters button,body .news-filters button{font:500 var(--fh-text-sm)/1.4 var(--fh-sans);min-height:2.75rem;padding:.75rem 1.1rem}
 body .help-search input,body .news-search input{font-size:1rem;min-width:0}input,select,textarea{font-size:1rem}
@@ -67,7 +67,7 @@ body .menu-toggle span{transition:transform .45s var(--fh-ease)}
 @media(max-width:1099px){.pricing-track>article{flex-basis:calc((100% - 1.5rem)/2)}}
 @media(max-width:639px){.pricing-track{gap:1rem}.pricing-track>article{flex-basis:100%}.pricing-track .plan-card,.pricing-track .resource-card{padding:1.75rem}.plan-tagline{min-height:0}.currency-control{gap:.75rem;font-size:.8125rem}.plan-topline{margin-bottom:1.5rem}body .section{padding-left:1.25rem;padding-right:1.25rem}.contact-grid{grid-template-columns:minmax(0,1fr)}.resource-split,.resource-end{grid-template-columns:minmax(0,1fr)}.copyright{gap:1rem}.contact-phone{font-size:2.125rem!important}.resource-actions{min-width:0}.resource-actions .pill{min-width:0;max-width:100%}}
 @media(min-width:1600px){footer{padding-left:max(var(--fh-gutter),calc((100vw - 1400px)/2));padding-right:max(var(--fh-gutter),calc((100vw - 1400px)/2))}}
-@media(max-width:359px){:root{--fh-text-page:2.5rem;--fh-text-section:2.25rem}body header{padding-left:.875rem;padding-right:.875rem}body header>.pill{font-size:.75rem;padding:.625rem .875rem}.pricing-track .plan-card{padding:1.25rem}.plan-price{font-size:2.5rem}.currency-control{gap:.5rem;font-size:.75rem}.danger-section .resource-note h3{font-size:.875rem;gap:.5rem}}
+@media(max-width:359px){:root{--fh-text-page:2.5rem;--fh-text-section:2.25rem}body header{padding-left:.875rem;padding-right:.875rem}body header .header-end>.pill{font-size:.75rem;padding:.625rem .875rem}.pricing-track .plan-card{padding:1.25rem}.plan-price{font-size:2.5rem}.currency-control{gap:.5rem;font-size:.75rem}.danger-section .resource-note h3{font-size:.875rem;gap:.5rem}}
 @media(hover:hover){body .pill:hover{background:var(--fh-gold);color:var(--fh-ink);transform:translateY(-1px)}.pricing-dashes button:hover span{background:var(--fh-orange)}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}.reveal-ready,.resource-reveal,.help-reveal,.contact-reveal{opacity:1!important;transform:none!important}}
 
@@ -104,3 +104,13 @@ body .menu-toggle span{transition:transform .45s var(--fh-ease)}
 @media(max-width:600px){.language-link{display:none}}
 /* The floated legend is a grid item: give it the whole first row so the two language cards sit side by side. */
 .welcome-languages legend{grid-column:1/-1}
+.header-end{display:flex;align-items:center;gap:1.25rem;justify-self:end;min-width:0}
+/* The menu always fits the screen: sizes follow the height as well as the width, so it never scrolls. */
+body #navigation{overflow:hidden;overscroll-behavior:none;padding-top:clamp(12px,3.5vh,46px);padding-bottom:max(clamp(10px,2.5vh,32px),env(safe-area-inset-bottom))}
+body #navigation:not([hidden]){gap:clamp(8px,2vh,32px)}
+body #navigation .menu-items{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;justify-content:space-evenly;gap:0}
+body #navigation .menu-items>a,body #navigation .menu-items>button{padding:0;font-size:clamp(18px,min(7.8vw,5vh),48px);line-height:1.16;letter-spacing:-.03em}
+body #navigation .menu-bottom{margin-top:0;padding-top:clamp(8px,1.8vh,24px);font-size:clamp(11px,1.8vh,15px)}
+body #navigation .menu-bottom-row{flex-shrink:0}
+body #navigation .menu-items>.menu-language{display:none}
+@media(max-width:600px){body #navigation .menu-items>.menu-language{display:block}}

@@ -49,6 +49,8 @@ export default defineConfig(({ mode }) => {
     server: {
       port,
       strictPort: true,
+      // Cloudflare quick tunnels (cloudflared tunnel --url ...) are shared with testers during development.
+      allowedHosts: ['.trycloudflare.com'],
       // Live reload talks to the dev server directly, also when the app is opened via the website (:4321/app/).
       hmr: { clientPort: port },
       proxy: {

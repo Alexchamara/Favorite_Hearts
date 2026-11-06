@@ -1,6 +1,6 @@
 import { useCallback, type ReactNode } from 'react';
 import { Heart, LogOut, Moon, Sun } from 'lucide-react';
-import { Link, NavLink, useNavigate } from 'react-router';
+import { NavLink, useNavigate } from 'react-router';
 import { LANGUAGE_NAMES } from '@fh/shared';
 import { Button } from '@/components/ui/button';
 import { put } from '@/lib/api';
@@ -49,10 +49,10 @@ export function AppShell({ children, home = '/' }: { children: ReactNode; home?:
       </a>
       {/* On phones the navigation wraps to its own row under the brand and account buttons. */}
       <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-3 sm:px-6">
-        <Link to={home} className="inline-flex items-center gap-2 text-sm font-semibold whitespace-nowrap">
+        <a href={language === 'si' ? '/si/' : '/'} className="inline-flex items-center gap-2 text-sm font-semibold whitespace-nowrap">
           <Heart className="size-4 fill-current text-brand" aria-hidden="true" />
           Favorite Hearts
-        </Link>
+        </a>
         {showNav && (
           <nav aria-label={t('layout.mainNav')} className="order-last flex w-full items-center gap-1 text-sm sm:order-none sm:ml-auto sm:w-auto">
             <NavLink to="/" end className={navClass}>

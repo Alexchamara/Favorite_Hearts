@@ -1,6 +1,7 @@
 ---
 // Shared header (from the demo partial header.html), with a link to the same page in the other language beside the
-// menu button (on narrow phones it is in the menu instead).
+// Join button (on narrow phones it is in the menu instead). The Join button becomes "Profile" for a signed-in member
+// (assets/js/site.js).
 import { routeOf, texts, type Lang } from '../lib/i18n';
 
 const { lang } = Astro.props as { lang: Lang };
@@ -15,9 +16,11 @@ const counterpart = texts(other).path(routeOf(Astro.url.pathname));
 <span>
 </span>
 </button>
-<a class="language-link" href={counterpart} hreflang={other}><span lang={other}>{t(`web.lang.name.${other}`)}</span><span class="sr-only">{t(`web.lang.to.${other}`)}</span></a>
 </div>
 <a class="logo" href={path('/')}>favorite <span>hearts</span><span class="sr-only">{t('web.header.home')}</span>
 </a>
+<div class="header-end">
+<a class="language-link" href={counterpart} hreflang={other}><span lang={other}>{t(`web.lang.name.${other}`)}</span><span class="sr-only">{t(`web.lang.to.${other}`)}</span></a>
 <button class="pill start">{t('web.header.join')}</button>
+</div>
 </header>

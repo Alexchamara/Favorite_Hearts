@@ -93,7 +93,16 @@
     }
     if (!dialog.open) dialog.showModal();
   }
+  // A signed-in member sees "Profile" (their profiles page in the app) where visitors see "Join now" in the header.
+  fetch('/api/v1/me', {credentials: 'same-origin', headers: {Accept: 'application/json'}}).then(response => {
+    if (!response.ok) return;
+    document.querySelectorAll('header .start').forEach(button => {
+      button.textContent = FH_TEXT('web.js.profile');
+      button.dataset.signedIn = 'true';
+    });
+  }).catch(() => undefined);
   document.querySelectorAll('.start').forEach(button => button.addEventListener('click', () => {
+    if (button.dataset.signedIn) return location.assign(localUrl('/app/') + '?lang=' + FH_LANG);
     // The app opens in the page's language (apps/member lib/i18n.tsx reads ?lang=).
     if (window.FH_CONFIG.registrationUrl) location.assign(localUrl(window.FH_CONFIG.registrationUrl) + '?lang=' + FH_LANG);
     else openDialog(FH_TEXT('web.js.beginTitle'), FH_TEXT('web.js.beginText'), true);
