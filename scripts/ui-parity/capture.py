@@ -68,6 +68,16 @@ def settle(page):
     except Exception:
         pass  # pages that keep a request open (dev-server sockets, status polling) never go idle
     page.evaluate('document.fonts.ready.then(() => true)')
+    # Walk down the page so loading="lazy" images load before a full-page screenshot, then return to the top.
+    page.evaluate("""async () => {
+        for (let y = 0; y < document.documentElement.scrollHeight; y += innerHeight / 2) {
+            scrollTo(0, y); await new Promise(r => setTimeout(r, 60));
+        }
+        scrollTo(0, 0);
+        // Hidden lazy images never load, so wait at most 10 s.
+        const pending = [...document.images].filter(i => !i.complete).map(i => new Promise(r => { i.onload = i.onerror = r; }));
+        await Promise.race([Promise.all(pending), new Promise(r => setTimeout(r, 10000))]);
+    }""")
     page.wait_for_timeout(250)
 
 

@@ -56,6 +56,11 @@ keys get an English value and a blank Sinhala value.
 | Labs | "We are love scientists." hero and "The lab." research section removed; hero reads "Ideas for a shared life." | Owner, 31 Oct 2026 (BUILD-PROGRESS X03) |
 | Newsroom | Category "Research & Advice" is "Advice" | Owner, 31 Oct 2026 |
 | Terms, Privacy | Longer: the decided legal drafts | Lawyer review pending (Q-010, Q-011) |
+| Contact | "Call us" card; payments in the intro; "staff never ask for a password or code"; Facebook/TikTok cards only once an address is set in `site.config.json` | W12, W15; BUILD-PROGRESS 31 Oct (proposed) |
+| Trust & Safety, Security | Decided wording (sign-in codes, private storage, "what stays private until you both accept") | W12, W15 |
+| Menu overlay | Items sized to the screen height so the menu never scrolls; Sinhala link inside the menu below 600 px; no social icons until addresses are set | Stage 5d |
+| Grey text | #777 → #6b6b6b in contact hours, plan notes, currency labels, legal contents | AA contrast |
+| Join now | Opens the member app at `/app/` instead of the demo's `/matrimony/` | Real app |
 
 More rows are added as each phase finds them.
 
@@ -67,6 +72,12 @@ Tools in `scripts/ui-parity/` (development only, Python + Playwright + Pillow, n
   English.
 - `compare.py`: side-by-side sheets (reference | repo | amplified difference) and a `report.md` sorted worst first.
 - `sandbox-login.py`: signs a synthetic sandbox member in for signed-in member screenshots.
+- `capture_states.py`: public interaction states (welcome dialog, menu, newsroom and help filters).
+
+Capture one target at a time. Two captures running together slow the dev servers enough that some lazy images are
+still blank when the screenshot is taken, which shows up as 5–20% differences that move between runs. Two sequential
+runs of the same page are pixel-identical. `website-dev` needs the sandbox API on :8787 (launch name `website-api`)
+for live pricing.
 
 The reference is `reference/Favorite-Hearts-Integrated/dist` served on :8080 (launch name `reference-demo`); it
 includes DM Sans. The demo asks for Inter but ships no file, so member reference shots are taken with Inter injected
@@ -119,3 +130,25 @@ purple secondary buttons). Gaps found:
   plus the panel padding. Fails WCAG 1.4.10 reflow; fix in ui-4.
 - The demo renders Inter only where it is installed; this Mac has no Inter, so un-injected reference shots fall back
   to the system font. Inter files are not yet added to the app (ui-3).
+
+### ui-2 public site parity (9 Nov 2026)
+
+Every public difference was traced; none needed a code change.
+
+- **Text:** the visible text of each page that differs was compared line by line with the reference. Every changed
+  line is decided content (table "Intended differences" above, now including Contact, Trust & Safety, Security, the
+  menu, grey text and Join now).
+- **CSS:** all six differing stylesheets were compared rule by rule. The only changes are the header language link
+  (and `header>.pill` becoming `header .header-end>.pill` to make room for it), #777 → #6b6b6b, the legal draft
+  styles and the Stage 5d menu sizing. Page stylesheets for articles, help, labs, mission, newsroom, welcome and
+  Tailwind are byte-identical.
+- **Same-content areas:** with the header excluded, pages match the reference until the first decided change
+  (home: identical down to where the testimonials were; trust-and-safety, help: 0.00% in the first screen; mission and
+  9 of 10 articles ≤ 0.10% over the whole page). The header's left half is identical on every page and width.
+- **States:** welcome (language/country) dialog ≤ 0.07%; help search ≤ 0.22%; newsroom filter and search identical at
+  1024 px and above, and below that differ only by the "Advice" chip; menu overlay differs only as listed above.
+- **Reflow:** no English or Sinhala (`/si/`) page scrolls sideways at 320 or 390 px.
+- **Kept as found:** the reference's `scripts/serve.mjs` answers `/` with 403 (its root check drops the trailing
+  slash), so the reference home is captured from `/index.html`.
+
+Screenshots and diff reports stay outside the repository; rerun the tools above to reproduce them.
