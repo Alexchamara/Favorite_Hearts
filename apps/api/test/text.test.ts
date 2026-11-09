@@ -75,7 +75,8 @@ describe('text catalogues', () => {
       for (const language of ['si', 'ta']) {
         for (const [key, text] of Object.entries(catalogue(language, area))) {
           if (!(key in en)) problems.push(`${language}/${area}: ${key} is not in English`);
-          else if (JSON.stringify(marks(text)) !== JSON.stringify(marks(en[key]!))) problems.push(`${language}/${area}: ${key} changes placeholders`);
+          // A blank translation is waiting for a translator (checked below), so it has no placeholders to keep yet.
+          else if (text.trim() && JSON.stringify(marks(text)) !== JSON.stringify(marks(en[key]!))) problems.push(`${language}/${area}: ${key} changes placeholders`);
         }
       }
       const si = catalogue('si', area);

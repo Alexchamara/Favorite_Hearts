@@ -19,8 +19,12 @@ import { options, SPOKEN_LANGUAGES, SRI_LANKA_DISTRICTS, suggestionLabel, useCou
 
 type Key = Exclude<keyof ProfileFields, 'caste' | 'adultDeclaredAt'>;
 type FormValue = string | string[];
-/** Where "Save and continue" goes: this step's id (to be scrolled to) and what to do after saving. */
-type Flow = { id: string; onContinue?: () => void; last?: boolean };
+/**
+ * Where "Save and continue" goes: this step's id (to be scrolled to) and what to do after saving. In the setup wizard
+ * (`register`), the parts have no buttons of their own: each registers its save, and the wizard's Continue runs them.
+ */
+export type Save = (after: () => void) => void;
+type Flow = { id: string; onContinue?: () => void; last?: boolean; register?: (save: Save) => void; heading?: boolean; intro?: boolean };
 
 const REQUIRED = new Set<Key>(['displayName', 'gender', 'birthDate', 'countryCode', 'city', 'occupation', 'education', 'heightCm', 'maritalStatus', 'bio']);
 
@@ -38,7 +42,9 @@ function useStep(profile: ProfileView, fields: Key[]) {
   const [values, setValues] = useState(initial);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const save = useMutation({
-    mutationFn: (payload: Record<string, unknown>) => patch<ProfileView>(`/profiles/${profile.id}`, { version: profile.version, ...payload }),
+    // The newest version: in the wizard one part saves right after another, before this one has re-rendered.
+    mutationFn: (payload: Record<string, unknown>) =>
+      patch<ProfileView>(`/profiles/${profile.id}`, { version: queryClient.getQueryData<ProfileView>(keys.profile(profile.id))?.version ?? profile.version, ...payload }),
     onSuccess: async (updated) => {
       toast.success(say('common.saved'));
       await storeProfile(updated);
@@ -78,6 +84,26 @@ function useStep(profile: ProfileView, fields: Key[]) {
 
 function Step({ title, intro, children, onSave, saving, failed, canEdit, flow }: { title: string; intro?: string; children: ReactNode; onSave: () => void; saving: boolean; failed: unknown; canEdit: boolean; flow: Flow }) {
   const { t } = useI18n();
+  if (flow.register) {
+    // In the wizard: the demo's form block, a heading per part, its fields in .m-form-grid; the wizard saves it.
+    return (
+      <section className="m-form-block" aria-labelledby={flow.heading ? flow.id : 'onboard-title'}>
+        {flow.heading && <h3 id={flow.id}>{title}</h3>}
+        {flow.intro && intro && <p className="m-small-print">{intro}</p>}
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSave();
+          }}
+        >
+          <fieldset disabled={!canEdit || saving} className="m-form-grid">
+            {children}
+          </fieldset>
+          {failed instanceof ApiError && failed.code !== 'VALIDATION' && <Notice tone="error">{errorMessage(failed)}</Notice>}
+        </form>
+      </section>
+    );
+  }
   const label = !flow.onContinue ? t('common.save') : flow.last ? t('details.saveContinuePhotos') : t('details.saveContinue');
   return (
     <Card className="scroll-mt-6">
@@ -113,6 +139,7 @@ const full = 'sm:col-span-2';
 function Essentials({ profile, flow }: { profile: ProfileView; flow: Flow }) {
   const f = useStep(profile, ['displayName', 'gender', 'birthDate', 'countryCode', 'region', 'city', 'occupation', 'education', 'heightCm', 'maritalStatus', 'religion', 'languages', 'motherTongue']);
   const inSriLanka = f.text('countryCode') === 'LK';
+  flow.register?.((after) => f.submit({}, after));
   const { t } = useI18n();
   const { genderLabels, maritalLabels, religionLabels } = useLabels();
   const countries = useCountries();
@@ -165,6 +192,7 @@ function Essentials({ profile, flow }: { profile: ProfileView; flow: Flow }) {
 
 function About({ profile, flow }: { profile: ProfileView; flow: Flow }) {
   const f = useStep(profile, ['bio', 'values', 'hobbies', 'timeline', 'relocation', 'horoscopeImportance', 'incomeRange']);
+  flow.register?.((after) => f.submit({}, after));
   const { t } = useI18n();
   const { horoscopeLabels, incomeLabels, relocationLabels, timelineLabels, valueLabels } = useLabels();
   return (
@@ -200,6 +228,7 @@ function About({ profile, flow }: { profile: ProfileView; flow: Flow }) {
 
 function Family({ profile, flow }: { profile: ProfileView; flow: Flow }) {
   const f = useStep(profile, ['familyStory', 'motherName', 'motherOccupation', 'fatherName', 'fatherOccupation', 'sisters', 'brothers', 'familyInvolvement']);
+  flow.register?.((after) => f.submit({}, after));
   const { t } = useI18n();
   const { involvementLabels } = useLabels();
   return (
@@ -225,6 +254,7 @@ function Lifestyle({ profile, flow }: { profile: ProfileView; flow: Flow }) {
   const [consent, setConsent] = useState(Boolean(savedCaste));
   const wanted = share === 'share' ? caste.trim() : '';
   const casteChanged = wanted !== savedCaste;
+  flow.register?.((after) => f.submit(casteChanged ? { caste: wanted ? { value: wanted, consent } : null } : {}, after));
   const { t } = useI18n();
   const { childrenLabels, communityLabels, dietLabels, habitLabels } = useLabels();
   const notShared = t('details.notShared');
@@ -294,21 +324,35 @@ function showStep(id: string) {
   heading?.focus({ preventScroll: true });
 }
 
-/** `onDone` (while setting up) makes each step "Save and continue", the last one going on with `onDone`. */
-export function DetailsForm({ profile, onDone }: { profile: ProfileView; onDone?: () => void }) {
+/** The details form in the setup wizard: The essentials, or Your story (about, family, lifestyle). */
+export type DetailsPart = 'essentials' | 'story';
+
+/**
+ * `onDone` (while setting up outside the wizard) makes each step "Save and continue", the last one going on with
+ * `onDone`. `part` and `saves` put the form in the wizard: only that part's sections, no buttons, and `saves.current`
+ * set to a function that saves them one after another and then calls `after` (stopping at the first problem).
+ */
+export function DetailsForm({ profile, onDone, part, saves }: { profile: ProfileView; onDone?: () => void; part?: DetailsPart; saves?: { current: Save | null } }) {
   const { t } = useI18n();
-  const flow = (index: number): Flow => ({
-    id: STEP_IDS[index]!,
-    onContinue: onDone && (index === STEP_IDS.length - 1 ? onDone : () => showStep(STEP_IDS[index + 1]!)),
-    last: index === STEP_IDS.length - 1,
-  });
+  const parts: Save[] = [];
+  if (saves) saves.current = (after) => [...parts].reverse().reduce<() => void>((then, save) => () => save(then), after)();
+  const flow = (index: number): Flow =>
+    saves
+      ? // The essentials' heading and About's intro would repeat the wizard step's own title and lead.
+        { id: STEP_IDS[index]!, register: (save) => void parts.push(save), heading: index > 0, intro: index > 1 }
+      : {
+          id: STEP_IDS[index]!,
+          onContinue: onDone && (index === STEP_IDS.length - 1 ? onDone : () => showStep(STEP_IDS[index + 1]!)),
+          last: index === STEP_IDS.length - 1,
+        };
+  const show = (which: DetailsPart) => !part || part === which;
   return (
     <div className="flex flex-col gap-6">
       {!profile.me.canEdit && <Notice>{t('details.viewOnly')}</Notice>}
-      <Essentials profile={profile} flow={flow(0)} />
-      <About profile={profile} flow={flow(1)} />
-      <Family profile={profile} flow={flow(2)} />
-      <Lifestyle profile={profile} flow={flow(3)} />
+      {show('essentials') && <Essentials profile={profile} flow={flow(0)} />}
+      {show('story') && <About profile={profile} flow={flow(1)} />}
+      {show('story') && <Family profile={profile} flow={flow(2)} />}
+      {show('story') && <Lifestyle profile={profile} flow={flow(3)} />}
     </div>
   );
 }

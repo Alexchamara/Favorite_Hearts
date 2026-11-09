@@ -50,7 +50,8 @@ const phoneLabel = site.telephone.startsWith('+94')
  */
 const widths = { narrow: 'mx-auto w-full max-w-3xl', wide: '' } as const;
 
-export function AppShell({ children, home = '/', width = 'narrow' }: { children: ReactNode; home?: string; width?: keyof typeof widths }) {
+/** `onboarding`: the demo's setup wizard brings its own <main class="m-onboarding">, and the dock is hidden meanwhile. */
+export function AppShell({ children, home = '/', width = 'narrow', onboarding = false }: { children: ReactNode; home?: string; width?: keyof typeof widths; onboarding?: boolean }) {
   const { theme, toggleTheme } = useTheme();
   const me = useMe();
   const navigate = useNavigate();
@@ -104,10 +105,14 @@ export function AppShell({ children, home = '/', width = 'narrow' }: { children:
           </div>
         )}
       </header>
-      {member && <Dock />}
-      <main id="main" className="m-main">
-        {width === 'wide' ? children : <div className={widths[width]}>{children}</div>}
-      </main>
+      {member && !onboarding && <Dock />}
+      {onboarding ? (
+        children
+      ) : (
+        <main id="main" className="m-main">
+          {width === 'wide' ? children : <div className={widths[width]}>{children}</div>}
+        </main>
+      )}
       {showSupport &&
         (member ? (
           <footer className="m-footer">

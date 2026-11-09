@@ -3,10 +3,10 @@
  * private contacts, requests, its plan and payments, and the manager/candidate panel for
  * guardian-managed profiles.
  */
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { ArrowLeft, Heart, ShieldCheck, Users } from 'lucide-react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { toast } from 'sonner';
 import type { ProfileView } from '@fh/shared';
 import { TrustBadges } from '@/components/badges';
@@ -16,19 +16,27 @@ import { ApiError, errorMessage, post } from '@/lib/api';
 import { storeProfile, useProfile } from '@/lib/queries';
 import { PlanPanel } from '@/features/billing/PlanPanel';
 import { ContactsPanel } from './ContactsPanel';
-import { DetailsForm } from './DetailsForm';
+import { DetailsForm, type Save } from './DetailsForm';
+import { Onboarding, type WizardStep } from './Onboarding';
 import { useLabels } from './options';
 import { say, useI18n, type Translate } from '@/lib/i18n';
 import { PeoplePanel } from './PeoplePanel';
 import { PhotosPanel } from './PhotosPanel';
 import { DocumentCheck, PhoneCheck } from '@/features/trust/VerifyPage';
-import { firstOpenTodo, inSetup, NextStep, ProfileSteps, SECTION_SLUGS, sectionFromSlug, sectionOpen, useSetupSteps, type ProfileSection, type SetupTab } from './SetupSteps';
+import { essentialsDone, firstOpenTodo, inSetup, NextStep, ProfileSteps, SECTION_SLUGS, sectionFromSlug, sectionOpen, useSetupSteps, type ProfileSection, type SetupTab } from './SetupSteps';
 import { DeleteProfileCard, EngagedCard, PlanCard } from './StandingCards';
 
 export default function ProfilePage() {
-  const { id = '' } = useParams();
+  const { id = '', section } = useParams();
   const profile = useProfile(id);
   const { t } = useI18n();
+  // A draft being set up opens in the demo's setup wizard; its plan and manager/candidate sections keep the page.
+  if (profile.data && inSetup(profile.data) && section !== 'plan' && section !== 'people')
+    return (
+      <AppShell onboarding>
+        <SetupWizard profile={profile.data} />
+      </AppShell>
+    );
   return (
     <AppShell width="wide">
       <Link to="/" className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">
@@ -44,6 +52,103 @@ export default function ProfilePage() {
         )}
       </div>
     </AppShell>
+  );
+}
+
+const WIZARD_OF: Partial<Record<ProfileSection, WizardStep>> = { details: 'essentials', story: 'story', verify: 'privacy', overview: 'review' };
+const SECTION_OF: Record<WizardStep, ProfileSection | null> = { role: null, essentials: 'details', story: 'story', privacy: 'verify', review: 'overview' };
+
+/**
+ * A draft in the demo's five-step wizard (decision B3). Each step is an address of this page (…/details, …/story,
+ * …/verify, …/publish), opens once the steps before it are complete, and saves as the member goes: Continue saves the
+ * step's parts in turn, then opens the next step. Your role was chosen when the profile was created (/profiles/new).
+ */
+function SetupWizard({ profile }: { profile: ProfileView }) {
+  const { section: slug } = useParams();
+  const navigate = useNavigate();
+  const { t } = useI18n();
+  const { steps } = useSetupSteps(profile);
+  const saves = useRef<Save | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const todo = firstOpenTodo(profile, steps);
+  const fallback: ProfileSection = todo === 'details' && essentialsDone(profile) ? 'story' : todo;
+  const asked = sectionFromSlug(slug);
+  const wanted: ProfileSection = asked === 'photos' ? 'story' : (asked ?? fallback);
+  const current: ProfileSection = WIZARD_OF[wanted] && sectionOpen(profile, steps, wanted) ? wanted : fallback;
+  const step = WIZARD_OF[current] ?? 'essentials';
+  useEffect(() => {
+    if (slug !== SECTION_SLUGS[current]) navigate(`/profiles/${profile.id}/${SECTION_SLUGS[current]}`, { replace: true });
+  }, [slug, current, profile.id, navigate]);
+  const isOpen = (option: WizardStep) => {
+    const target = SECTION_OF[option];
+    return target !== null && sectionOpen(profile, steps, target);
+  };
+  const go = (next: ProfileSection) => {
+    setError(null);
+    navigate(`/profiles/${profile.id}/${SECTION_SLUGS[next]}`, { state: { stepChanged: true } });
+  };
+  // A step opened from the wizard (not a fresh page load): back to the top and focus on its title, so keyboard and
+  // screen-reader users follow. The page remounts on every address (App's error boundary is keyed by it), so the
+  // navigation carries the flag.
+  const { state } = useLocation();
+  const stepChanged = Boolean((state as { stepChanged?: boolean } | null)?.stepChanged);
+  useEffect(() => {
+    if (!stepChanged) return;
+    window.scrollTo({ top: 0, behavior: 'auto' });
+    document.getElementById('onboard-title')?.focus({ preventScroll: true });
+  }, [step, stepChanged]);
+  const save = (after: () => void) => (saves.current ? saves.current(after) : after());
+  const heads: Record<WizardStep, { kicker: string; title: string; lead?: string }> = {
+    role: { kicker: t('onboard.role.kicker'), title: t('create.who.title') },
+    essentials: { kicker: t('onboard.essentials.kicker'), title: t('onboard.essentials.title'), lead: t('details.essentials.intro') },
+    story: { kicker: t('onboard.story.kicker'), title: t('onboard.story.title'), lead: t('details.about.intro') },
+    privacy: { kicker: t('onboard.privacy.kicker'), title: t('onboard.privacy.title') },
+    review: { kicker: t('onboard.review.kicker'), title: t('onboard.review.title') },
+  };
+  const back: Record<WizardStep, () => void> = {
+    role: () => navigate('/'),
+    essentials: () => navigate('/'),
+    story: () => go('details'),
+    privacy: () => go('story'),
+    review: () => go('verify'),
+  };
+  const next: Partial<Record<WizardStep, () => void>> = {
+    essentials: () => save(() => go('story')),
+    story: () => save(() => go('verify')),
+    privacy: () => (isOpen('review') ? go('overview') : setError(t('onboard.notOpen'))),
+  };
+  saves.current = null;
+  return (
+    <Onboarding
+      step={step}
+      isOpen={isOpen}
+      onStep={(option) => {
+        const target = SECTION_OF[option];
+        if (target) go(target);
+      }}
+      {...heads[step]}
+      error={error}
+      back={back[step]}
+      next={next[step]}
+      onSaveLater={() => (step === 'essentials' || step === 'story' ? save(() => navigate('/')) : navigate('/'))}
+    >
+      {step === 'essentials' && <DetailsForm profile={profile} part="essentials" saves={saves} />}
+      {step === 'story' && (
+        <>
+          <DetailsForm profile={profile} part="story" saves={saves} />
+          <PhotosPanel profile={profile} />
+        </>
+      )}
+      {step === 'privacy' && (
+        <>
+          <ContactsPanel profile={profile}>
+            {profile.publisher?.isMe && <PhoneCheck embedded suggested={profile.contacts.find((c) => c.kind === 'phone' && c.person === profile.me.role)?.value} />}
+          </ContactsPanel>
+          {profile.publisher?.isMe && <DocumentCheck />}
+        </>
+      )}
+      {step === 'review' && <Overview profile={profile} onOpenPlans={() => navigate(`/profiles/${profile.id}/plan`)} onOpen={go} />}
+    </Onboarding>
   );
 }
 
@@ -88,6 +193,7 @@ function ProfileScreen({ profile }: { profile: ProfileView }) {
   const names: Record<ProfileSection, string> = {
     overview: t('profile.tab.overview'),
     details: t('profile.tab.details'),
+    story: t('onboard.label.story'),
     photos: t('profile.tab.photos'),
     verify: t('setup.step.verify'),
     plan: t('profile.tab.plan'),
@@ -110,7 +216,7 @@ function ProfileScreen({ profile }: { profile: ProfileView }) {
               </button>
             )}
             {current === 'overview' && <Overview profile={profile} onOpenPlans={() => goTo('plan')} onOpen={goTo} />}
-            {current === 'details' && <DetailsForm profile={profile} onDone={setup ? () => goTo('photos') : undefined} />}
+            {(current === 'details' || current === 'story') && <DetailsForm profile={profile} onDone={setup ? () => goTo('photos') : undefined} />}
             {current === 'photos' && (
               <>
                 <PhotosPanel profile={profile} />

@@ -12,7 +12,7 @@ import { useI18n } from '@/lib/i18n';
 import { usePhotos } from '@/lib/queries';
 import { cn } from '@/lib/utils';
 
-export type SetupTab = 'details' | 'photos' | 'verify' | 'overview';
+export type SetupTab = 'details' | 'story' | 'photos' | 'verify' | 'overview';
 /** Every section of the profile page: the steps' own, plus the plan and the manager/candidate section. */
 export type ProfileSection = SetupTab | 'plan' | 'people';
 type StepKey = 'details' | 'photos' | 'verify' | 'publish';
@@ -45,6 +45,7 @@ const sectionOf = (key: StepKey): SetupTab => (key === 'publish' ? 'overview' : 
 /** The address of each section: /profiles/:id/details, …/photos, …/verify, …/publish, …/plan, …/people. */
 export const SECTION_SLUGS: Record<ProfileSection, string> = {
   details: 'details',
+  story: 'story',
   photos: 'photos',
   verify: 'verify',
   overview: 'publish',
@@ -61,6 +62,8 @@ export const sectionFromSlug = (slug: string | undefined): ProfileSection | null
  */
 export function sectionOpen(profile: ProfileView, steps: SetupStep[], section: ProfileSection): boolean {
   if (!inSetup(profile) || section === 'plan' || section === 'people' || section === 'details') return true;
+  // The setup wizard's Your story opens once the essentials are complete (decision B3).
+  if (section === 'story') return essentialsDone(profile);
   const state = (key: StepKey) => steps.find((step) => step.key === key)?.state ?? 'done';
   if (section === 'photos' || section === 'verify') return state('details') === 'done';
   return state('details') === 'done' && state('verify') !== 'todo';
@@ -188,3 +191,6 @@ export function NextStep({ profile, after, onOpen }: { profile: ProfileView; aft
     </Card>
   );
 }
+
+/** The details the wizard's The essentials asks for are all there (the story's bio and the contacts come later). */
+export const essentialsDone = (profile: ProfileView) => !profile.missing.some((key) => key !== 'contactPhone' && key !== 'bio');

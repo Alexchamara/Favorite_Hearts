@@ -8,6 +8,7 @@ import { useMe } from '@/lib/queries';
 import Home from '@/features/home/Home';
 
 const ProfilePage = lazy(() => import('@/features/profile/ProfilePage'));
+const NewProfilePage = lazy(() => import('@/features/profile/NewProfilePage'));
 const BrowsePage = lazy(() => import('@/features/browse/BrowsePage'));
 const MemberPage = lazy(() => import('@/features/browse/MemberPage'));
 const VerifyPage = lazy(() => import('@/features/trust/VerifyPage'));
@@ -36,6 +37,7 @@ export default function App() {
         <Suspense fallback={<AppShell><Loading /></AppShell>}>
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/profiles/new" element={<MemberOnly><NewProfilePage /></MemberOnly>} />
             <Route path="/profiles/:id/:section?" element={<MemberOnly><ProfilePage /></MemberOnly>} />
             <Route path="/verify" element={<MemberOnly><VerifyPage /></MemberOnly>} />
             {/* A document QR code's page on a phone: its link token, not a session (no sign-in). */}

@@ -77,6 +77,12 @@ keys get an English value and a blank Sinhala value.
 | Member: sign-in | One code-based form instead of the demo's Sign up / Log in tabs and passwords; the demo's tab look carries the Email / Phone (SMS) choice; "Send me a code" instead of "Create account" / "Log in"; the security check (Turnstile) on the contact and code steps | OWNER-DECISIONS §5 (passwordless), D7 |
 | Member: entry aside | The decided steps and note ("Sign in with a code…", "Browsing opens once you are verified…") instead of the demo's ("Verify your account…", "Browse free after setup…") | OWNER-DECISIONS §2, §5 |
 | Member: entry brand | A link home (the demo's is a button); it takes the font the demo button ends up with | Link semantics |
+| Member: wizard, Your role | No manager-name or candidate-email fields (the account holder's name is the manager's; the candidate is invited later from the profile); the self or manager declaration is the box to tick; the role cannot be changed once the profile exists, so its step label is not a link afterwards; no "Save and finish later" (nothing is saved yet) | OWNER-DECISIONS §4, §5 |
+| Member: wizard, The essentials | Date of birth instead of the demo's age wheel (SCREEN-070 not built); the app's own field labels, lists and limits; no "Use sample details" | Decision B3; RULE-AUDIT |
+| Member: wizard, Your story | The about, family and lifestyle parts keep their own headings, and photos come at the end of this step (the demo adds photos later, on the profile) | Photos are part of setup (owner, 5 Nov 2026) |
+| Member: wizard, Privacy | The private contacts plus the account holder's own phone and document checks (the demo has contact fields, social links and horoscope options here) | OWNER-DECISIONS §1, §5 |
+| Member: wizard, Review | The publishing panel (publish when the checks allow it, plan, delete) instead of the demo's read-back and agreement box; the agreement was given when the profile was created | OWNER-DECISIONS §2 |
+| Member: wizard panels | Contact, photo, verification and publishing panels lose their card frame inside a step, so the step reads as one page as in the demo | Demo layout |
 
 More rows are added as each phase finds them.
 
@@ -250,4 +256,32 @@ SCREEN-022, 023/024 (one passwordless sign-in), 026. SCREEN-025 and 027 (passwor
   `build:site` and the site check pass; keyboard order on the entry page: skip link, brand, language, theme, the two
   language buttons, country, Continue, all with visible focus and at least 44 px; Sinhala: new texts show in English,
   changed ones in their earlier Sinhala.
+
+### ui-5a setup wizard (9 Nov 2026)
+
+SCREEN-028 to 032 (decision B3). SCREEN-070 (age wheel) is not built: the profile keeps its date of birth.
+
+- **The wizard** (`features/profile/Onboarding.tsx`): the demo's `main.m-onboarding`, with the editorial aside
+  (`.m-onboard-aside`, `.m-onboard-quote`) and the content (`.m-onboard-content`): "Step n of 5", the progress bar
+  (`.m-progress`), the step labels (`.m-step-labels`, current one `aria-current="step"`, steps not open yet
+  disabled), the step's kicker and title, the step, `.m-error`, `.m-wizard-actions` (Back, Continue) and
+  `.m-save-draft` ("Save and finish later"). The dock is hidden meanwhile, as in the demo.
+- **Steps on this app's endpoints:** Your role is the new page `/profiles/new` (POST /profiles; it replaces the
+  "Create a profile" dialog), with the demo's role cards (`.m-role-grid`, `.m-role-option`). The essentials
+  (`…/details`) and Your story (`…/story`, the old `…/photos` address opens it) are the details form in parts (PATCH
+  /profiles/:id): Continue saves each part in turn, stops at the first problem, then opens the next step; every save
+  reads the newest profile version, so parts saved one after another never conflict. Privacy (`…/verify`) and Review
+  (`…/publish`) are the existing contacts, checks and publishing panels. A step opens once the steps before it are
+  complete (Your story once the essentials are). Opening a step moves focus to its title.
+- **Only while setting up:** the wizard is the page of a draft its viewer can edit; a published profile, and a
+  draft's plan and manager/candidate sections, keep the profile page (ui-5b).
+- **Shared pieces:** the value chips are the demo's `.m-value-picker` (pressed buttons with a tick).
+- **Fixed:** `parity.css` rules lost to the demo's `#favorite-hearts-product`-scoped rules on specificity; every
+  rule now starts with that id. The 44 px theme button from ui-4 only takes effect from here.
+- **Texts:** 27 new wizard texts added through `scripts/ui-parity/texts.py` (blank Sinhala, on the waiting list).
+- **Pixel diff against the demo:** The essentials 4.6% (1440 px), 9.6% (390); Your role 7.6% (1440), 17.7% (390),
+  mostly the demo's manager-name and candidate-email fields.
+- **Checks:** typecheck clean; tests pass (API 166, website 5, text tools 9); `build:site` and the site check pass;
+  walked end to end in the sandbox: role and declaration (error without it), essentials saved, story saved, privacy
+  (contact from the verified number), review opened; no step scrolls sideways at 320 or 390 px.
 

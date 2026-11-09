@@ -6,7 +6,7 @@
  */
 import { useId, useState, type ReactNode } from 'react';
 import { DEFAULT_PHONE_COUNTRY, DIAL_CODES, formatNational, joinPhone, nationalDigits, splitPhone } from '@fh/shared';
-import { ChevronDown } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
 import 'flag-icons/css/flag-icons.min.css';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useCountries } from '@/features/profile/options';
@@ -234,35 +234,29 @@ export function ChipPicker<T extends string>({
   const { t } = useI18n();
   const toggle = (item: T) =>
     onChange(value.includes(item) ? value.filter((v) => v !== item) : value.length < max ? [...value, item] : value);
+  // The demo's value picker (.m-value-picker): pressed buttons with a tick, in a labelled group.
+  const labelId = useId();
   return (
-    <fieldset className="flex min-w-0 flex-col gap-2">
-      <legend className="mb-1.5 text-[13px] font-semibold">{label}</legend>
-      <div className="flex flex-wrap gap-2">
+    <div className="m-field" role="group" aria-labelledby={labelId}>
+      <span id={labelId}>{label}</span>
+      <div className="m-value-picker">
         {options.map((option) => {
           const on = value.includes(option.value);
           return (
-            <button
-              key={option.value}
-              type="button"
-              aria-pressed={on}
-              onClick={() => toggle(option.value)}
-              className={cn(
-                'min-h-9 rounded-full border px-3.5 text-sm transition-colors',
-                on ? 'border-primary bg-primary text-primary-foreground' : 'bg-card hover:bg-accent',
-              )}
-            >
+            <button key={option.value} type="button" aria-pressed={on} className={on ? 'selected' : undefined} onClick={() => toggle(option.value)}>
+              {on && <Check size={13} aria-hidden="true" />}
               {option.label}
             </button>
           );
         })}
       </div>
-      <p className="text-xs text-muted-foreground">{hint ?? t('fields.upTo', { max })}</p>
+      <small>{hint ?? t('fields.upTo', { max })}</small>
       {error && (
-        <p role="alert" className="text-xs font-medium text-destructive">
+        <small role="alert" className="m-field-error">
           {error}
-        </p>
+        </small>
       )}
-    </fieldset>
+    </div>
   );
 }
 
