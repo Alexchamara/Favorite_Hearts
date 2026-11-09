@@ -1,7 +1,9 @@
 /**
- * The frame around every member screen, in the demo's look (owner, 6 Nov 2026): the rose brand mark, a menu drawer for
- * the account (language, theme, verification, help, sign out), and a floating dock for the four places members go
- * every day. Signed-out visitors and staff keep a plain header without the dock.
+ * The frame around every member screen, in the original demo's markup and classes (docs/UI-PARITY.md, phase ui-3):
+ * .m-app > header.m-header (brand, More button), nav.m-primary-nav.m-floating-nav (the dock), main.m-main and
+ * footer.m-footer, with the More sheet (.m-app.m-more-sheet) for language, theme, verification, help and sign out.
+ * Their look comes from the demo's stylesheets (styles/source/). Signed-out visitors and staff get the header without
+ * the dock or the More sheet.
  */
 import { useCallback, type ReactNode } from 'react';
 import {
@@ -25,9 +27,7 @@ import {
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { LANGUAGE_NAMES } from '@fh/shared';
-import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { Switch } from '@/components/ui/switch';
 import { put } from '@/lib/api';
 import { authClient } from '@/lib/auth-client';
 import { useAccountLanguage, useI18n, type AppTextKey } from '@/lib/i18n';
@@ -44,8 +44,11 @@ const phoneLabel = site.telephone.startsWith('+94')
   ? `0${phoneDigits.slice(2)}`.replace(/^(\d{3})(\d{3})(\d{4})$/, '$1 $2 $3')
   : site.telephone;
 
-/** How wide a screen's content runs: forms and single tasks read best narrow; lists and two-column screens go wide. */
-const widths = { narrow: 'max-w-3xl', wide: 'max-w-[1360px]' } as const;
+/**
+ * How wide a screen's content runs. The demo's .m-main has one width; screens not yet rebuilt on the demo's markup
+ * keep a narrow column inside it so their forms stay readable (removed screen by screen, phases ui-4 to ui-9).
+ */
+const widths = { narrow: 'mx-auto w-full max-w-3xl', wide: '' } as const;
 
 export function AppShell({ children, home = '/', width = 'narrow' }: { children: ReactNode; home?: string; width?: keyof typeof widths }) {
   const { theme, toggleTheme } = useTheme();
@@ -72,70 +75,67 @@ export function AppShell({ children, home = '/', width = 'narrow' }: { children:
     navigate(home);
   };
   return (
-    <div className="flex min-h-dvh flex-col">
-      <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded focus:bg-card focus:px-3 focus:py-2">
+    <div className="m-app" data-theme={theme}>
+      <a href="#main" className="m-skip-link">
         {t('layout.skip')}
       </a>
-      <header className="flex h-[70px] items-center gap-3 border-b bg-card px-4 sm:h-20 sm:px-[3.1%]">
-        <BrandMark href={home === '/staff' ? '/app/staff' : language === 'si' ? '/si/' : '/'} />
-        <div className="ml-auto flex items-center gap-2">
-          {member ? (
-            <MenuDrawer onSignOut={signOut} onLanguage={chooseLanguage} />
-          ) : (
-            <>
-              {me.data && (
-                <Button variant="ghost" size="sm" onClick={signOut}>
-                  <LogOut aria-hidden="true" />
-                  {t('layout.signOut')}
-                </Button>
-              )}
-              {showSupport && (
-                // The spoken name starts with the visible word (WCAG 2.5.3), then says what it does.
-                <Button variant="ghost" size="sm" className="h-11 sm:h-9" onClick={() => void chooseLanguage(other)}>
-                  <span lang={other}>{LANGUAGE_NAMES[other]}</span>
-                  <span className="sr-only">{t(`layout.languageTo.${other}`)}</span>
-                </Button>
-              )}
-              <button
-                type="button"
-                className={roundButton}
-                onClick={toggleTheme}
-                aria-label={theme === 'dark' ? t('layout.lightTheme') : t('layout.darkTheme')}
-              >
-                {theme === 'dark' ? <Sun className="size-5" aria-hidden="true" /> : <Moon className="size-5" aria-hidden="true" />}
+      <header className="m-header">
+        <Brand href={home === '/staff' ? '/app/staff' : language === 'si' ? '/si/' : '/'} />
+        {member ? (
+          <MoreMenu onSignOut={signOut} onLanguage={chooseLanguage} />
+        ) : (
+          <div className="ml-auto flex items-center gap-2">
+            {me.data && (
+              <button type="button" className="m-text inline-flex min-h-11 items-center gap-2" onClick={signOut}>
+                <LogOut size={16} aria-hidden="true" />
+                {t('layout.signOut')}
               </button>
-            </>
-          )}
-        </div>
+            )}
+            {showSupport && (
+              // The spoken name starts with the visible word (WCAG 2.5.3), then says what it does.
+              <button type="button" className="m-text min-h-11 px-2" onClick={() => void chooseLanguage(other)}>
+                <span lang={other}>{LANGUAGE_NAMES[other]}</span>
+                <span className="sr-only">{t(`layout.languageTo.${other}`)}</span>
+              </button>
+            )}
+            <button type="button" className="ma-theme" onClick={toggleTheme} aria-label={theme === 'dark' ? t('layout.lightTheme') : t('layout.darkTheme')}>
+              {theme === 'dark' ? <Sun size={19} aria-hidden="true" /> : <Moon size={19} aria-hidden="true" />}
+            </button>
+          </div>
+        )}
       </header>
-      <main id="main" className={cn('mx-auto w-full flex-1 px-4 pt-7 pb-12 sm:px-[4%] sm:pt-10', widths[width])}>
-        {children}
-      </main>
-      {showSupport && (member ? <SlimFooter /> : <SupportFooter />)}
       {member && <Dock />}
+      <main id="main" className="m-main">
+        {width === 'wide' ? children : <div className={widths[width]}>{children}</div>}
+      </main>
+      {showSupport &&
+        (member ? (
+          <footer className="m-footer">
+            <span>{t('layout.copyright', { year: new Date().getFullYear() })}</span>
+          </footer>
+        ) : (
+          <SupportFooter />
+        ))}
     </div>
   );
 }
 
-const roundButton =
-  'relative grid size-11 shrink-0 place-items-center rounded-full border bg-[var(--ui-surface)] text-foreground transition-colors hover:bg-accent';
-
-/** The rose heart and the name with its rose full stop, as on the website. */
-export function BrandMark({ href }: { href: string }) {
+/** The demo's brand: the heart in its disc, the name, and the full stop. */
+export function Brand({ href }: { href: string }) {
   return (
-    <a href={href} className="inline-flex items-center gap-2 text-[1.02rem] font-extrabold tracking-[-0.6px] whitespace-nowrap sm:gap-[9px] sm:text-[1.2rem] sm:tracking-[-0.8px]">
-      <span className="grid size-7 place-items-center rounded-full bg-[var(--ui-rose)] text-white sm:size-8" aria-hidden="true">
-        <Heart className="size-4 fill-current sm:size-[19px]" />
+    <a className="m-brand" href={href}>
+      <span aria-hidden="true">
+        <Heart size={19} fill="currentColor" />
       </span>
       Favorite Hearts
-      <span className="-ml-2 text-[var(--ui-rose-ink)]" aria-hidden="true">
+      <span className="m-brand-dot" aria-hidden="true">
         .
       </span>
     </a>
   );
 }
 
-/** The account's own checks are incomplete: the menu badge and the Verification row say so. */
+/** The account's own checks are incomplete: the More button and the Verification row show a count. */
 function useVerificationNeeded(): boolean {
   const me = useMe().data;
   const cases = useMyCases(Boolean(me?.memberAccount));
@@ -143,7 +143,7 @@ function useVerificationNeeded(): boolean {
   return !me.phoneNumberVerified || cases.data?.[0]?.status !== 'approved';
 }
 
-function MenuDrawer({ onSignOut, onLanguage }: { onSignOut: () => void; onLanguage: (language: 'en' | 'si') => void }) {
+function MoreMenu({ onSignOut, onLanguage }: { onSignOut: () => void; onLanguage: (language: 'en' | 'si') => void }) {
   const { t, language } = useI18n();
   const { theme, toggleTheme } = useTheme();
   const me = useMe().data!;
@@ -152,117 +152,89 @@ function MenuDrawer({ onSignOut, onLanguage }: { onSignOut: () => void; onLangua
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <button type="button" className={roundButton} aria-label={t(attention ? 'layout.menu.openAttention' : 'layout.menu.open')}>
-          <Menu className="size-[22px]" aria-hidden="true" />
+        <button type="button" className="m-more-button" aria-label={t(attention ? 'layout.menu.openAttention' : 'layout.menu.open')}>
+          <Menu size={22} aria-hidden="true" />
           {attention && (
-            // A dot, not a number: the label says what needs attention, and a visible number would not be in it.
-            <span className="absolute top-0 right-0 size-3 rounded-full border-2 border-[var(--ui-surface)] bg-[var(--ui-rose-ink)]" aria-hidden="true" />
+            <span className="m-menu-count" aria-hidden="true">
+              1
+            </span>
           )}
         </button>
       </SheetTrigger>
-      <SheetContent side="right" className="flex w-[min(360px,92vw)] flex-col gap-0 overflow-y-auto border-l bg-card p-6 sm:max-w-none">
-        <SheetHeader className="p-0 pr-10">
-          <SheetTitle className="font-serif text-[2rem] leading-[1.15] font-normal tracking-[-0.03em]">{t('layout.menu.title')}</SheetTitle>
-          <SheetDescription className="break-words">{t('layout.menu.signedInAs', { name: me.name || me.email || '' })}</SheetDescription>
+      <SheetContent
+        side="right"
+        className="m-app m-more-sheet"
+        data-theme={theme}
+        // The demo opens the sheet without focusing its first control; focus goes to the sheet itself, so it is still
+        // inside the dialog for keyboard and screen-reader users.
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          (event.currentTarget as HTMLElement).focus();
+        }}
+      >
+        <SheetHeader>
+          <SheetTitle>{t('layout.menu.title')}</SheetTitle>
+          <SheetDescription>{t('layout.menu.signedInAs', { name: me.name || me.email || '' })}</SheetDescription>
         </SheetHeader>
-
-        <div className="mt-7 flex flex-col gap-4 border-b pb-6">
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-sm font-semibold" id="menu-language">
-              {t('layout.menu.language')}
-            </span>
-            <div role="group" aria-labelledby="menu-language" className="flex gap-1 rounded-[10px] bg-[var(--ui-soft)] p-1">
-              {(['en', 'si'] as const).map((code) => (
-                <button
-                  key={code}
-                  type="button"
-                  lang={code}
-                  aria-pressed={language === code}
-                  onClick={() => onLanguage(code)}
-                  className={cn(
-                    'min-h-9 rounded-[8px] px-3 text-sm font-semibold transition-colors',
-                    language === code ? 'bg-[var(--ui-purple)] text-[var(--ui-on-purple)]' : 'text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  {LANGUAGE_NAMES[code]}
-                </button>
-              ))}
-            </div>
-          </div>
-          <label className="flex min-h-9 cursor-pointer items-center justify-between gap-3 text-sm font-semibold">
-            <span className="inline-flex items-center gap-2">
-              {theme === 'dark' ? <Moon className="size-4" aria-hidden="true" /> : <Sun className="size-4" aria-hidden="true" />}
-              {t('layout.menu.darkMode')}
-            </span>
-            <Switch checked={theme === 'dark'} onCheckedChange={toggleTheme} />
-          </label>
-        </div>
-
-        <nav aria-label={t('layout.menu.nav')} className="mt-4 grid gap-1">
-          <MenuItem to="/verify" Icon={ShieldCheck} label="layout.menu.verification" note={attention ? t('layout.menu.needsAttention') : undefined} />
-          <MenuItem href={page('/help/')} Icon={CircleHelp} label="layout.help" />
-          <MenuItem href={page('/terms/')} Icon={FileText} label="layout.terms" />
-          <MenuItem href={page('/privacy/')} Icon={FileText} label="layout.privacy" />
+        <label className="fh-language">
+          <span>{t('layout.menu.language')}</span>
+          <select value={language} onChange={(event) => onLanguage(event.target.value as 'en' | 'si')}>
+            {(['en', 'si'] as const).map((code) => (
+              <option key={code} value={code} lang={code}>
+                {LANGUAGE_NAMES[code]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button type="button" className="m-btn m-secondary m-menu-theme" onClick={toggleTheme}>
+          {theme === 'dark' ? <Sun size={19} aria-hidden="true" /> : <Moon size={19} aria-hidden="true" />}
+          {theme === 'dark' ? t('layout.lightTheme') : t('layout.darkTheme')}
+        </button>
+        <nav aria-label={t('layout.menu.nav')}>
+          <MenuItem to="/verify" Icon={ShieldCheck} label={t('layout.menu.verification')} count={attention ? t('layout.menu.needsAttention') : undefined} />
+          <MenuItem href={page('/help/')} Icon={CircleHelp} label={t('layout.help')} />
+          <MenuItem href={page('/terms/')} Icon={FileText} label={t('layout.terms')} />
+          <MenuItem href={page('/privacy/')} Icon={FileText} label={t('layout.privacy')} />
         </nav>
-
-        <section aria-labelledby="menu-contact" className="mt-5 border-t pt-5">
-          <h2 id="menu-contact" className="text-sm font-semibold">
-            {t('layout.menu.contact')}
-          </h2>
-          <ul className="mt-2 grid gap-1 text-sm">
-            <li>
-              <a className={menuRow} href={`https://wa.me/${phoneDigits}`} target="_blank" rel="noopener noreferrer">
-                <MessageCircle className="size-5 text-[var(--ui-purple)]" aria-hidden="true" />
-                {t('layout.whatsapp', { phone: phoneLabel })}
-              </a>
-            </li>
-            <li>
-              <a className={menuRow} href={`tel:${site.telephone}`}>
-                <Phone className="size-5 text-[var(--ui-purple)]" aria-hidden="true" />
-                {t('layout.call', { phone: phoneLabel })}
-              </a>
-            </li>
-            <li>
-              <a className={menuRow} href={`mailto:${site.email}`}>
-                <Mail className="size-5 text-[var(--ui-purple)]" aria-hidden="true" />
-                <span className="break-all">{site.email}</span>
-              </a>
-            </li>
-          </ul>
-          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">{t('layout.staffNeverAsk')}</p>
-        </section>
-
-        <div className="mt-auto border-t pt-5">
-          <Button variant="danger" className="h-11" onClick={onSignOut}>
-            <LogOut aria-hidden="true" />
+        <nav aria-label={t('layout.menu.contact')}>
+          <MenuItem href={`https://wa.me/${phoneDigits}`} external Icon={MessageCircle} label={t('layout.whatsapp', { phone: phoneLabel })} />
+          <MenuItem href={`tel:${site.telephone}`} Icon={Phone} label={t('layout.call', { phone: phoneLabel })} />
+          <MenuItem href={`mailto:${site.email}`} Icon={Mail} label={site.email} />
+          <p className="m-menu-note">{t('layout.staffNeverAsk')}</p>
+        </nav>
+        <div className="m-menu-bottom">
+          <button type="button" className="m-menu-logout" onClick={onSignOut}>
+            <LogOut size={16} aria-hidden="true" />
             {t('layout.signOut')}
-          </Button>
+          </button>
         </div>
       </SheetContent>
     </Sheet>
   );
 }
 
-const menuRow = 'flex min-h-12 items-center gap-3 rounded-[10px] px-3 py-2 text-[15px] hover:bg-[var(--ui-soft)]';
-
-function MenuItem({ to, href, Icon, label, note }: { to?: string; href?: string; Icon: LucideIcon; label: AppTextKey; note?: string }) {
-  const { t } = useI18n();
+/**
+ * A row of the More sheet. The demo's rows are buttons; here rows that open a page are links (parity.css gives them the
+ * same look). A row that needs attention carries the demo's count badge, with the words for screen readers.
+ */
+function MenuItem({ to, href, external, Icon, label, count }: { to?: string; href?: string; external?: boolean; Icon: LucideIcon; label: string; count?: string }) {
   const body = (
     <>
-      <Icon className="size-5 shrink-0 text-[var(--ui-purple)]" aria-hidden="true" />
-      <span className="flex-1">
-        {t(label)}
-        {note && <span className="block text-xs font-semibold text-[var(--ui-rose-ink)]">{note}</span>}
-      </span>
-      {href && <ArrowUpRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />}
+      <Icon size={20} aria-hidden="true" />
+      <span className="min-w-0 break-words">{label}</span>
+      {count && (
+        <span className="m-menu-item-count">
+          <span aria-hidden="true">1</span>
+          <span className="sr-only">{count}</span>
+        </span>
+      )}
+      <ArrowUpRight size={16} aria-hidden="true" />
     </>
   );
   return to ? (
-    <Link to={to} className={menuRow}>
-      {body}
-    </Link>
+    <Link to={to}>{body}</Link>
   ) : (
-    <a href={href} className={menuRow}>
+    <a href={href} {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
       {body}
     </a>
   );
@@ -277,59 +249,33 @@ const DOCK: { to: string; label: AppTextKey; Icon: LucideIcon; match: (path: str
   { to: '/', label: 'layout.dock.profiles', Icon: UserRound, match: (path) => path === '/' || path.startsWith('/profiles/') },
 ];
 
-/** The floating dock: always in reach of a thumb on a phone, centred under the content on a computer. */
+/** The demo's floating dock: buttons, the current one marked selected and aria-current. */
 function Dock() {
   const { t } = useI18n();
+  const navigate = useNavigate();
   const { pathname, search } = useLocation();
   // Keep the profile being acted for when moving between Discover, Requests and Connected.
   const as = new URLSearchParams(search).get('as');
   return (
-    <nav
-      aria-label={t('layout.mainNav')}
-      className="fixed inset-x-0 bottom-[max(12px,env(safe-area-inset-bottom))] z-40 mx-auto grid w-[min(520px,calc(100%-16px))] grid-cols-5 gap-0.5 rounded-[32px] border bg-card p-1.5 shadow-[var(--ui-dock-shadow)] sm:gap-1"
-    >
+    <nav className="m-primary-nav m-floating-nav" aria-label={t('layout.mainNav')}>
       {DOCK.map(({ to, label, Icon, match }) => {
         const current = match(pathname);
         return (
-          <Link
+          <button
             key={to}
-            to={as && to !== '/' ? `${to}?as=${as}` : to}
+            type="button"
             aria-current={current ? 'page' : undefined}
-            className={cn(
-              'flex min-h-[54px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[24px] px-0.5 text-center text-[11px] leading-[1.15] font-semibold transition-colors',
-              current
-                ? 'bg-[image:var(--ui-dock-selected)] text-[var(--ui-on-dock)] shadow-[inset_0_1px_0_#ffffff30,0_3px_10px_#a8582820]'
-                : 'text-muted-foreground hover:bg-[var(--ui-soft)] hover:text-foreground',
-            )}
+            className={current ? 'selected' : undefined}
+            onClick={() => navigate(as && to !== '/' ? `${to}?as=${as}` : to)}
           >
-            <Icon className="size-[22px]" aria-hidden="true" />
-            <span className="max-w-full break-words">{t(label)}</span>
-          </Link>
+            <span className="m-dock-icon">
+              <Icon size={22} aria-hidden="true" />
+            </span>
+            <span>{t(label)}</span>
+          </button>
         );
       })}
     </nav>
-  );
-}
-
-/** Under signed-in screens: support lives in the menu, so the footer only names the policies. */
-function SlimFooter() {
-  const { t, language } = useI18n();
-  const page = (route: string) => (language === 'si' ? `/si${route}` : route);
-  return (
-    <footer className="px-4 pb-32 text-center text-sm text-muted-foreground sm:pb-36">
-      <nav aria-label={t('layout.helpNav')} className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1">
-        <span>{t('layout.copyright', { year: new Date().getFullYear() })}</span>
-        <a className={footerLink} href={page('/help/')}>
-          {t('layout.help')}
-        </a>
-        <a className={footerLink} href={page('/terms/')}>
-          {t('layout.terms')}
-        </a>
-        <a className={footerLink} href={page('/privacy/')}>
-          {t('layout.privacy')}
-        </a>
-      </nav>
-    </footer>
   );
 }
 
@@ -378,38 +324,36 @@ function SupportFooter() {
 
 const footerLink = 'underline underline-offset-4 hover:text-foreground';
 
-/** A main container: page colour on the surface colour, a hairline, no shadow (the demo's .m-surface). */
+/** A main container: the demo's .m-surface. */
 export function Card({ children, className }: { children: ReactNode; className?: string }) {
-  return <section className={cn('rounded-[var(--ui-panel-radius)] border bg-card p-5 sm:p-7', className)}>{children}</section>;
+  return <section className={cn('m-surface', className)}>{children}</section>;
 }
 
-/** The small spaced capitals above a heading, as in the demo. */
-export const kickerClass = 'text-xs font-bold tracking-[0.15em] text-muted-foreground uppercase';
+/** The small spaced capitals above a heading: the demo's .m-kicker (its texts are written in capitals). */
+export const kickerClass = 'm-kicker uppercase';
 
+/** The demo's page heading: kicker, serif title, lead line, and actions on the right. */
 export function PageTitle({ kicker, title, children, action }: { kicker?: string; title: string; children?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="mb-7 flex flex-col gap-5 sm:mb-8 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
-      <div className="min-w-0">
-        {kicker && <p className={cn(kickerClass, 'mb-2')}>{kicker}</p>}
-        <h1 className="font-serif text-[2.25rem] leading-[1.12] sm:text-5xl">{title}</h1>
-        {children && <div className="mt-3 max-w-[65ch] text-muted-foreground">{children}</div>}
+    <div className="m-page-heading">
+      <div>
+        {kicker && <span className={kickerClass}>{kicker}</span>}
+        <h1>{title}</h1>
+        {children && (typeof children === 'string' ? <p>{children}</p> : <div className="m-page-lead">{children}</div>)}
       </div>
-      {action && <div className="flex shrink-0 flex-wrap gap-3">{action}</div>}
+      {action && <div className="m-discover-heading-actions">{action}</div>}
     </div>
   );
 }
 
-const noticeTones = {
-  info: 'border-[var(--ui-line)] bg-[var(--ui-soft)]',
-  warning: 'border-[var(--ui-accent)] bg-[color-mix(in_srgb,var(--ui-accent)_14%,var(--ui-surface))]',
-  error: 'border-destructive bg-[color-mix(in_srgb,var(--ui-danger)_10%,var(--ui-surface))]',
-};
-
-export function Notice({ tone = 'info', title, children }: { tone?: keyof typeof noticeTones; title?: string; children?: ReactNode }) {
+/** The demo's .m-note for information and warnings, .m-error for errors. */
+export function Notice({ tone = 'info', title, children }: { tone?: 'info' | 'warning' | 'error'; title?: string; children?: ReactNode }) {
   return (
-    <div role={tone === 'error' ? 'alert' : 'status'} className={cn('rounded-[12px] border px-4 py-3 text-sm leading-relaxed', noticeTones[tone])}>
-      {title && <p className="font-semibold">{title}</p>}
-      {children && <div className={title ? 'mt-1' : undefined}>{children}</div>}
+    <div role={tone === 'error' ? 'alert' : 'status'} className={tone === 'error' ? 'm-error' : 'm-note'} data-tone={tone}>
+      <div>
+        {title && <strong>{title}</strong>}
+        {children && (title ? <div className="mt-1">{children}</div> : children)}
+      </div>
     </div>
   );
 }

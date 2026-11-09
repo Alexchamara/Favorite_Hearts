@@ -1,6 +1,8 @@
 /**
- * Form controls in the demo's style (46px fields, 10px radius, labels above). Every control has a
- * visible label, an optional hint, and an error announced to screen readers.
+ * Form controls on the demo's markup (docs/UI-PARITY.md, phase ui-3): .m-field holds the label (in a span), the control
+ * and a <small> hint; .m-check a checkbox and its text. Their look comes from the demo's stylesheets. Unlike the demo,
+ * the label is a <label for> around the words only, so a hint or error is not read as part of the control's name; it
+ * is linked with aria-describedby instead, and an error is announced.
  */
 import { useId, useState, type ReactNode } from 'react';
 import { DEFAULT_PHONE_COUNTRY, DIAL_CODES, formatNational, joinPhone, nationalDigits, splitPhone } from '@fh/shared';
@@ -11,8 +13,8 @@ import { useCountries } from '@/features/profile/options';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
-const control =
-  'block w-full min-h-[46px] rounded-[10px] border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground disabled:opacity-60 aria-[invalid=true]:border-destructive';
+// The demo's stylesheets size and colour controls inside .m-field; this only makes them fill the column.
+const control = 'block w-full';
 
 type FieldProps = { label: string; hint?: string; error?: string; className?: string; children: (id: string, describedBy?: string) => ReactNode };
 
@@ -22,20 +24,16 @@ export function Field({ label, hint, error, className, children }: FieldProps) {
   const errorId = error ? `${id}-error` : undefined;
   const describedBy = [hintId, errorId].filter(Boolean).join(' ') || undefined;
   return (
-    <div className={cn('flex min-w-0 flex-col gap-1.5', className)}>
-      <label htmlFor={id} className="text-[13px] font-semibold">
-        {label}
-      </label>
+    <div className={cn('m-field', className)}>
+      <span>
+        <label htmlFor={id}>{label}</label>
+      </span>
       {children(id, describedBy)}
-      {hint && (
-        <p id={hintId} className="text-xs text-muted-foreground">
-          {hint}
-        </p>
-      )}
+      {hint && <small id={hintId}>{hint}</small>}
       {error && (
-        <p id={errorId} role="alert" className="text-xs font-medium text-destructive">
+        <small id={errorId} role="alert" className="m-field-error">
           {error}
-        </p>
+        </small>
       )}
     </div>
   );
@@ -103,16 +101,19 @@ export function PhoneField({ value, onChange, ...props }: Common & { value: stri
               if (!next) setSearch('');
             }}
           >
-            <PopoverTrigger
-              type="button"
-              disabled={disabled}
-              aria-label={`${t('fields.phoneCountry')}: ${countries.find((option) => option.code === country)?.name ?? ''} +${code}`}
-              className={cn(control, 'flex w-[6.5rem] shrink-0 items-center gap-2 px-3 text-left')}
-            >
-              <Flag code={country} />
-              <span>+{code}</span>
-              <ChevronDown aria-hidden="true" className="ml-auto size-4 text-muted-foreground" />
-            </PopoverTrigger>
+            {/* The flag picker is not in the demo (decision B2b); it takes the demo's picker look (.m-choice). */}
+            <div className="w-[7rem] shrink-0">
+              <PopoverTrigger
+                type="button"
+                disabled={disabled}
+                aria-label={`${t('fields.phoneCountry')}: ${countries.find((option) => option.code === country)?.name ?? ''} +${code}`}
+                className="m-choice"
+              >
+                <Flag code={country} />
+                <span className="min-w-0 flex-1">+{code}</span>
+                <ChevronDown aria-hidden="true" />
+              </PopoverTrigger>
+            </div>
             <PopoverContent align="start" className="w-[min(20rem,calc(100vw-2rem))] p-0">
               <input
                 type="search"
@@ -179,7 +180,7 @@ export function TextAreaField({
           onChange={(event) => onChange(event.target.value)}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy}
-          className={cn(control, 'resize-y py-3 leading-relaxed')}
+          className={cn(control, 'resize-y')}
           {...input}
         />
       )}
@@ -285,14 +286,14 @@ export function ListField({
     input.value = '';
   };
   return (
-    <div className="flex min-w-0 flex-col gap-2">
-      <label htmlFor={id} className="text-[13px] font-semibold">
-        {label}
-      </label>
+    <div className="m-field">
+      <span>
+        <label htmlFor={id}>{label}</label>
+      </span>
       {value.length > 0 && (
         <ul className="flex flex-wrap gap-2">
           {value.map((item) => (
-            <li key={item} className="flex items-center gap-1 rounded-full border bg-card py-1 pr-1 pl-3 text-sm">
+            <li key={item} className="m-tag inline-flex items-center gap-1 pr-1">
               {item}
               <button
                 type="button"
@@ -323,17 +324,17 @@ export function ListField({
         <button
           type="button"
           disabled={value.length >= max}
-          className="min-h-[46px] rounded-[10px] border bg-card px-4 text-sm font-semibold hover:bg-accent disabled:opacity-50"
+          className="m-btn m-secondary"
           onClick={() => add(document.getElementById(id) as HTMLInputElement | null)}
         >
           {t('fields.add')}
         </button>
       </div>
-      <p className="text-xs text-muted-foreground">{hint ?? t('fields.upTo', { max })}</p>
+      <small>{hint ?? t('fields.upTo', { max })}</small>
       {error && (
-        <p role="alert" className="text-xs font-medium text-destructive">
+        <small role="alert" className="m-field-error">
           {error}
-        </p>
+        </small>
       )}
     </div>
   );
@@ -342,19 +343,13 @@ export function ListField({
 export function CheckboxField({ label, checked, onChange, error }: { label: ReactNode; checked: boolean; onChange: (checked: boolean) => void; error?: string }) {
   const id = useId();
   return (
-    <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="flex items-start gap-3 text-sm leading-relaxed">
-        <input
-          id={id}
-          type="checkbox"
-          checked={checked}
-          onChange={(event) => onChange(event.target.checked)}
-          className="mt-0.5 size-5 shrink-0 accent-[var(--ui-purple)]"
-        />
+    <div>
+      <label htmlFor={id} className="m-check">
+        <input id={id} type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
         <span>{label}</span>
       </label>
       {error && (
-        <p role="alert" className="text-xs font-medium text-destructive">
+        <p role="alert" className="m-error">
           {error}
         </p>
       )}

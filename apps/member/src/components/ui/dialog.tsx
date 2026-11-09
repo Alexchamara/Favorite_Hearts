@@ -2,10 +2,11 @@ import * as React from "react"
 import { XIcon } from "lucide-react"
 import { Dialog as DialogPrimitive } from "radix-ui"
 
-import { cn } from "@/lib/utils"
+import { cn, portalContainer } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { say } from "@/lib/i18n"
 import { useReturnFocus } from "@/lib/return-focus"
+import { useTheme } from "@/lib/theme"
 
 function Dialog({
   ...props
@@ -22,7 +23,7 @@ function DialogTrigger({
 function DialogPortal({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Portal>) {
-  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
+  return <DialogPrimitive.Portal data-slot="dialog-portal" container={portalContainer()} {...props} />
 }
 
 function DialogClose({
@@ -58,14 +59,18 @@ function DialogContent({
   showCloseButton?: boolean
 }) {
   const focus = useReturnFocus({ onOpenAutoFocus, onCloseAutoFocus })
+  // Every demo dialog carried className="m-app m-dialog" and the theme; they are the default here.
+  const { theme } = useTheme()
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
+        data-theme={theme}
         {...focus}
         className={cn(
           "fixed top-[50%] left-[50%] z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] overflow-y-auto overscroll-contain translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border bg-background p-6 shadow-lg duration-200 outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 sm:max-w-lg",
+          "m-app m-dialog",
           className
         )}
         {...props}

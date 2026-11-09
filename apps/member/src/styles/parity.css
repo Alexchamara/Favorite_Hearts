@@ -1,0 +1,74 @@
+/* Repository-owned corrections on top of the demo's stylesheets (styles/source/, generated). Each rule here is an
+   intended difference from the demo and is listed in docs/UI-PARITY.md: an accessibility fix the demo fails (WCAG 2.2
+   AA, Stage 5e) or something an owner decision changed. Loaded last. */
+
+/* More sheet: rows that open a page are links, not the demo's buttons; they take the demo's row look
+   (design-system.css ".m-app.m-more-sheet nav button", combined-overrides.css min-height). */
+.m-app.m-more-sheet nav a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  border-radius: 10px;
+  padding: 12px;
+  text-align: left;
+  font-size: 15px;
+  line-height: 24px;
+  background: var(--ui-surface);
+  color: var(--ui-text);
+  text-decoration: none;
+}
+.m-app.m-more-sheet nav a:hover {
+  background: var(--ui-soft);
+}
+.m-app.m-more-sheet nav a > svg:last-child {
+  margin-left: auto;
+  flex: none;
+}
+.m-app.m-more-sheet nav a .m-menu-item-count {
+  margin-left: auto;
+}
+.m-app.m-more-sheet nav a:has(.m-menu-item-count) > svg:last-child {
+  margin-left: 0;
+}
+.m-app.m-more-sheet .m-menu-note {
+  margin: 4px 12px 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ui-muted);
+}
+
+/* Field errors: the demo shows errors in a separate .m-error box; here they sit under their field, linked to it, in
+   the demo's danger colour, and an invalid control gets the danger border. */
+.m-app .m-field .m-field-error {
+  color: var(--ui-danger);
+  font-size: 12px;
+  font-weight: 600;
+}
+:is(body, #favorite-hearts-product) .m-app .m-field [aria-invalid='true'] {
+  border-color: var(--ui-danger) !important;
+}
+
+/* Skip link (not in the demo; WCAG 2.4.1): hidden until focused. Its own class, because the demo's unlayered .sr-only
+   rule would otherwise beat Tailwind's focus:not-sr-only. */
+.m-app .m-skip-link {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 200;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--ui-surface);
+  color: var(--ui-text);
+  font-weight: 600;
+  box-shadow: var(--ui-shadow);
+  transform: translateY(-200%);
+}
+.m-app .m-skip-link:focus {
+  transform: none;
+}
+
+/* The More sheet takes focus itself when it opens (it is not in the tab order), so it needs no ring of its own. */
+.m-app.m-more-sheet:focus-visible {
+  outline: none;
+}

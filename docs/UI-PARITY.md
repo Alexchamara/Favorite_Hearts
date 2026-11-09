@@ -61,6 +61,17 @@ keys get an English value and a blank Sinhala value.
 | Menu overlay | Items sized to the screen height so the menu never scrolls; Sinhala link inside the menu below 600 px; no social icons until addresses are set | Stage 5d |
 | Grey text | #777 → #6b6b6b in contact hours, plan notes, currency labels, legal contents | AA contrast |
 | Join now | Opens the member app at `/app/` instead of the demo's `/matrimony/` | Real app |
+| Member: More sheet rows | Rows that open a page are links (`<a>`), not the demo's buttons; `parity.css` gives them the demo row look. Contact channels (WhatsApp, call, email) are rows here; the demo has a Contact page (ui-8) | Link semantics; X06 support channels |
+| Member: More sheet focus | Opening the sheet focuses the sheet itself (the demo focuses nothing), so keyboard and screen-reader users are inside it; no ring on the panel | WCAG 2.4.3 |
+| Member: menu badge | The More button and Verification row show "1" with the words for screen readers; the demo counts several kinds of attention, the app has one (verification) | Real data |
+| Member: field labels | `.m-field` keeps the demo look, but the label is a `<label for>` around the words only; hints and errors are linked with `aria-describedby` and errors are announced (the demo wraps hint text inside the label) | WCAG 1.3.1, 3.3.1 |
+| Member: invalid fields | Danger border and an inline error under the field | WCAG 3.3.1 |
+| Member: tabs | Inactive tab text uses the muted colour (demo: 60% text, about 3.4:1); tab lists may grow taller with larger text (`min-h-9`); the tab panel shows a focus ring | WCAG 1.4.3, 1.4.4, 2.4.7 |
+| Member: skip link | "Skip to content" appears on focus (not in the demo) | WCAG 2.4.1 |
+| Member: trust badges | Same chips, icons and order as the demo, with the decided wording ("Candidate identity verified", never "· demo"); member and own-profile pages add each badge's meaning under the chips | OWNER-DECISIONS §5 |
+| Member: signed-in footer | Copyright only, as in the demo; help, terms and privacy moved into the More sheet | Demo layout |
+| Member: dialogs and sheets | Keep Stage 5e scrolling (`max-h`, `overflow-y-auto`) and focus return | WCAG 1.4.10, 2.4.3 |
+| Member: wording | The shell reuses the existing translated texts ("Your account", "Signed in as …", "Use the dark theme", "Sign out", "Requests", "Profiles") instead of the demo's ("Your Matrimony space", "Use dark mode", "Log out", "Interests", "Profile") until new texts can be added; see open question T-1 | Translation rule conflict |
 
 More rows are added as each phase finds them.
 
@@ -152,3 +163,48 @@ Every public difference was traced; none needed a code change.
   slash), so the reference home is captured from `/index.html`.
 
 Screenshots and diff reports stay outside the repository; rerun the tools above to reproduce them.
+
+### ui-3 member foundation (9 Nov 2026)
+
+- **Cascade:** `scripts/ui-parity/port-css.mjs` copies the demo's member stylesheets into
+  `apps/member/src/styles/source/` with the demo build's own scoping function: `product.css` prefixed with
+  `#favorite-hearts-product`, then `overrides.css`, `contrast.css`, `combined-overrides.css`, `design-system.css`
+  unscoped, and the build's trailing base rule. `main.tsx` imports them in that order after Tailwind and the tokens,
+  then `styles/parity.css` (this repository's corrections, each listed above). The app renders inside the demo's
+  `#favorite-hearts-preview > #favorite-hearts-product` wrappers.
+- **Portals:** the demo's build rewrote every Radix portal (dialog, sheet, select, alert dialog, popover) to render
+  inside `#favorite-hearts-product`, so its scoped styles reach overlays. `components/ui` now passes the same container
+  (`portalContainer()` in `lib/utils.ts`). Dialogs, alert dialogs and sheets carry the demo's `m-app m-dialog` /
+  `m-app` classes and `data-theme` by default, as every demo dialog did.
+- **Font:** Inter 4.1 (400/500/600/700, OFL) self-hosted from `src/assets/fonts/inter/` (`styles/fonts.css`).
+- **Shell:** `components/layout.tsx` is the demo's markup: `.m-app[data-theme]` > `header.m-header` (`.m-brand`,
+  `.m-more-button` with `.m-menu-count`), `nav.m-primary-nav.m-floating-nav` (buttons, `.selected`,
+  `.m-dock-icon`), `main.m-main`, `footer.m-footer`; the More sheet is `.m-app.m-more-sheet` with the demo's language
+  `<select>` (`.fh-language`), theme button (`.m-btn.m-secondary.m-menu-theme`), rows and `.m-menu-bottom` sign-out.
+  Signed-out and staff headers keep the theme button (`.ma-theme`) and the language switch; the sign-in screen itself
+  is ui-4.
+- **Shared pieces:** `Button` variants map to `.m-btn`, `.m-btn.m-secondary`, `.m-btn.m-danger` and `.m-text`;
+  `Card` is `.m-surface`; `PageTitle` is `.m-page-heading` with `.m-kicker`; `Notice` is `.m-note` / `.m-error`;
+  form fields are `.m-field` and `.m-check`; trust badges are `.m-earned-badges`; the phone country button uses
+  `.m-choice`. Tabs went back to the demo's classes (two accessibility exceptions above).
+- **Computed styles** (`scripts/ui-parity/styles.py`): at 390 and 1440 px the header, dock, dock items (normal and
+  selected), footer, kicker and page title compute identically to the demo; the More sheet differs only where its
+  words differ (T-1).
+- **Pixel diff against the demo** (share of pixels changed, before → after ui-3): Interests 18.0 → 8.9% (320 px),
+  4.0 → 2.2% (1440); Connected 20.7 → 13.9%, 4.9 → 4.0%; Shortlist 18.6 → 13.3%, 6.6 → 5.4%; Discover 34.6 → 27.8%
+  (390), 12.1 → 9.4% (1440); Trust 26.6 → 23.4% (390), 14.2 → 15.6% (1440). What remains is each screen's own
+  layout, rebuilt in ui-4 to ui-9.
+- **Checks:** typecheck clean; 179 tests pass (API 165, website 5, text tools 9); `build:site` and the site check
+  pass; keyboard: skip link, brand, More button, five dock buttons (67×54 px), More sheet focus inside, Escape returns
+  focus to the More button.
+- **Known, later phases:** the sign-in panel still overflows at 320 px (ui-4); screens not yet rebuilt keep a narrow
+  inner column inside `.m-main` (removed screen by screen); toasts render outside `.m-app` (ui-10). The member CSS
+  bundle is 732 KB (156 KB gzipped); about 470 KB of it is the `flag-icons` stylesheet the phone picker already used.
+
+### Open question T-1 (translations)
+
+The repository's test "members see nothing untranslated" (`apps/api/test/text.test.ts`) fails when a member-visible
+English text has no Sinhala. The instruction for this work is to leave new Sinhala texts blank unless supplied. Both
+cannot hold, so no new member texts were added in ui-3; the shell reuses existing translated texts. Options: (a) supply
+Sinhala for each new text as phases add them; (b) allow blank Sinhala for texts listed in a "waiting for translation"
+file, with English shown meanwhile, and keep the test strict for everything else; (c) keep the current wording.
