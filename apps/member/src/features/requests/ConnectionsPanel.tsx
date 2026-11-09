@@ -8,6 +8,8 @@ import type { ProfileView } from '@fh/shared';
 import { Confirm } from '@/components/confirm';
 import { Card, Loading, Notice } from '@/components/layout';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Count } from './RequestsPanel';
 import { del, errorMessage, post } from '@/lib/api';
 import { refreshRelations, useBlocks, useConnections } from '@/lib/queries';
 import { ContactList, MemberRow } from '@/features/browse/MemberCard';
@@ -36,17 +38,28 @@ export function ConnectionsPanel({ profile }: { profile: ProfileView }) {
   });
 
   return (
-    <div className="flex flex-col gap-6">
+    <Tabs defaultValue="connections" className="gap-5">
+      <TabsList className="h-auto w-full justify-start gap-1 p-1">
+        <TabsTrigger value="connections" className="min-h-11 flex-none px-5">
+          {t('connections.title')}
+          {connections.data && <Count value={connections.data.length} />}
+        </TabsTrigger>
+        <TabsTrigger value="blocked" className="min-h-11 flex-none px-5">
+          {t('blocks.title')}
+          {blocks.data && <Count value={blocks.data.length} />}
+        </TabsTrigger>
+      </TabsList>
+      <TabsContent value="connections">
       <Card>
-        <h2 className="font-serif text-2xl">{t('connections.title')}</h2>
+        <h2 className="sr-only">{t('connections.title')}</h2>
         {connections.isPending ? (
           <Loading />
         ) : connections.isError ? (
           <Notice tone="error">{errorMessage(connections.error)}</Notice>
         ) : connections.data.length === 0 ? (
-          <p className="mt-2 text-sm text-muted-foreground">{t('connections.none')}</p>
+          <p className="text-sm text-muted-foreground">{t('connections.none')}</p>
         ) : (
-          <ul className="mt-2 divide-y">
+          <ul className="-my-2 divide-y">
             {connections.data.map((item) => {
               const name = item.profile?.displayName ?? t('connections.thisMember');
               return (
@@ -81,17 +94,19 @@ export function ConnectionsPanel({ profile }: { profile: ProfileView }) {
           </ul>
         )}
       </Card>
+      </TabsContent>
 
+      <TabsContent value="blocked">
       <Card>
-        <h2 className="font-serif text-2xl">{t('blocks.title')}</h2>
+        <h2 className="sr-only">{t('blocks.title')}</h2>
         {blocks.isPending ? (
           <Loading />
         ) : blocks.isError ? (
           <Notice tone="error">{errorMessage(blocks.error)}</Notice>
         ) : blocks.data.length === 0 ? (
-          <p className="mt-2 text-sm text-muted-foreground">{t('blocks.none')}</p>
+          <p className="text-sm text-muted-foreground">{t('blocks.none')}</p>
         ) : (
-          <ul className="mt-2 divide-y text-sm">
+          <ul className="-my-3 divide-y text-sm">
             {blocks.data.map((item) => (
               <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                 <span>
@@ -106,6 +121,7 @@ export function ConnectionsPanel({ profile }: { profile: ProfileView }) {
           </ul>
         )}
       </Card>
-    </div>
+      </TabsContent>
+    </Tabs>
   );
 }

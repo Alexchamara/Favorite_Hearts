@@ -34,7 +34,11 @@
   --radius-md: 0.7rem;
   --radius-lg: 0.85rem;
   --radius-xl: 1.1rem;
-  --font-sans: Inter, system-ui, Arial, sans-serif;
+  --font-sans: Inter, -apple-system, system-ui, "Segoe UI", Arial, sans-serif;
+  /* The demo's display voice (product/preview/product.css): Georgia, set tight. */
+  --font-serif: Georgia, "Times New Roman", serif;
+  --color-rose: var(--ui-rose);
+  --color-copper: var(--ui-copper);
 }
 
 :root {
@@ -51,9 +55,16 @@
   --ui-hover: #e6a632;
   --ui-on-accent: #302512;
   --ui-danger: #a93236;
+  /* Brand mark, menu badge and sign-out (rose); the display accent and the selected dock item (copper). */
+  --ui-rose: #c85771;
+  --ui-rose-ink: #b83e5b;
+  --ui-copper: #a9592a;
+  --ui-dock-selected: linear-gradient(125deg, #a9592a, #974a22 65%, #87482b);
+  --ui-on-dock: #fffaf5;
   --ui-control-radius: 10px;
   --ui-panel-radius: 18px;
   --ui-shadow: 0 12px 36px #342b1712;
+  --ui-dock-shadow: 0 6px 25px #00000022;
 
   --background: var(--ui-bg);
   --foreground: var(--ui-text);
@@ -90,7 +101,10 @@
   --ui-hover: #f5cc82;
   --ui-on-accent: #2c2313;
   --ui-danger: #ffaca8;
+  --ui-rose-ink: #e58aa0;
+  --ui-copper: #e7a77d;
   --ui-shadow: 0 12px 36px #0003;
+  --ui-dock-shadow: 0 6px 25px #0006;
 }
 
 @layer base {
@@ -113,8 +127,62 @@
     outline-offset: 3px;
   }
 
+  /* Headings speak in the serif, set tight like the demo (-0.035em at display sizes). */
+  :is(h1, h2).font-serif {
+    font-weight: 400;
+    letter-spacing: -0.03em;
+    text-wrap: balance;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--ui-accent) 45%, transparent);
+    color: var(--ui-text);
+  }
+
+  input,
+  textarea {
+    caret-color: var(--ui-purple);
+  }
+
+  html {
+    scrollbar-color: var(--ui-line) transparent;
+  }
+
+  a {
+    text-underline-offset: 4px;
+  }
+
   button:disabled {
     cursor: not-allowed;
+  }
+}
+
+/* The code boxes (components/form/code-input.tsx): a new digit pops in, a wrong code shakes, the tick draws in. */
+@keyframes code-pop {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.85);
+  }
+}
+@keyframes code-shake {
+  20%,
+  60% {
+    transform: translateX(-6px);
+  }
+  40%,
+  80% {
+    transform: translateX(6px);
+  }
+}
+@keyframes code-caret {
+  50% {
+    opacity: 0;
+  }
+}
+@keyframes code-check {
+  from {
+    opacity: 0;
+    transform: scale(0.6) rotate(-8deg);
   }
 }
 

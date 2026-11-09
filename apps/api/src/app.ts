@@ -69,6 +69,10 @@ const RAISED: Record<string, Answer> = {
   interest_unavailable: [409, 'PROFILE_UNAVAILABLE', 'api.rule.profileUnavailableNow'],
   connection_not_found: [404, 'NOT_FOUND', 'api.rule.connectionNotFound'],
   block_not_allowed: [403, 'NOT_ALLOWED', 'api.rule.blockNotAllowed'],
+  // The shortlist (drizzle/0015_shortlist.sql).
+  shortlist_not_allowed: [403, 'NOT_ALLOWED', 'api.rule.shortlistNotAllowed'],
+  shortlist_target_unavailable: [404, 'PROFILE_UNAVAILABLE', 'api.profile.unavailable'],
+  shortlist_full: [409, 'SHORTLIST_FULL', 'api.rule.shortlistFull'],
   profile_not_allowed: [403, 'NOT_ALLOWED', 'api.profile.cannotChange'],
   profile_not_engageable: [409, 'PROFILE_NOT_ACTIVE', 'api.rule.engagedNotActive'],
   report_not_allowed: [403, 'NOT_ALLOWED', 'api.rule.reportNotAllowed'],

@@ -14,6 +14,8 @@ const VerifyPage = lazy(() => import('@/features/trust/VerifyPage'));
 const PhoneUploadPage = lazy(() => import('@/features/trust/PhoneUploadPage'));
 const InvitePage = lazy(() => import('@/features/invite/InvitePage'));
 const StaffApp = lazy(() => import('@/features/staff/StaffApp'));
+const RelationsPage = lazy(() => import('@/features/requests/RelationsPage'));
+const ShortlistPage = lazy(() => import('@/features/browse/ShortlistPage'));
 
 /** Member-only screens: signed-out visitors go to sign-in, staff to the staff workspace. */
 function MemberOnly({ children }: { children: ReactNode }) {
@@ -31,15 +33,18 @@ export default function App() {
     <>
       <Toaster position="top-center" containerAriaLabel={t('common.notifications')} />
       <ErrorBoundary key={pathname}>
-        <Suspense fallback={<Loading />}>
+        <Suspense fallback={<AppShell><Loading /></AppShell>}>
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/profiles/:id" element={<MemberOnly><ProfilePage /></MemberOnly>} />
+            <Route path="/profiles/:id/:section?" element={<MemberOnly><ProfilePage /></MemberOnly>} />
             <Route path="/verify" element={<MemberOnly><VerifyPage /></MemberOnly>} />
             {/* A document QR code's page on a phone: its link token, not a session (no sign-in). */}
             <Route path="/verify/phone" element={<PhoneUploadPage />} />
             <Route path="/browse" element={<MemberOnly><BrowsePage /></MemberOnly>} />
             <Route path="/members/:id" element={<MemberOnly><MemberPage /></MemberOnly>} />
+            <Route path="/requests" element={<MemberOnly><RelationsPage kind="requests" /></MemberOnly>} />
+            <Route path="/connections" element={<MemberOnly><RelationsPage kind="connections" /></MemberOnly>} />
+            <Route path="/shortlist" element={<MemberOnly><ShortlistPage /></MemberOnly>} />
             <Route path="/invite" element={<InvitePage />} />
             <Route
               path="/staff"

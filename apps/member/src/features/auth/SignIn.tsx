@@ -5,6 +5,7 @@
  */
 import { useState, type FormEvent } from 'react';
 import type { LoginChannel } from '@fh/shared';
+import { CodeInput, useCodeCheck } from '@/components/form/code-input';
 import { PhoneField, TextField } from '@/components/form/fields';
 import { Notice } from '@/components/layout';
 import { useBotCheck } from '@/components/turnstile';
@@ -22,7 +23,6 @@ export function SignIn({ onSignedIn, intro }: { onSignedIn?: () => void; intro?:
   const channels = enabledChannels();
   const [channel, setChannel] = useState<LoginChannel>(channels[0] ?? 'email');
   const [contact, setContact] = useState('');
-  const [code, setCode] = useState('');
   const [step, setStep] = useState<Step>({ kind: 'contact' });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -40,7 +40,7 @@ export function SignIn({ onSignedIn, intro }: { onSignedIn?: () => void; intro?:
     try {
       await requestLoginCode(input(channel, contact), bot.headers);
       setStep({ kind: 'code', channel, contact });
-      setCode('');
+      entry.reset();
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -49,21 +49,17 @@ export function SignIn({ onSignedIn, intro }: { onSignedIn?: () => void; intro?:
     }
   }
 
-  async function checkCode(event: FormEvent) {
-    event.preventDefault();
-    if (step.kind !== 'code') return;
-    setBusy(true);
-    setError(null);
-    try {
-      await verifyLoginCode(input(step.channel, step.contact), code);
+  // Checked as soon as all six digits are in; after the tick, the session is loaded and the next screen shows.
+  const entry = useCodeCheck(
+    async (value) => {
+      if (step.kind !== 'code') return;
+      await verifyLoginCode(input(step.channel, step.contact), value);
+    },
+    async () => {
       await resetSession();
       onSignedIn?.();
-    } catch (err) {
-      setError(errorMessage(err));
-    } finally {
-      setBusy(false);
-    }
-  }
+    },
+  );
 
   if (!channels.length) return <Notice tone="warning">{t('signIn.unavailable')}</Notice>;
 
@@ -111,21 +107,11 @@ export function SignIn({ onSignedIn, intro }: { onSignedIn?: () => void; intro?:
           </p>
         </form>
       ) : (
-        <form onSubmit={checkCode} className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4">
           <p className="text-sm">
             {rich('signIn.sent', { strong: (words) => <strong>{words}</strong> }, { contact: step.contact })}
           </p>
-          <TextField
-            label={t('signIn.code')}
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            maxLength={6}
-            value={code}
-            onChange={(value) => setCode(value.replace(/\D/g, ''))}
-          />
-          <Button type="submit" className="h-11" disabled={busy || code.length !== 6}>
-            {busy ? t('signIn.checking') : t('common.continue')}
-          </Button>
+          <CodeInput label={t('signIn.code')} value={entry.value} onChange={entry.change} state={entry.state} message={entry.message} fromSms={step.channel === 'sms'} />
           {bot.widget}
           <div className="flex flex-wrap gap-4 text-sm">
             <button type="button" className="text-brand underline underline-offset-4 disabled:opacity-60" onClick={() => void sendCode()} disabled={busy || !bot.ready}>
@@ -142,7 +128,7 @@ export function SignIn({ onSignedIn, intro }: { onSignedIn?: () => void; intro?:
               {t(step.channel === 'email' ? 'signIn.otherEmail' : 'signIn.otherNumber')}
             </button>
           </div>
-        </form>
+        </div>
       )}
     </div>
   );

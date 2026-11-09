@@ -27,14 +27,14 @@ export function AccountCard() {
     onError: (error) => toast.error(errorMessage(error)),
   });
   return (
-    <Card className="mt-6">
+    <Card>
       <h2 className="font-serif text-2xl">{t('account.title')}</h2>
       <p className="mt-2 text-sm text-muted-foreground">{t('account.body')}</p>
       <div className="mt-5 flex flex-wrap gap-3">
         <Button variant="outline" className="h-11" disabled={exportData.isPending} onClick={() => exportData.mutate()}>
           {exportData.isPending ? t('account.preparing') : t('account.download')}
         </Button>
-        <Button variant="outline" className="h-11 text-destructive" onClick={() => setDeleting(true)}>
+        <Button variant="danger" className="h-11" onClick={() => setDeleting(true)}>
           {t('account.delete')}
         </Button>
       </div>

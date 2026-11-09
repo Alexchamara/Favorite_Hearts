@@ -48,8 +48,13 @@ ${small(lines[2]!)}`,
   return { subject, text: textBody, html };
 }
 
-export function codeSms(language: Language, code: string, minutes?: number): string {
-  return text(language, 'email.sms.code', { code, ...(minutes === undefined ? {} : { codeMinutes: minutes }) });
+/**
+ * `appUrl`: the member app's address. The last line ("@host #code", the Web OTP format) lets Android offer to fill the
+ * code in on that site by itself; iPhones read the code from the message without it.
+ */
+export function codeSms(language: Language, code: string, minutes?: number, appUrl?: string): string {
+  const body = text(language, 'email.sms.code', { code, ...(minutes === undefined ? {} : { codeMinutes: minutes }) });
+  return appUrl ? `${body}\n\n@${new URL(appUrl).hostname} #${code}` : body;
 }
 
 /** `managerName` null: the manager has not given a name yet. */

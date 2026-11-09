@@ -21,7 +21,7 @@ import { RecentSignInNotice, RetentionList } from '@/features/account/retention'
 import { PlanSummary } from '@/features/billing/PlanPanel';
 import { say, useI18n } from '@/lib/i18n';
 
-/** `onOpenPlans`: switches to the profile's Plan tab. */
+/** `onOpenPlans`: opens the profile's Plan section. */
 export function PlanCard({ profile, onOpenPlans }: { profile: ProfileView; onOpenPlans: () => void }) {
   const plan = usePlan(profile.id);
   const { t } = useI18n();
@@ -116,7 +116,7 @@ export function DeleteProfileCard({ profile }: { profile: ProfileView }) {
       <p className="mt-2 text-sm text-muted-foreground">
         {t(profile.status === 'published' ? 'deleteProfile.removesPublished' : 'deleteProfile.removes', { name })}
       </p>
-      <Button variant="outline" className="mt-4 h-11 text-destructive" onClick={() => setOpen(true)}>
+      <Button variant="danger" className="mt-4 h-11" onClick={() => setOpen(true)}>
         {t('deleteProfile.title')}
       </Button>
       <DeleteProfileDialog profile={profile} open={open} onClose={() => setOpen(false)} />

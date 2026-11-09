@@ -64,5 +64,14 @@ async function shutdown(signal: string) {
   await pool.end().catch(() => undefined);
   process.exit(0);
 }
+// Anything that still escapes is written to the log with its reason before the process stops, so a crash is never
+// silent (a stopped API shows only as 502s in the browser). A promise nobody awaited is logged and the API carries on.
+process.on('unhandledRejection', (reason) => {
+  log.error('api.unhandled_rejection', { message: reason instanceof Error ? reason.message : String(reason) });
+});
+process.on('uncaughtException', (err) => {
+  log.error('api.crashed', { message: err.message, stack: err.stack?.split('\n').slice(0, 6).join(' | ') });
+  process.exit(1);
+});
 process.on('SIGTERM', () => void shutdown('SIGTERM'));
 process.on('SIGINT', () => void shutdown('SIGINT'));

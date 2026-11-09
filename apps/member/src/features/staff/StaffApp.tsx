@@ -9,6 +9,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { renderSVG } from 'uqr';
 import type { DocumentSide, StaffQueueItem, VerificationCaseView } from '@fh/shared';
+import { CodeInput, useCodeCheck } from '@/components/form/code-input';
 import { CheckboxField, TextAreaField, TextField } from '@/components/form/fields';
 import { AppShell, Card, Loading, Notice, PageTitle } from '@/components/layout';
 import { useBotCheck } from '@/components/turnstile';
@@ -117,11 +118,19 @@ function StaffSignIn() {
     event.preventDefault();
     setBusy(true);
     setError(null);
-    const result = useBackup ? await authClient.twoFactor.verifyBackupCode({ code }) : await authClient.twoFactor.verifyTotp({ code });
+    const result = await authClient.twoFactor.verifyBackupCode({ code });
     setBusy(false);
     if (result.error) return setError(result.error.message ?? 'That code did not work.');
     await resetSession();
   }
+  // The authenticator's 6 digits are checked as soon as they are in.
+  const totpEntry = useCodeCheck(
+    async (value) => {
+      const result = await authClient.twoFactor.verifyTotp({ code: value });
+      if (result.error) throw new Error(result.error.message ?? 'That code did not work.');
+    },
+    () => resetSession(),
+  );
 
   return (
     <>
@@ -143,15 +152,16 @@ function StaffSignIn() {
           </form>
         ) : (
           <form onSubmit={verify} className="flex flex-col gap-4">
-            <TextField
-              label={useBackup ? 'Backup code' : 'Code from your authenticator app'}
-              autoComplete="one-time-code"
-              value={code}
-              onChange={setCode}
-            />
-            <Button type="submit" className="h-11" disabled={busy || !code}>
-              Continue
-            </Button>
+            {useBackup ? (
+              <>
+                <TextField label="Backup code" autoComplete="one-time-code" value={code} onChange={setCode} />
+                <Button type="submit" className="h-11" disabled={busy || !code}>
+                  Continue
+                </Button>
+              </>
+            ) : (
+              <CodeInput label="Code from your authenticator app" value={totpEntry.value} onChange={totpEntry.change} state={totpEntry.state} message={totpEntry.message} />
+            )}
             <button type="button" className="self-start text-sm text-brand underline underline-offset-4" onClick={() => setUseBackup(!useBackup)}>
               {useBackup ? 'Use the authenticator app instead' : 'Lost your phone? Use a backup code'}
             </button>
@@ -236,7 +246,7 @@ function SetUpTwoStep() {
               </ul>
             </div>
             <CheckboxField checked={saved} onChange={setSaved} label="I have saved my backup codes." />
-            <TextField label="3. Enter the 6-digit code from the app" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(value) => setCode(value.replace(/\D/g, ''))} />
+            <CodeInput label="3. Enter the 6-digit code from the app" value={code} onChange={setCode} autoFocus={false} />
             <Button type="submit" className="h-11 self-start" disabled={busy || !saved || code.length !== 6}>
               Turn on two-step login
             </Button>

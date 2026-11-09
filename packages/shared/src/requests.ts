@@ -11,6 +11,12 @@ export const REQUEST_COOLDOWN_DAYS = 7;
 /** Version of the "what will be shared" confirmation a sender accepts (spec 12.2). */
 export const SHARING_POLICY_VERSION = 'sharing-v1';
 export const DISCOVER_PAGE_SIZE = 20;
+/**
+ * N03 (owner, 6 Nov 2026): a profile without an active plan saves up to this many profiles to its shortlist; with a
+ * plan there is no limit. Saved ones above it stay when a plan ends, but no new ones until under it again. The
+ * database holds the same number (drizzle/0015_shortlist.sql).
+ */
+export const SHORTLIST_LIMIT = 20;
 
 const uuid = (message: string) => z.uuid({ error: message });
 const decimal = (min: number, max: number, message: string) => z.coerce.number({ error: message }).min(min, message).max(max, message);
@@ -54,6 +60,8 @@ export const sendInterestSchema = z
   .strict();
 
 export const blockSchema = z.object({ profileId: uuid('validation.chooseProfile') }).strict();
+
+export const shortlistSchema = z.object({ profileId: uuid('validation.chooseProfile') }).strict();
 
 export const reportSchema = z
   .object({

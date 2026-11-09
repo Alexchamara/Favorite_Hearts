@@ -1,5 +1,6 @@
 /** A member as other members see them in lists: cover (blurred unless allowed), name, age, work and place. */
 import type { ReactNode } from 'react';
+import { BriefcaseBusiness, MapPin } from 'lucide-react';
 import { Link } from 'react-router';
 import type { MemberCard, PhotoView, SharedContact } from '@fh/shared';
 import { TrustBadges } from '@/components/badges';
@@ -38,24 +39,58 @@ export function PhotoFrame({ photo, name, className, compact = false }: { photo:
   );
 }
 
-export function MemberCardLink({ card, href }: { card: MemberCard; href: string }) {
+/**
+ * A member in the Discover list, as the demo draws it: a small portrait beside the name, place and work, the badges,
+ * and the way into the profile. The whole card is the link.
+ */
+export function MemberCardLink({ card, href, action }: { card: MemberCard; href: string; action?: ReactNode }) {
   const { t } = useI18n();
   const placeOf = usePlaceOf();
-  return (
+  const place = placeOf(card);
+  const link = (
     <Link
       to={href}
-      className="flex flex-col overflow-hidden rounded-[var(--ui-panel-radius)] border bg-card shadow-[var(--ui-shadow)] transition-colors hover:border-[var(--ui-accent)] focus-visible:outline-2"
+      className="group flex h-full flex-col gap-4 rounded-[13px] border bg-card p-4 transition-colors hover:border-[var(--ui-purple)] sm:p-5"
     >
-      <PhotoFrame photo={card.cover} name={card.displayName} />
-      <div className="flex flex-col gap-1.5 p-4">
-        <p className="font-serif text-xl leading-tight">
-          {card.displayName ?? t('member.member')}
-          {card.age !== null && <span className="text-muted-foreground">, {card.age}</span>}
-        </p>
-        <p className="text-sm text-muted-foreground">{[card.occupation, placeOf(card)].filter(Boolean).join(' · ')}</p>
-        <TrustBadges badges={card.badges} />
+      <div className="grid grid-cols-[72px_minmax(0,1fr)] gap-4">
+        <PhotoFrame photo={card.cover} name={card.displayName} className="h-[92px] w-[72px] rounded-[8px] text-3xl" compact />
+        <div className="min-w-0">
+          <p className="font-serif text-[1.35rem] leading-tight tracking-[-0.02em]">
+            {card.displayName ?? t('member.member')}
+            {card.age !== null && <span className="text-muted-foreground">, {card.age}</span>}
+          </p>
+          {place && (
+            <p className="mt-1.5 flex items-start gap-1.5 text-[13px] text-muted-foreground">
+              <MapPin className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+              <span className="min-w-0">{place}</span>
+            </p>
+          )}
+          {card.occupation && (
+            <p className="mt-1 flex items-start gap-1.5 text-[13px] text-muted-foreground">
+              <BriefcaseBusiness className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+              <span className="min-w-0">{card.occupation}</span>
+            </p>
+          )}
+        </div>
       </div>
+      <TrustBadges badges={card.badges} compact />
+      <span
+        className={cn(
+          'mt-auto inline-flex min-h-11 items-center justify-center rounded-[10px] border border-[var(--ui-purple)] bg-[var(--ui-purple-soft)] px-4 text-sm font-semibold text-[var(--ui-purple)] transition-colors group-hover:bg-[color-mix(in_srgb,var(--ui-purple)_14%,var(--ui-purple-soft))]',
+          action && 'mr-14',
+        )}
+      >
+        {t('browse.view')}
+      </span>
     </Link>
+  );
+  // A control may not sit inside the link (nested interactive elements), so it is laid beside "View profile".
+  if (!action) return link;
+  return (
+    <div className="relative h-full">
+      {link}
+      <div className="absolute right-4 bottom-4 sm:right-5 sm:bottom-5">{action}</div>
+    </div>
   );
 }
 

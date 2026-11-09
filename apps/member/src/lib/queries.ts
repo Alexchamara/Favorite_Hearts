@@ -4,6 +4,7 @@
  */
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import type {
+  ShortlistView,
   AccountDeletionPreview,
   BillingOverview,
   BlockView,
@@ -45,6 +46,7 @@ export const keys = {
   sent: (profileId: string) => ['requests', profileId, 'sent'] as const,
   connections: (profileId: string) => ['connections', profileId] as const,
   blocks: (profileId: string) => ['blocks', profileId] as const,
+  shortlist: (profileId: string) => ['shortlist', profileId] as const,
   plan: (profileId: string) => ['plan', profileId] as const,
   photos: (profileId: string) => ['photos', profileId] as const,
   billing: (profileId: string) => ['billing', profileId] as const,
@@ -61,22 +63,31 @@ export const keys = {
 /** After a request, connection or block changes: everything that shows relations is refreshed. */
 export function refreshRelations() {
   return Promise.all(
-    ['requests', 'connections', 'blocks', 'member', 'discover', 'plan'].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
+    ['requests', 'connections', 'blocks', 'member', 'discover', 'plan', 'shortlist'].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
   );
 }
 
 export type Health = { ok: boolean; database: boolean; email: boolean; sms: boolean; storage: boolean };
 
 /**
+ * The API could not be reached: no answer at all, a gateway error (502/503/504), or a server error without the API's
+ * own error body (a proxy in front of it answering for it: Vite's dev proxy says 500, Astro's 502, when the API is down).
+ */
+export const unreachable = (error: unknown) =>
+  !(error instanceof ApiError) || [502, 503, 504].includes(error.status) || (error.status >= 500 && error.code === 'UNKNOWN');
+
+/**
  * The signed-in account, or null when signed out. Every screen waits for it, so an answer from the server, even an
- * error, is final: only a request that never arrived (a network blip) is tried once more. The sign-in page then
- * shows at once, with a notice, instead of after several slow retries.
+ * error, is final: only a request that never arrived (a network blip, or a 502/503/504 from the proxy) is tried
+ * once more. The sign-in page then shows at once, with a notice; while the API stays unreachable it is asked again
+ * every few seconds, so the screen recovers by itself (signed-in members are back where they were) once it answers.
  */
 export function useMe() {
   return useQuery({
     queryKey: keys.me,
-    retry: (count, error) => count < 1 && !(error instanceof ApiError),
+    retry: (count, error) => count < 1 && unreachable(error),
     retryDelay: 300,
+    refetchInterval: (query) => (query.state.status === 'error' && unreachable(query.state.error) ? 5_000 : false),
     queryFn: async () => {
       try {
         return await api<MeView>('/me');
@@ -192,6 +203,15 @@ export function useBlocks(profileId: string) {
   });
 }
 
+/** The profile's shortlist (N03): saved profiles, newest first, and its limit (none while it has a plan). */
+export function useShortlist(profileId: string | null) {
+  return useQuery({
+    queryKey: keys.shortlist(profileId ?? ''),
+    queryFn: () => api<ShortlistView>(`/profiles/${profileId}/shortlist`),
+    enabled: Boolean(profileId),
+  });
+}
+
 export function usePlan(profileId: string) {
   return useQuery({ queryKey: keys.plan(profileId), queryFn: () => api<PlanUsage>(`/profiles/${profileId}/plan`) });
 }
@@ -250,8 +270,15 @@ export function useOwnerProfilePlan(profileId: string) {
 
 /** Whether the owner has paused new sign-ups or document submissions (section 10). */
 export function useServiceStatus() {
-  // Only a notice on the sign-in page: never retried, so it cannot hold anything up.
-  return useQuery({ queryKey: keys.serviceStatus, queryFn: () => api<ServiceStatus>('/service-status'), staleTime: 60_000, retry: false });
+  // Only a notice on the sign-in page: never retried at once, so it cannot hold anything up; asked again every few
+  // seconds while the API is unreachable, so the notice goes away by itself.
+  return useQuery({
+    queryKey: keys.serviceStatus,
+    queryFn: () => api<ServiceStatus>('/service-status'),
+    staleTime: 60_000,
+    retry: false,
+    refetchInterval: (query) => (query.state.status === 'error' && unreachable(query.state.error) ? 5_000 : false),
+  });
 }
 
 export function useOwnerOperations() {

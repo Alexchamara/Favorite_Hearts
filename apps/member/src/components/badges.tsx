@@ -21,19 +21,20 @@ const BADGES = [
   },
 ] as const;
 
-export function TrustBadges({ badges, explain = false }: { badges: Badges; explain?: boolean }) {
+/** `compact`: small chips that wrap, for cards in a list. */
+export function TrustBadges({ badges, explain = false, compact = false }: { badges: Badges; explain?: boolean; compact?: boolean }) {
   const { t } = useI18n();
   const earned = BADGES.filter((badge) => badges[badge.key]);
   if (!earned.length) return explain ? <p className="text-sm text-muted-foreground">{t('badges.none')}</p> : null;
   return (
-    <ul className="flex flex-col gap-2" aria-label={t('badges.list')}>
+    <ul className={compact ? 'flex flex-wrap gap-1.5' : 'flex flex-col gap-2'} aria-label={t('badges.list')}>
       {earned.map(({ key, Icon }) => (
-        <li key={key} className="flex items-start gap-2 text-sm">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--ui-purple-soft)] px-2.5 py-1 font-semibold text-brand">
-            <Icon className="size-4" aria-hidden="true" />
+        <li key={key} className={compact ? 'text-xs' : 'flex flex-col items-start gap-1 text-sm'}>
+          <span className={compact ? 'inline-flex items-center gap-1 rounded-[8px] bg-[var(--ui-purple-soft)] px-2 py-1 font-semibold text-brand' : 'inline-flex items-center gap-1.5 rounded-full bg-[var(--ui-purple-soft)] px-2.5 py-1 font-semibold text-brand'}>
+            <Icon className={compact ? 'size-3.5' : 'size-4'} aria-hidden="true" />
             {t(`badges.${key}`)}
           </span>
-          {explain && <span className="pt-1 text-muted-foreground">{t(`badges.${key}.explains`)}</span>}
+          {explain && <span className="text-muted-foreground">{t(`badges.${key}.explains`)}</span>}
         </li>
       ))}
     </ul>

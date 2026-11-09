@@ -3,27 +3,26 @@
  * private contacts, requests, its plan and payments, and the manager/candidate panel for
  * guardian-managed profiles.
  */
-import { useState } from 'react';
+import { useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Link, useParams } from 'react-router';
+import { ArrowLeft, Heart, ShieldCheck, Users } from 'lucide-react';
+import { Link, useNavigate, useParams } from 'react-router';
 import { toast } from 'sonner';
 import type { ProfileView } from '@fh/shared';
 import { TrustBadges } from '@/components/badges';
 import { AppShell, Card, Loading, Notice, PageTitle } from '@/components/layout';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ApiError, errorMessage, post } from '@/lib/api';
 import { storeProfile, useProfile } from '@/lib/queries';
 import { PlanPanel } from '@/features/billing/PlanPanel';
-import { ConnectionsPanel } from '@/features/requests/ConnectionsPanel';
-import { RequestsPanel } from '@/features/requests/RequestsPanel';
 import { ContactsPanel } from './ContactsPanel';
 import { DetailsForm } from './DetailsForm';
 import { useLabels } from './options';
 import { say, useI18n, type Translate } from '@/lib/i18n';
 import { PeoplePanel } from './PeoplePanel';
 import { PhotosPanel } from './PhotosPanel';
-import { inSetup, NextStep, SetupGuide, type SetupTab } from './SetupSteps';
+import { DocumentCheck, PhoneCheck } from '@/features/trust/VerifyPage';
+import { firstOpenTodo, inSetup, NextStep, ProfileSteps, SECTION_SLUGS, sectionFromSlug, sectionOpen, useSetupSteps, type ProfileSection, type SetupTab } from './SetupSteps';
 import { DeleteProfileCard, EngagedCard, PlanCard } from './StandingCards';
 
 export default function ProfilePage() {
@@ -31,11 +30,11 @@ export default function ProfilePage() {
   const profile = useProfile(id);
   const { t } = useI18n();
   return (
-    <AppShell>
-      <Link to="/" className="text-sm text-muted-foreground underline underline-offset-4">
+    <AppShell width="wide">
+      <Link to="/" className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">
         {t('verify.back')}
       </Link>
-      <div className="mt-6">
+      <div className="mt-5">
         {profile.isPending ? (
           <Loading />
         ) : profile.isError ? (
@@ -58,90 +57,133 @@ function roleLine(t: Translate, relationshipLabels: Record<string, string>, prof
 
 function ProfileScreen({ profile }: { profile: ProfileView }) {
   const showPeople = profile.management === 'manager';
-  const [tab, setTab] = useState('overview');
-  // After a takeover the profile is self-managed and the "people" tab is gone.
-  const current = tab === 'people' && !showPeople ? 'overview' : tab;
+  const setup = inSetup(profile);
+  // A new profile opens on its details; one under way, or published, on its overview.
+  // Each section has its own address (/profiles/:id/details …), so back, reload and links all land on the same step.
+  const { section: slug } = useParams();
+  const navigate = useNavigate();
+  const { steps } = useSetupSteps(profile);
+  const asked = sectionFromSlug(slug);
+  // No section in the address: a profile being set up opens on its first step still to do, others on Publish.
+  const fallback: ProfileSection = setup ? firstOpenTodo(profile, steps) : 'overview';
+  const wanted = asked ?? fallback;
+  // After a takeover the profile is self-managed and the manager/candidate section is gone; a step not open yet
+  // (the ones before it are not complete) goes to the first step still to do.
+  const current: ProfileSection = wanted === 'people' && !showPeople ? 'overview' : sectionOpen(profile, steps, wanted) ? wanted : fallback;
+  useEffect(() => {
+    if (slug !== SECTION_SLUGS[current]) navigate(`/profiles/${profile.id}/${SECTION_SLUGS[current]}`, { replace: true });
+  }, [slug, current, profile.id, navigate]);
   const { t } = useI18n();
   const { relationshipLabels, statusLabels } = useLabels();
-  const setup = inSetup(profile);
-  /** Opens a tab from the setup guide or a "continue" button: back to the top of the tabs, focus in the new panel. */
-  const goTo = (next: SetupTab) => {
-    setTab(next);
+  /** Opens a section from the steps, a card or a "continue" button: back up to the steps, focus in the section. */
+  const goTo = (next: ProfileSection) => {
+    navigate(`/profiles/${profile.id}/${SECTION_SLUGS[next]}`);
     requestAnimationFrame(() => {
       const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-      document.getElementById('profile-tabs')?.scrollIntoView({ block: 'start', behavior: reduce ? 'auto' : 'smooth' });
-      document.querySelector<HTMLElement>(`[role="tabpanel"][data-state="active"]`)?.focus({ preventScroll: true });
+      document.getElementById('profile-steps')?.scrollIntoView({ block: 'start', behavior: reduce ? 'auto' : 'smooth' });
+      document.getElementById('profile-section')?.focus({ preventScroll: true });
     });
+  };
+  const peopleLabel = t(profile.me.role === 'manager' ? 'profile.tab.candidate' : 'profile.tab.managerConsent');
+  const names: Record<ProfileSection, string> = {
+    overview: t('profile.tab.overview'),
+    details: t('profile.tab.details'),
+    photos: t('profile.tab.photos'),
+    verify: t('setup.step.verify'),
+    plan: t('profile.tab.plan'),
+    people: peopleLabel,
   };
   return (
     <>
       <PageTitle kicker={roleLine(t, relationshipLabels, profile)} title={profile.fields.displayName ?? t('card.untitled')}>
-        <span className="inline-flex rounded-full border px-3 py-1 text-xs font-semibold text-foreground">{statusLabels[profile.status]}</span>
+        <span className="inline-flex rounded-full border bg-card px-3 py-1 text-xs font-semibold text-foreground">{statusLabels[profile.status]}</span>
       </PageTitle>
-      {setup && <SetupGuide profile={profile} onOpen={goTo} />}
-      <Tabs id="profile-tabs" value={current} onValueChange={setTab} className="scroll-mt-6 gap-6">
-        <TabsList className="h-auto w-full flex-wrap justify-start gap-1 bg-[var(--ui-soft)] p-1">
-          <TabsTrigger value="overview" className="min-h-10 flex-none px-4">
-            {t('profile.tab.overview')}
-          </TabsTrigger>
-          <TabsTrigger value="details" className="min-h-10 flex-none px-4">
-            {t('profile.tab.details')}
-          </TabsTrigger>
-          <TabsTrigger value="photos" className="min-h-10 flex-none px-4">
-            {t('profile.tab.photos')}
-          </TabsTrigger>
-          <TabsTrigger value="contacts" className="min-h-10 flex-none px-4">
-            {t('profile.tab.contacts')}
-          </TabsTrigger>
-          <TabsTrigger value="requests" className="min-h-10 flex-none px-4">
-            {t('profile.tab.requests')}
-          </TabsTrigger>
-          <TabsTrigger value="connections" className="min-h-10 flex-none px-4">
-            {t('profile.tab.connections')}
-          </TabsTrigger>
-          <TabsTrigger value="plan" className="min-h-10 flex-none px-4">
-            {t('profile.tab.plan')}
-          </TabsTrigger>
-          {showPeople && (
-            <TabsTrigger value="people" className="min-h-10 flex-none px-4">
-              {t(profile.me.role === 'manager' ? 'profile.tab.candidate' : 'profile.tab.managerConsent')}
-            </TabsTrigger>
-          )}
-        </TabsList>
-        <TabsContent value="overview">
-          <Overview profile={profile} onOpenPlans={() => setTab('plan')} onOpen={goTo} />
-        </TabsContent>
-        <TabsContent value="details">
-          <DetailsForm profile={profile} onDone={setup ? () => goTo('photos') : undefined} />
-        </TabsContent>
-        <TabsContent value="photos">
-          <div className="flex flex-col gap-6">
-            <PhotosPanel profile={profile} />
-            <NextStep profile={profile} after="photos" onOpen={goTo} />
-          </div>
-        </TabsContent>
-        <TabsContent value="contacts">
-          <div className="flex flex-col gap-6">
-            <ContactsPanel profile={profile} />
-            <NextStep profile={profile} after="contacts" onOpen={goTo} />
-          </div>
-        </TabsContent>
-        <TabsContent value="requests">
-          <RequestsPanel profile={profile} />
-        </TabsContent>
-        <TabsContent value="connections">
-          <ConnectionsPanel profile={profile} />
-        </TabsContent>
-        <TabsContent value="plan">
-          <PlanPanel profile={profile} />
-        </TabsContent>
-        {showPeople && (
-          <TabsContent value="people">
-            <PeoplePanel profile={profile} />
-          </TabsContent>
-        )}
-      </Tabs>
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-8">
+        <div className="min-w-0">
+          <ProfileSteps profile={profile} open={current} onOpen={goTo} />
+          {/* The open section; it takes focus when opened, so keyboard and screen reader users land in it. */}
+          <section id="profile-section" tabIndex={-1} aria-label={names[current]} className="flex flex-col gap-6 rounded-[var(--ui-panel-radius)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]">
+            {(current === 'plan' || current === 'people') && (
+              <button type="button" className="inline-flex min-h-11 items-center gap-1.5 self-start text-sm font-semibold text-[var(--ui-purple)] underline-offset-4 hover:underline" onClick={() => goTo('overview')}>
+                <ArrowLeft className="size-4" aria-hidden="true" />
+                {t('profile.back')}
+              </button>
+            )}
+            {current === 'overview' && <Overview profile={profile} onOpenPlans={() => goTo('plan')} onOpen={goTo} />}
+            {current === 'details' && <DetailsForm profile={profile} onDone={setup ? () => goTo('photos') : undefined} />}
+            {current === 'photos' && (
+              <>
+                <PhotosPanel profile={profile} />
+                <NextStep profile={profile} after="photos" onOpen={goTo} />
+              </>
+            )}
+            {/* Verify: the private contact details, then the account holder's own checks, all here on the profile. */}
+            {current === 'verify' && (
+              <>
+                <ContactsPanel profile={profile}>
+                  {profile.publisher?.isMe && (
+                    <PhoneCheck embedded suggested={profile.contacts.find((c) => c.kind === 'phone' && c.person === profile.me.role)?.value} />
+                  )}
+                </ContactsPanel>
+                {profile.publisher?.isMe && <DocumentCheck />}
+                <NextStep profile={profile} after="verify" onOpen={goTo} />
+              </>
+            )}
+            {current === 'plan' && <PlanPanel profile={profile} />}
+            {current === 'people' && <PeoplePanel profile={profile} />}
+          </section>
+        </div>
+        <TrustAside profile={profile} peopleLabel={showPeople ? peopleLabel : null} onOpen={goTo} />
+      </div>
     </>
+  );
+}
+
+/**
+ * Beside the sections, as in the demo: the badges this profile has earned and where the checks are done, the way to
+ * its plan, requests and connections, and (managed profiles) the manager/candidate section.
+ */
+function TrustAside({ profile, peopleLabel, onOpen }: { profile: ProfileView; peopleLabel: string | null; onOpen: (section: ProfileSection) => void }) {
+  const { t } = useI18n();
+  return (
+    <aside className="flex flex-col gap-6 lg:sticky lg:top-6">
+      <Card>
+        <ShieldCheck className="mb-3 size-6 text-[var(--ui-copper)]" aria-hidden="true" />
+        <h2 className="text-lg font-semibold">{t('profile.trust.title')}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{t('profile.trust.body')}</p>
+        <div className="mt-4">
+          <TrustBadges badges={profile.badges} explain />
+        </div>
+        {profile.publisher?.isMe && (
+          <Button variant="outline" className="mt-5 h-11" onClick={() => onOpen('verify')}>
+            {t('profile.trust.verify')}
+          </Button>
+        )}
+      </Card>
+      <Card>
+        <Heart className="mb-3 size-6 text-[var(--ui-copper)]" aria-hidden="true" />
+        <h2 className="text-lg font-semibold">{t('profile.relations.title')}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{t('profile.relations.body')}</p>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Button asChild variant="outline" className="h-11">
+            <Link to={`/requests?as=${profile.id}`}>{t('layout.dock.requests')}</Link>
+          </Button>
+          <Button asChild variant="outline" className="h-11">
+            <Link to={`/connections?as=${profile.id}`}>{t('layout.dock.connections')}</Link>
+          </Button>
+        </div>
+      </Card>
+      {peopleLabel && (
+        <Card>
+          <Users className="mb-3 size-6 text-[var(--ui-copper)]" aria-hidden="true" />
+          <h2 className="text-lg font-semibold">{peopleLabel}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{t(profile.me.role === 'manager' ? 'profile.people.body.manager' : 'profile.people.body.candidate')}</p>
+          <Button variant="outline" className="mt-4 h-11" onClick={() => onOpen('people')}>
+            {t('profile.people.open', { section: peopleLabel })}
+          </Button>
+        </Card>
+      )}
+    </aside>
   );
 }
 
@@ -180,13 +222,6 @@ function Overview({ profile, onOpenPlans, onOpen }: { profile: ProfileView; onOp
       )}
 
       <Card>
-        <h2 className="font-serif text-2xl">{t('profile.badges')}</h2>
-        <div className="mt-4">
-          <TrustBadges badges={profile.badges} explain />
-        </div>
-      </Card>
-
-      <Card>
         <h2 className="font-serif text-2xl">{t('profile.publishing')}</h2>
         {profile.status === 'published' ? (
           <p className="mt-2 text-sm text-muted-foreground">{t('profile.visible')}</p>
@@ -200,7 +235,7 @@ function Overview({ profile, onOpenPlans, onOpen }: { profile: ProfileView; onOp
               {/* Each missing detail opens the tab where it is filled in. */}
               {profile.missing.map((key) => (
                 <li key={key}>
-                  <button type="button" className="text-left underline underline-offset-4 hover:text-foreground" onClick={() => onOpen(key === 'contactPhone' ? 'contacts' : 'details')}>
+                  <button type="button" className="min-h-6 text-left underline underline-offset-4 hover:text-foreground" onClick={() => onOpen(key === 'contactPhone' ? 'verify' : 'details')}>
                     {fieldLabels[key] ?? key}
                   </button>
                 </li>
@@ -217,9 +252,9 @@ function Overview({ profile, onOpenPlans, onOpen }: { profile: ProfileView; onOp
                   ? caseStatusLabels[publisher.documentStatus].toLowerCase()
                   : t('profile.documentNotSubmitted'),
             })}{' '}
-            <Link to="/verify" className="text-brand underline underline-offset-4">
+            <button type="button" className="min-h-6 text-brand underline underline-offset-4" onClick={() => onOpen('verify')}>
               {t('profile.goToVerification')}
-            </Link>
+            </button>
           </p>
         )}
         {publishError && (
@@ -234,7 +269,7 @@ function Overview({ profile, onOpenPlans, onOpen }: { profile: ProfileView; onOp
                 {t('profile.pause')}
               </Button>
             ) : (
-              <Button className="h-11" disabled={publish.isPending || Boolean(profile.candidate.objectedAt)} onClick={() => publish.mutate()}>
+              <Button className="h-11" disabled={publish.isPending || Boolean(profile.candidate.objectedAt) || profile.missing.length > 0 || Boolean(publisher?.isMe && (!publisher.phoneVerified || publisher.documentStatus !== 'approved'))} onClick={() => publish.mutate()}>
                 {t(profile.status === 'draft' ? 'profile.publish' : 'profile.publishAgain')}
               </Button>
             )}

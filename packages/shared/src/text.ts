@@ -15,7 +15,7 @@ import { MAX_PAYMENT_PROOFS, RENEWAL_GRACE_DAYS, RENEWAL_WINDOW_DAYS } from './b
 import { DEFAULT_MANAGER_CAPACITY, DOCUMENT_RETENTION_DAYS, LOCALES, INVITATION_TTL_HOURS, MAX_PHOTOS, MAX_SOCIAL_LINKS } from './domain.ts';
 import { CODE_LENGTH, CODE_TTL_SECONDS } from './login-channels.ts';
 import { MAX_AGE, MAX_HEIGHT_CM, MIN_AGE, MIN_HEIGHT_CM } from './profile.ts';
-import { REQUEST_COOLDOWN_DAYS } from './requests.ts';
+import { REQUEST_COOLDOWN_DAYS, SHORTLIST_LIMIT } from './requests.ts';
 import { RECENT_SIGN_IN_MINUTES, RETENTION_MONTHS } from './safety.ts';
 
 /** Every language with a catalogue. */
@@ -66,6 +66,7 @@ export const TEXT_CONSTANTS: TextVars = {
   managerCapacity: DEFAULT_MANAGER_CAPACITY,
   invitationHours: INVITATION_TTL_HOURS,
   requestCooldownDays: REQUEST_COOLDOWN_DAYS,
+  shortlistLimit: SHORTLIST_LIMIT,
   renewalWindowDays: RENEWAL_WINDOW_DAYS,
   renewalGraceDays: RENEWAL_GRACE_DAYS,
   recentSignInMinutes: RECENT_SIGN_IN_MINUTES,

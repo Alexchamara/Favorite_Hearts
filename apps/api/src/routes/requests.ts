@@ -12,13 +12,16 @@ import {
   RENEWAL_GRACE_DAYS,
   sendInterestSchema,
   SHARING_POLICY_VERSION,
+  SHORTLIST_LIMIT,
+  shortlistSchema,
   type BlockView,
   type ConnectionView,
   type PlanUsage,
   type ReceivedInterests,
   type SentInterestView,
+  type ShortlistView,
 } from '@fh/shared';
-import { block, connection, interest } from '../db/schema/connections.ts';
+import { block, connection, interest, shortlist } from '../db/schema/connections.ts';
 import { profile } from '../db/schema/members.ts';
 import { fail, isoDate, parse, readJson, withActor, type AppEnv, type Tx } from '../http.ts';
 import { cardsById, scalar, sharedContacts } from '../lib/member-view.ts';
@@ -176,6 +179,45 @@ profileRequests.delete('/:id/blocks/:blockId', async (c) => {
       .where(and(eq(block.id, blockId), eq(block.blockerProfileId, id), isNull(block.revokedAt)))
       .returning({ id: block.id });
     if (!lifted.length) fail(404, 'NOT_FOUND', 'api.blocks.notFound');
+  });
+  return c.body(null, 204);
+});
+
+// --- The shortlist (N03, owner 6 Nov 2026): saved profiles, private to the people who operate the profile ---------
+
+profileRequests.get('/:id/shortlist', async (c) => {
+  const id = idParam(c.req.param('id'));
+  const view = await withActor(c, async (tx): Promise<ShortlistView> => {
+    await operatedProfile(tx, id);
+    const saved = await tx.select().from(shortlist).where(eq(shortlist.ownerProfileId, id)).orderBy(desc(shortlist.createdAt));
+    // Cards only for profiles this member may still see; the rest stay listed so they can be removed.
+    const cards = await cardsById(c, tx, saved.map((s) => s.targetProfileId));
+    const hasPlan = await scalar<boolean>(tx, sql`app.has_active_entitlement(${id})`);
+    return {
+      items: saved.map((s) => ({ profileId: s.targetProfileId, savedAt: s.createdAt, profile: cards.get(s.targetProfileId) ?? null })),
+      limit: hasPlan ? null : SHORTLIST_LIMIT,
+    };
+  });
+  return c.json(view);
+});
+
+/** Saving twice is fine: the profile is already there. */
+profileRequests.post('/:id/shortlist', async (c) => {
+  const id = idParam(c.req.param('id'));
+  const input = parse(shortlistSchema, await readJson(c));
+  await withActor(c, async (tx) => {
+    await operatedProfile(tx, id);
+    await tx.execute(sql`select app.shortlist_add(${id}, ${input.profileId})`);
+  });
+  return c.body(null, 204);
+});
+
+profileRequests.delete('/:id/shortlist/:profileId', async (c) => {
+  const id = idParam(c.req.param('id'));
+  const target = idParam(c.req.param('profileId'));
+  await withActor(c, async (tx) => {
+    await operatedProfile(tx, id);
+    await tx.delete(shortlist).where(and(eq(shortlist.ownerProfileId, id), eq(shortlist.targetProfileId, target)));
   });
   return c.body(null, 204);
 });

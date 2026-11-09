@@ -8,7 +8,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import type { InvitationPreview } from '@fh/shared';
-import { TextField } from '@/components/form/fields';
+import { CodeInput } from '@/components/form/code-input';
 import { AppShell, Card, Loading, Notice, PageTitle } from '@/components/layout';
 import { useBotCheck } from '@/components/turnstile';
 import {
@@ -139,7 +139,8 @@ function Invitation({ token, preview }: { token: string; preview: InvitationPrev
         ) : (
           <div className="flex flex-col gap-4">
             <p className="text-sm">{rich('invite.codeSent', { strong: (words) => <strong>{words}</strong> }, { contact: codeSentTo })}</p>
-            <TextField label={t('invite.codeLabel')} inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(value) => setCode(value.replace(/\D/g, ''))} />
+            {/* Accept or decline is the member's choice, so the code is not sent on its own here. */}
+            <CodeInput label={t('invite.codeLabel')} value={code} onChange={setCode} fromSms={preview.channel === 'phone'} />
             {(accept.isError || decline.isError) && <Notice tone="error">{errorMessage(accept.error ?? decline.error)}</Notice>}
             <div className="flex flex-wrap gap-3">
               <Button className="h-11" disabled={code.length !== 6 || accept.isPending} onClick={() => (me.data ? accept.mutate() : setWantsToAccept(true))}>

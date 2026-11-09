@@ -3,11 +3,12 @@
  * code, and an identity document (NIC, passport or driving licence) reviewed by staff. Documents
  * are uploaded only here (section 8: never by WhatsApp or email).
  */
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 import { normalizePhone } from '@fh/shared';
-import { PhoneField, TextField } from '@/components/form/fields';
+import { CodeInput, useCodeCheck } from '@/components/form/code-input';
+import { PhoneField } from '@/components/form/fields';
 import { AppShell, Card, Loading, Notice, PageTitle } from '@/components/layout';
 import { useBotCheck } from '@/components/turnstile';
 import { Button } from '@/components/ui/button';
@@ -57,17 +58,22 @@ function BackToProfile({ id }: { id: string }) {
   );
 }
 
-function PhoneCheck() {
+/**
+ * The account holder's phone, checked by SMS. `embedded`: inside another card (the profile's Verify step), as its
+ * last part. `suggested`: a number to start from, e.g. the phone just added as a contact, so nobody types it twice.
+ */
+export function PhoneCheck({ embedded = false, suggested }: { embedded?: boolean; suggested?: string } = {}) {
   const me = useMe().data;
   const sms = useHealth().data?.sms;
-  const [phone, setPhone] = useState('');
-  const [code, setCode] = useState('');
+  const [phone, setPhone] = useState(suggested ?? '');
+  useEffect(() => {
+    if (suggested) setPhone((current) => current || suggested);
+  }, [suggested]);
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const bot = useBotCheck();
   const { t, rich } = useI18n();
-  if (!me) return null;
 
   async function send(event: FormEvent) {
     event.preventDefault();
@@ -80,24 +86,31 @@ function PhoneCheck() {
     setBusy(false);
     if (result.error) return setError(authErrorMessage(result.error));
     setSentTo(normalized);
-    setCode('');
+    entry.reset();
   }
-  async function verify(event: FormEvent) {
-    event.preventDefault();
-    if (!sentTo) return;
-    setBusy(true);
-    setError(null);
-    const result = await authClient.phoneNumber.verify({ phoneNumber: sentTo, code, updatePhoneNumber: sentTo !== me?.phoneNumber });
-    setBusy(false);
-    if (result.error) return setError(authErrorMessage(result.error));
-    toast.success(say('verify.phone.done'));
-    setSentTo(null);
-    await queryClient.invalidateQueries();
-  }
+  // Checked as soon as all six digits are in, like the sign-in code.
+  const entry = useCodeCheck(
+    async (value) => {
+      if (!sentTo) return;
+      const result = await authClient.phoneNumber.verify({ phoneNumber: sentTo, code: value, updatePhoneNumber: sentTo !== me?.phoneNumber });
+      if (result.error) throw new Error(authErrorMessage(result.error));
+    },
+    async () => {
+      toast.success(say('verify.phone.done'));
+      setSentTo(null);
+      await queryClient.invalidateQueries();
+    },
+  );
+  if (!me) return null;
 
+  const Frame = embedded ? EmbeddedFrame : Card;
   return (
-    <Card>
-      <h2 className="font-serif text-2xl">{t('verify.phone.title')}</h2>
+    <Frame>
+      {embedded ? (
+        <h3 className="font-semibold">{t('verify.phone.embeddedTitle')}</h3>
+      ) : (
+        <h2 className="font-serif text-2xl">{t('verify.phone.title')}</h2>
+      )}
       {me.phoneNumberVerified ? (
         <p className="mt-2 text-sm">
           {rich('verify.phone.isVerified', { strong: (words) => <strong>{words}</strong> }, { phone: me.phoneNumber ?? '' })}
@@ -113,33 +126,38 @@ function PhoneCheck() {
           {error && <Notice tone="error">{error}</Notice>}
           {!sentTo ? (
             <form onSubmit={send} className="flex flex-col gap-4">
-              <PhoneField label={t('signIn.mobile')} value={phone} onChange={setPhone} />
+              <PhoneField
+                label={t('signIn.mobile')}
+                value={phone}
+                onChange={setPhone}
+                hint={suggested && phone === suggested ? t('verify.phone.suggestedHint') : undefined}
+              />
               {bot.widget}
               <Button type="submit" className="h-11 self-start" disabled={busy || !phone.trim() || !bot.ready}>
                 {busy ? t('signIn.sending') : t('verify.phone.send')}
               </Button>
             </form>
           ) : (
-            <form onSubmit={verify} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-4">
               <p className="text-sm">{rich('verify.phone.sent', { strong: (words) => <strong>{words}</strong> }, { phone: sentTo })}</p>
-              <TextField label={t('signIn.code')} inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(value) => setCode(value.replace(/\D/g, ''))} />
-              <div className="flex flex-wrap gap-3">
-                <Button type="submit" className="h-11" disabled={busy || code.length !== 6}>
-                  {t('verify.phone.verify')}
-                </Button>
-                <Button type="button" variant="outline" className="h-11" onClick={() => setSentTo(null)}>
-                  {t('verify.phone.change')}
-                </Button>
-              </div>
-            </form>
+              <CodeInput label={t('signIn.code')} value={entry.value} onChange={entry.change} state={entry.state} message={entry.message} fromSms />
+              <Button type="button" variant="outline" className="h-11 self-start" disabled={entry.state === 'checking'} onClick={() => setSentTo(null)}>
+                {t('verify.phone.change')}
+              </Button>
+            </div>
           )}
         </div>
       )}
-    </Card>
+    </Frame>
   );
 }
 
-function DocumentCheck() {
+/** A part of a bigger card: a line above it instead of its own card. */
+function EmbeddedFrame({ children }: { children: ReactNode }) {
+  return <section className="mt-6 border-t pt-5">{children}</section>;
+}
+
+export function DocumentCheck() {
   const cases = useMyCases();
   const { t } = useI18n();
   const { caseStatusLabels, documentLabels } = useLabels();

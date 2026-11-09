@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import type { ProfileView } from '@fh/shared';
 import { Card, Loading, Notice } from '@/components/layout';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { errorMessage, post } from '@/lib/api';
 import { refreshRelations, useReceived, useSent } from '@/lib/queries';
 import { useLabels } from '@/features/profile/options';
@@ -27,18 +28,33 @@ export function RequestsPanel({ profile }: { profile: ProfileView }) {
   });
   const memberLink = (id: string) => `/members/${id}?as=${profile.id}`;
 
+  const receivedCount = received.data ? (received.data.identified ? received.data.interests.length : received.data.previews.length) : null;
+  const sentCount = sent.data?.length ?? null;
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       {!canAct && <Notice>{t('requests.cannotManage')}</Notice>}
+      <Tabs defaultValue="received" className="gap-5">
+        <TabsList className="h-auto w-full justify-start gap-1 p-1">
+          <TabsTrigger value="received" className="min-h-11 flex-none px-5">
+            {t('requests.received')}
+            {receivedCount !== null && <Count value={receivedCount} />}
+          </TabsTrigger>
+          <TabsTrigger value="sent" className="min-h-11 flex-none px-5">
+            {t('requests.sent')}
+            {sentCount !== null && <Count value={sentCount} />}
+          </TabsTrigger>
+        </TabsList>
+      <TabsContent value="received">
       <Card>
-        <h2 className="font-serif text-2xl">{t('requests.received')}</h2>
+        <h2 className="sr-only">{t('requests.received')}</h2>
         {received.isPending ? (
           <Loading />
         ) : received.isError ? (
           <Notice tone="error">{errorMessage(received.error)}</Notice>
         ) : !received.data.identified ? (
           <>
-            <div className="mt-3">
+            <div>
               <Notice title={t('requests.planShows.title')}>{t('requests.planShows.body')}</Notice>
             </div>
             {received.data.previews.length === 0 ? (
@@ -63,9 +79,9 @@ export function RequestsPanel({ profile }: { profile: ProfileView }) {
             )}
           </>
         ) : received.data.interests.length === 0 ? (
-          <p className="mt-2 text-sm text-muted-foreground">{t('requests.noneWaiting')}</p>
+          <p className="text-sm text-muted-foreground">{t('requests.noneWaiting')}</p>
         ) : (
-          <ul className="mt-2 divide-y">
+          <ul className="-my-3 divide-y">
             {received.data.interests.map((item) => (
               <li key={item.id}>
                 <MemberRow card={item.sender} href={item.sender ? memberLink(item.sender.id) : undefined}>
@@ -89,17 +105,19 @@ export function RequestsPanel({ profile }: { profile: ProfileView }) {
           </ul>
         )}
       </Card>
+      </TabsContent>
 
+      <TabsContent value="sent">
       <Card>
-        <h2 className="font-serif text-2xl">{t('requests.sent')}</h2>
+        <h2 className="sr-only">{t('requests.sent')}</h2>
         {sent.isPending ? (
           <Loading />
         ) : sent.isError ? (
           <Notice tone="error">{errorMessage(sent.error)}</Notice>
         ) : sent.data.length === 0 ? (
-          <p className="mt-2 text-sm text-muted-foreground">{t('requests.noneSent')}</p>
+          <p className="text-sm text-muted-foreground">{t('requests.noneSent')}</p>
         ) : (
-          <ul className="mt-2 divide-y">
+          <ul className="-my-3 divide-y">
             {sent.data.map((item) => (
               <li key={item.id}>
                 <MemberRow card={item.receiver} href={item.receiver ? memberLink(item.receiver.id) : undefined}>
@@ -120,6 +138,13 @@ export function RequestsPanel({ profile }: { profile: ProfileView }) {
           </ul>
         )}
       </Card>
+      </TabsContent>
+      </Tabs>
     </div>
   );
+}
+
+/** How many, beside a tab's name. */
+export function Count({ value }: { value: number }) {
+  return <span className="text-muted-foreground tabular-nums">({value})</span>;
 }

@@ -133,7 +133,7 @@ export function createAuth({ db, config, messenger }: { db: Db; config: Config; 
         allowedAttempts: 5,
         phoneNumberValidator: (value) => normalizePhone(value) === value,
         async sendOTP({ phoneNumber: to, code }, ctx) {
-          await messenger.sendSms({ to, body: codeSms(headersLanguage(ctx?.headers), code) });
+          await messenger.sendSms({ to, body: codeSms(headersLanguage(ctx?.headers), code, undefined, config.memberAppUrl) });
         },
         signUpOnVerification: {
           // Phone-only members get an undeliverable placeholder email (.invalid TLD) that is never emailed.

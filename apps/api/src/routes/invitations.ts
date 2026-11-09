@@ -83,7 +83,7 @@ invitations.post('/code', async (c) => {
     // Sent inside the transaction: if delivery fails, the code is not counted.
     try {
       if (result.channel === 'email') await messenger.sendEmail({ to: result.contact!, ...codeEmail(requestLanguage(c), 'invitation', code, CODE_MINUTES) });
-      else await messenger.sendSms({ to: result.contact!, body: codeSms(requestLanguage(c), code, CODE_MINUTES) });
+      else await messenger.sendSms({ to: result.contact!, body: codeSms(requestLanguage(c), code, CODE_MINUTES, config.memberAppUrl) });
     } catch (err) {
       if (err instanceof SmsUnavailableError) fail(503, 'SMS_UNAVAILABLE', 'api.invitation.smsUnavailable');
       fail(502, 'SEND_FAILED', 'api.invitation.sendFailed');

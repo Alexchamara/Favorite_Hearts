@@ -5,13 +5,13 @@
  */
 import { useState, type ReactNode } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Flag } from 'lucide-react';
+import { BriefcaseBusiness, Flag, MapPin } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { toast } from 'sonner';
 import type { MemberProfileView, ProfileView, RelationView } from '@fh/shared';
 import { TrustBadges } from '@/components/badges';
 import { Confirm } from '@/components/confirm';
-import { AppShell, Card, Loading, Notice } from '@/components/layout';
+import { AppShell, Card, kickerClass, Loading, Notice } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ApiError, errorMessage, post } from '@/lib/api';
@@ -22,6 +22,7 @@ import { say, useI18n, type AppTextKey } from '@/lib/i18n';
 import { ActingPicker, useActingProfile, withAs } from './acting';
 import { ContactList, PhotoFrame, usePlaceOf } from './MemberCard';
 import { ReportDialog } from './ReportDialog';
+import { SaveButton } from './shortlist';
 
 export default function MemberPage() {
   const { id = '' } = useParams();
@@ -30,11 +31,11 @@ export default function MemberPage() {
   const error = member.error instanceof ApiError ? member.error : null;
   const { t } = useI18n();
   return (
-    <AppShell>
-      <Link to={withAs('/browse', acting)} className="text-sm text-muted-foreground underline underline-offset-4">
+    <AppShell width="wide">
+      <Link to={withAs('/browse', acting)} className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">
         {t('memberPage.back')}
       </Link>
-      <div className="mt-6 flex flex-col gap-6">
+      <div className="mt-5 flex flex-col gap-6">
         {ready && <ActingPicker profiles={profiles} acting={acting} onChoose={choose} />}
         {member.isPending ? (
           <Loading />
@@ -79,21 +80,41 @@ function MemberView({ view, acting }: { view: MemberProfileView; acting: Profile
   const placeOf = usePlaceOf();
   const name = view.displayName ?? t('memberPage.thisMember');
   const blurred = view.photos.some((photo) => photo.blurred);
+  const place = placeOf(view);
   return (
     <>
-      <div className="flex flex-col gap-2">
-        <p className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+      <div className="flex flex-col gap-3">
+        <p className={kickerClass}>
           {view.management === 'manager' && view.managerRelationship
             ? t('memberPage.managedBy', { relationship: labels.relationshipLabels[view.managerRelationship].toLowerCase() })
             : t('memberPage.selfManaged')}
         </p>
-        <h1 className="font-serif text-3xl leading-tight sm:text-4xl">
-          {name}
-          {view.age !== null && <span className="text-muted-foreground">, {view.age}</span>}
-        </h1>
-        <p className="text-muted-foreground">{[view.occupation, placeOf(view)].filter(Boolean).join(' · ')}</p>
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <h1 className="font-serif text-[2.25rem] leading-[1.1] sm:text-5xl">
+            {name}
+            {view.age !== null && <span className="text-muted-foreground">, {view.age}</span>}
+          </h1>
+          <SaveButton actingId={acting?.id ?? null} profileId={view.id} />
+        </div>
+        <p className="flex flex-wrap gap-x-5 gap-y-1 text-muted-foreground">
+          {view.occupation && (
+            <span className="inline-flex items-center gap-1.5">
+              <BriefcaseBusiness className="size-4" aria-hidden="true" />
+              {view.occupation}
+            </span>
+          )}
+          {place && (
+            <span className="inline-flex items-center gap-1.5">
+              <MapPin className="size-4" aria-hidden="true" />
+              {place}
+            </span>
+          )}
+        </p>
         <TrustBadges badges={view.badges} explain />
       </div>
+
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-8">
+      <div className="flex min-w-0 flex-col gap-6">
 
       {view.photos.length > 0 && (
         <section aria-label={t('memberPage.photos')}>
@@ -120,25 +141,6 @@ function MemberView({ view, acting }: { view: MemberProfileView; acting: Profile
           {blurred && <p className="mt-2 text-sm text-muted-foreground">{t('memberPage.blurred')}</p>}
         </section>
       )}
-
-      <RelationPanel view={view} acting={acting} />
-
-      <Card>
-        <h2 className="font-serif text-2xl">{t('memberPage.contacts')}</h2>
-        {view.contacts ? (
-          <ContactList contacts={view.contacts} />
-        ) : (
-          <p className="mt-2 text-sm text-muted-foreground">
-            {t(
-              view.contactsHidden === 'plan_needed'
-                ? 'memberPage.contacts.plan'
-                : view.contactsHidden === 'not_allowed'
-                  ? 'connections.hidden.candidate'
-                  : 'memberPage.contacts.afterAccept',
-            )}
-          </p>
-        )}
-      </Card>
 
       <Card>
         <h2 className="font-serif text-2xl">{t('details.about.title')}</h2>
@@ -189,6 +191,28 @@ function MemberView({ view, acting }: { view: MemberProfileView; acting: Profile
         />
         {!view.family.namesShown && <p className="mt-3 text-sm text-muted-foreground">{t('memberPage.namesLater')}</p>}
       </Card>
+      </div>
+      <aside className="order-first flex flex-col gap-6 lg:sticky lg:top-6 lg:order-none">
+      <RelationPanel view={view} acting={acting} />
+
+        <Card>
+          <h2 className="font-serif text-2xl">{t('memberPage.contacts')}</h2>
+          {view.contacts ? (
+            <ContactList contacts={view.contacts} />
+          ) : (
+            <p className="mt-2 text-sm text-muted-foreground">
+              {t(
+                view.contactsHidden === 'plan_needed'
+                  ? 'memberPage.contacts.plan'
+                  : view.contactsHidden === 'not_allowed'
+                    ? 'connections.hidden.candidate'
+                    : 'memberPage.contacts.afterAccept',
+              )}
+            </p>
+          )}
+        </Card>
+      </aside>
+      </div>
     </>
   );
 }

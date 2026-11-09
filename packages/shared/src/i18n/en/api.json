@@ -112,6 +112,8 @@
   "api.rule.profileUnavailableNow": "One of the profiles is not available right now.",
   "api.rule.connectionNotFound": "Connection not found.",
   "api.rule.blockNotAllowed": "You cannot block this profile.",
+  "api.rule.shortlistNotAllowed": "You can only save profiles to a shortlist of a profile you manage.",
+  "api.rule.shortlistFull": "This shortlist already holds {shortlistLimit} profiles. Remove one first, or choose a plan to save as many as you like.",
   "api.rule.engagedNotActive": "Only a published or paused profile can be marked engaged or married.",
   "api.rule.reportNotAllowed": "You cannot report this profile.",
   "api.rule.reportNeedsVerification": "Reporting opens once your identity document is reviewed and your phone is verified.",

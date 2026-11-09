@@ -271,6 +271,12 @@ export type ConnectionView = {
 
 export type BlockView = { id: string; profileId: string | null; displayName: string | null; blockedAt: ApiDate };
 
+/** One saved profile; `profile` is null once it is no longer shown to this member (hidden, paused, blocked or gone). */
+export type ShortlistItem = { profileId: string; savedAt: ApiDate; profile: MemberCard | null };
+
+/** A profile's shortlist, newest first; `limit` is null while the profile has an active plan (N03). */
+export type ShortlistView = { items: ShortlistItem[]; limit: number | null };
+
 /** Section 2: the active plan and what is left of its request limits. */
 export type PlanUsage = {
   active: boolean;

@@ -112,6 +112,8 @@
   "api.rule.profileUnavailableNow": "එක් පැතිකඩක් දැනට ලබා ගත නොහැක.",
   "api.rule.connectionNotFound": "සම්බන්ධතාවය හමු නොවීය.",
   "api.rule.blockNotAllowed": "ඔබට මෙම පැතිකඩ අවහිර කළ නොහැක.",
+  "api.rule.shortlistNotAllowed": "ඔබ කළමනාකරණය කරන පැතිකඩක කෙටි ලැයිස්තුවට පමණක් පැතිකඩ සුරැකිය හැක.",
+  "api.rule.shortlistFull": "මෙම කෙටි ලැයිස්තුවේ දැනටමත් පැතිකඩ {shortlistLimit} ක් ඇත. පළමුව එකක් ඉවත් කරන්න, නැතහොත් ඔබ කැමති තරම් සුරැකීමට සැලැස්මක් තෝරන්න.",
   "api.rule.engagedNotActive": "විවාහ ගිවිස ගත් හෝ විවාහ වූ ලෙස සලකුණු කළ හැක්කේ පළ කළ හෝ තාවකාලිකව නවත්වා ඇති පැතිකඩක් පමණි.",
   "api.rule.reportNotAllowed": "ඔබට මෙම පැතිකඩ වාර්තා කළ නොහැක.",
   "api.rule.reportNeedsVerification": "ඔබේ අනන්‍යතා ලේඛනය පරීක්ෂා කර දුරකථනය තහවුරු කළ පසු වාර්තා කිරීම විවෘත වේ.",

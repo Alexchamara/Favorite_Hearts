@@ -125,6 +125,8 @@ without output.
 | 2026-11-05 | The QR code's phone link needs no sign-in: one-time, 15 minutes, it can only add photos to that member's unsent document. Unsent photos are deleted after 24 hours. Computers may also use the webcam. | Owner |
 | 2026-11-05 | A selfie holding the document, with an owner switch to require it or not (new submissions only). | Owner |
 | 2026-11-05 | Every identity photo change goes through database functions that queue unused files for deletion; photos under 800 px on the long side are refused; previews are streamed by the API, never storage links. | Engineering |
+| 2026-11-06 | The member app takes the demo's look: rose brand mark, Georgia headings, a menu drawer for the account and help, and a floating dock (Discover, Requests, Connected, Profiles); requests and connections moved from profile tabs to their own pages. Left out because the service does not offer them: featured and boosted shelves, horoscope matching, compare, online status and the demo's account switcher. | Owner |
+| 2026-11-06 | Shortlist (N03): each profile saves published profiles to look at later, private to the people who operate it. Up to 20 without a plan, no limit with one; saved ones above 20 stay when a plan ends, but none are added until under 20. Saved profiles no longer shown stay listed without details so they can be removed. In the dock as Shortlist and as a bookmark on cards and member pages. | Owner |
 
 ## Step 5 evidence
 
@@ -573,7 +575,8 @@ Screens (3b):
 
 Open:
 
-- [ ] Owner decides on boost, featured profiles and shortlist limits (N01–N03). Not built.
+- [ ] Owner decides on boost and featured profiles (N01–N02). Not built.
+- [x] Shortlist limits (N03): 20 without a plan, none with one (owner, 6 Nov 2026). Built (drizzle/0015_shortlist.sql).
 - [ ] Spec items with no owner rule: country lists and validation (G24), atomic saves (G25). Report data (G28): the
   reported member never sees reports, and reporters see only their own.
 
@@ -1345,7 +1348,7 @@ and the website built 22 pages.
 ### Not done in 3a
 
 - The screens (3b).
-- Boosts, featured profiles and shortlist limits (N01–N03): not built until the owner decides.
+- Boosts and featured profiles (N01–N02): not built until the owner decides. The shortlist (N03) is built: 20 without a plan, none with one.
 - The 2-re-sends-per-pair cap: recommended only, not built (O04).
 - Lock contention under real load: Stage 6.
 
