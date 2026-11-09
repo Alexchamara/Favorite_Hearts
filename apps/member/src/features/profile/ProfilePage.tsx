@@ -5,20 +5,21 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { ArrowLeft, Heart, ShieldCheck, Users } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ArrowUpRight, Camera, Heart, ShieldCheck, UserRound, Users } from 'lucide-react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { toast } from 'sonner';
-import type { ProfileView } from '@fh/shared';
+import { ageOn, MAX_PHOTOS, type ProfileView } from '@fh/shared';
 import { TrustBadges } from '@/components/badges';
 import { AppShell, Card, Loading, Notice, PageTitle } from '@/components/layout';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ApiError, errorMessage, post } from '@/lib/api';
-import { storeProfile, useProfile } from '@/lib/queries';
+import { storeProfile, usePhotos, useProfile } from '@/lib/queries';
 import { PlanPanel } from '@/features/billing/PlanPanel';
 import { ContactsPanel } from './ContactsPanel';
 import { DetailsForm, type Save } from './DetailsForm';
 import { Onboarding, type WizardStep } from './Onboarding';
-import { useLabels } from './options';
+import { suggestionLabel, useLabels } from './options';
 import { say, useI18n, type Translate } from '@/lib/i18n';
 import { PeoplePanel } from './PeoplePanel';
 import { PhotosPanel } from './PhotosPanel';
@@ -30,8 +31,10 @@ export default function ProfilePage() {
   const { id = '', section } = useParams();
   const profile = useProfile(id);
   const { t } = useI18n();
-  // A draft being set up opens in the demo's setup wizard; its plan and manager/candidate sections keep the page.
-  if (profile.data && inSetup(profile.data) && section !== 'plan' && section !== 'people')
+  // The demo's wizard: for a draft being set up (all but its plan and manager/candidate sections), and for editing a
+  // published profile (its details, story and privacy steps; "Edit profile" opens it, as in the demo).
+  const editing = section === 'details' || section === 'story' || section === 'photos' || section === 'verify';
+  if (profile.data && profile.data.me.canEdit && (inSetup(profile.data) ? section !== 'plan' && section !== 'people' : editing))
     return (
       <AppShell onboarding>
         <SetupWizard profile={profile.data} />
@@ -39,7 +42,8 @@ export default function ProfilePage() {
     );
   return (
     <AppShell width="wide">
-      <Link to="/" className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">
+      {/* Not in the demo (one profile per account there): back to this account's profiles. */}
+      <Link to="/" className="m-text">
         {t('verify.back')}
       </Link>
       <div className="mt-5">
@@ -105,9 +109,11 @@ function SetupWizard({ profile }: { profile: ProfileView }) {
     privacy: { kicker: t('onboard.privacy.kicker'), title: t('onboard.privacy.title') },
     review: { kicker: t('onboard.review.kicker'), title: t('onboard.review.title') },
   };
+  // A published profile being edited: every step is open, Review is its profile page, and leaving goes back there.
+  const home = inSetup(profile) ? '/' : `/profiles/${profile.id}`;
   const back: Record<WizardStep, () => void> = {
-    role: () => navigate('/'),
-    essentials: () => navigate('/'),
+    role: () => navigate(home),
+    essentials: () => navigate(home),
     story: () => go('details'),
     privacy: () => go('story'),
     review: () => go('verify'),
@@ -130,7 +136,7 @@ function SetupWizard({ profile }: { profile: ProfileView }) {
       error={error}
       back={back[step]}
       next={next[step]}
-      onSaveLater={() => (step === 'essentials' || step === 'story' ? save(() => navigate('/')) : navigate('/'))}
+      onSaveLater={() => (step === 'essentials' || step === 'story' ? save(() => navigate(home)) : navigate(home))}
     >
       {step === 'essentials' && <DetailsForm profile={profile} part="essentials" saves={saves} />}
       {step === 'story' && (
@@ -199,6 +205,7 @@ function ProfileScreen({ profile }: { profile: ProfileView }) {
     plan: t('profile.tab.plan'),
     people: peopleLabel,
   };
+  if (current === 'overview' && !setup) return <ProfileDashboard profile={profile} peopleLabel={showPeople ? peopleLabel : null} onOpen={goTo} />;
   return (
     <>
       <PageTitle kicker={roleLine(t, relationshipLabels, profile)} title={profile.fields.displayName ?? t('card.untitled')}>
@@ -251,45 +258,231 @@ function ProfileScreen({ profile }: { profile: ProfileView }) {
  */
 function TrustAside({ profile, peopleLabel, onOpen }: { profile: ProfileView; peopleLabel: string | null; onOpen: (section: ProfileSection) => void }) {
   const { t } = useI18n();
+  // The demo's aside (.m-stack) of context cards (.m-context-card): icon, title, text and the way in.
   return (
-    <aside className="flex flex-col gap-6 lg:sticky lg:top-6">
-      <Card>
-        <ShieldCheck className="mb-3 size-6 text-[var(--ui-copper)]" aria-hidden="true" />
-        <h2 className="text-lg font-semibold">{t('profile.trust.title')}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{t('profile.trust.body')}</p>
-        <div className="mt-4">
-          <TrustBadges badges={profile.badges} explain />
-        </div>
+    <aside className="m-stack">
+      <div className="m-context-card">
+        <ShieldCheck size={25} aria-hidden="true" />
+        <h3>{t('profile.trust.title')}</h3>
+        <p>{t('profile.trust.body')}</p>
+        <TrustBadges badges={profile.badges} explain />
         {profile.publisher?.isMe && (
-          <Button variant="outline" className="mt-5 h-11" onClick={() => onOpen('verify')}>
+          <button type="button" className="m-btn m-secondary" onClick={() => onOpen('verify')}>
             {t('profile.trust.verify')}
-          </Button>
+          </button>
         )}
-      </Card>
-      <Card>
-        <Heart className="mb-3 size-6 text-[var(--ui-copper)]" aria-hidden="true" />
-        <h2 className="text-lg font-semibold">{t('profile.relations.title')}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{t('profile.relations.body')}</p>
-        <div className="mt-4 flex flex-wrap gap-3">
-          <Button asChild variant="outline" className="h-11">
-            <Link to={`/requests?as=${profile.id}`}>{t('layout.dock.requests')}</Link>
-          </Button>
-          <Button asChild variant="outline" className="h-11">
-            <Link to={`/connections?as=${profile.id}`}>{t('layout.dock.connections')}</Link>
-          </Button>
+      </div>
+      <div className="m-context-card">
+        <Heart size={24} aria-hidden="true" />
+        <h3>{t('profile.relations.title')}</h3>
+        <p>{t('profile.relations.body')}</p>
+        <div className="flex flex-wrap gap-3">
+          <Link className="m-btn m-secondary" to={`/requests?as=${profile.id}`}>
+            {t('layout.dock.requests')}
+          </Link>
+          <Link className="m-btn m-secondary" to={`/connections?as=${profile.id}`}>
+            {t('layout.dock.connections')}
+          </Link>
         </div>
-      </Card>
+      </div>
       {peopleLabel && (
-        <Card>
-          <Users className="mb-3 size-6 text-[var(--ui-copper)]" aria-hidden="true" />
-          <h2 className="text-lg font-semibold">{peopleLabel}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{t(profile.me.role === 'manager' ? 'profile.people.body.manager' : 'profile.people.body.candidate')}</p>
-          <Button variant="outline" className="mt-4 h-11" onClick={() => onOpen('people')}>
+        <div className="m-context-card">
+          <Users size={24} aria-hidden="true" />
+          <h3>{peopleLabel}</h3>
+          <p>{t(profile.me.role === 'manager' ? 'profile.people.body.manager' : 'profile.people.body.candidate')}</p>
+          <button type="button" className="m-text" onClick={() => onOpen('people')}>
             {t('profile.people.open', { section: peopleLabel })}
-          </Button>
-        </Card>
+            <ArrowRight size={15} aria-hidden="true" />
+          </button>
+        </div>
       )}
     </aside>
+  );
+}
+
+/**
+ * A published profile's own page, as the demo's "My profile" (SCREEN-042): the page heading with Edit profile, then
+ * the profile itself (.m-surface: photo, name and age, occupation and city, who manages it, its status and badges, and
+ * the demo's sections) beside the context cards and this app's publishing, plan and delete panels.
+ */
+function ProfileDashboard({ profile, peopleLabel, onOpen }: { profile: ProfileView; peopleLabel: string | null; onOpen: (section: ProfileSection) => void }) {
+  const { t } = useI18n();
+  const navigate = useNavigate();
+  const labels = useLabels();
+  const photos = usePhotos(profile.id);
+  const [photosOpen, setPhotosOpen] = useState(false);
+  const [cultureOpen, setCultureOpen] = useState(false);
+  const f = profile.fields;
+  const name = f.displayName ?? t('card.untitled');
+  const cover = photos.data?.find((photo) => photo.isCover);
+  const edit = profile.me.canEdit;
+  const notShared = t('details.notShared');
+  const listOr = (items: string[] | undefined | null) => (items?.length ? items.join(', ') : notShared);
+  const facts: [string, string][] = [
+    [t('details.height'), f.heightCm ? `${f.heightCm} cm` : notShared],
+    [t('details.income'), f.incomeRange ? labels.incomeLabels[f.incomeRange] : notShared],
+    [t('details.education'), f.education || notShared],
+    [t('details.timeline'), f.timeline ? labels.timelineLabels[f.timeline] : notShared],
+    [t('details.languages'), listOr(f.languages?.map((language) => suggestionLabel(t, 'spokenLanguage', language)))],
+    [t('details.marital'), f.maritalStatus ? labels.maritalLabels[f.maritalStatus] : notShared],
+    [t('details.religion'), f.religion ? labels.religionLabels[f.religion] : notShared],
+    [t('details.relocation'), f.relocation ? labels.relocationLabels[f.relocation] : notShared],
+  ];
+  const family: [string, string][] = [
+    [t('details.motherName'), f.motherName || notShared],
+    [t('details.motherOccupation'), f.motherOccupation || notShared],
+    [t('details.fatherName'), f.fatherName || notShared],
+    [t('details.fatherOccupation'), f.fatherOccupation || notShared],
+    [t('details.sisters'), listOr(f.sisters)],
+    [t('details.brothers'), listOr(f.brothers)],
+    [t('details.involvement'), f.familyInvolvement ? labels.involvementLabels[f.familyInvolvement] : notShared],
+  ];
+  return (
+    <>
+      <div className="m-page-heading">
+        <div>
+          <span className="m-kicker uppercase">{t('profile.dash.kicker')}</span>
+          <h1>{t('profile.dash.title', { name })}</h1>
+          <p>{t('profile.dash.lead')}</p>
+        </div>
+        {edit && (
+          <button type="button" className="m-btn" onClick={() => onOpen('details')}>
+            {t('profile.dash.edit')}
+            <ArrowUpRight size={16} aria-hidden="true" />
+          </button>
+        )}
+      </div>
+      <div className="m-two-columns">
+        <section className="m-surface" aria-labelledby="own-profile-name">
+          <div className="m-own-profile">
+            <div className="m-own-photo">
+              {cover ? <img src={cover.url} alt={t('photos.coverAlt')} /> : <UserRound size={44} aria-hidden="true" />}
+              {edit && (
+                <button type="button" aria-label={t('profile.dash.uploadPhoto')} onClick={() => setPhotosOpen(true)}>
+                  <Camera size={18} aria-hidden="true" />
+                </button>
+              )}
+            </div>
+            <div>
+              <h2 id="own-profile-name">
+                {name}
+                {f.birthDate ? `, ${ageOn(f.birthDate)}` : ''}
+              </h2>
+              <p>{[f.occupation, f.city].filter(Boolean).join(' · ')}</p>
+              <span className="m-tag">
+                <Users size={13} aria-hidden="true" />
+                {roleLine(t, labels.relationshipLabels, profile)}
+              </span>
+              <p className="m-status">
+                <ShieldCheck size={15} aria-hidden="true" />
+                {labels.statusLabels[profile.status]}
+              </p>
+            </div>
+          </div>
+          <TrustBadges badges={profile.badges} />
+          <section className="m-profile-section">
+            <h3>{t('profile.dash.photos.title')}</h3>
+            <p>{t('photos.notice')}</p>
+            {edit && (
+              <button type="button" className="m-btn m-secondary" onClick={() => setPhotosOpen(true)}>
+                {t('profile.dash.photos.manage', { count: photos.data?.length ?? 0, max: MAX_PHOTOS })}
+              </button>
+            )}
+          </section>
+          <section className="m-profile-section">
+            <h3>{t('profile.dash.culture.title')}</h3>
+            <p>{t('profile.dash.culture.body')}</p>
+            {edit && (
+              <button type="button" className="m-btn m-secondary" onClick={() => setCultureOpen(true)}>
+                {t('profile.dash.culture.edit')}
+              </button>
+            )}
+          </section>
+          <section className="m-profile-section">
+            <h3>{t('profile.dash.contacts.title')}</h3>
+            <p>{t('contacts.notice')}</p>
+            {edit && (
+              <button type="button" className="m-btn m-secondary" onClick={() => onOpen('verify')}>
+                {t('profile.dash.contacts.edit')}
+              </button>
+            )}
+          </section>
+          <div className="m-profile-section">
+            <h3>{t('profile.dash.words.title')}</h3>
+            <p>{f.bio || t('profile.dash.words.empty')}</p>
+            {Boolean(f.values?.length) && (
+              <div className="m-values">
+                {f.values!.map((value) => (
+                  <span key={value}>{labels.valueLabels[value]}</span>
+                ))}
+              </div>
+            )}
+          </div>
+          <dl className="m-detail-grid">
+            {facts.map(([label, value]) => (
+              <div key={label}>
+                <dt>
+                  <small>{label}</small>
+                </dt>
+                <dd>
+                  <strong>{value}</strong>
+                </dd>
+              </div>
+            ))}
+          </dl>
+          <div className="m-profile-section">
+            <h3>{t('profile.dash.beyond.title')}</h3>
+            {Boolean(f.hobbies?.length) && (
+              <div className="m-values">
+                {f.hobbies!.map((hobby) => (
+                  <span key={hobby}>{hobby}</span>
+                ))}
+              </div>
+            )}
+            {edit && (
+              <button type="button" className="m-text" onClick={() => onOpen('story')}>
+                {t('profile.dash.beyond.edit')}
+              </button>
+            )}
+          </div>
+          <div className="m-profile-section">
+            <h3>{t('profile.dash.family.title')}</h3>
+            <dl className="m-detail-grid">
+              {family.map(([label, value]) => (
+                <div key={label}>
+                  <dt>{label}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))}
+            </dl>
+            <p>{f.familyStory || t('profile.dash.family.empty')}</p>
+          </div>
+        </section>
+        <div className="m-stack">
+          <TrustAside profile={profile} peopleLabel={peopleLabel} onOpen={onOpen} />
+          <Overview profile={profile} onOpenPlans={() => navigate(`/profiles/${profile.id}/plan`)} onOpen={onOpen} />
+        </div>
+      </div>
+      <Dialog open={photosOpen} onOpenChange={setPhotosOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <span className="m-kicker uppercase">{t('profile.dash.photosDialog.kicker')}</span>
+            <DialogTitle>{t('photos.title')}</DialogTitle>
+            <DialogDescription>{t('photos.notice')}</DialogDescription>
+          </DialogHeader>
+          <PhotosPanel profile={profile} inDialog />
+        </DialogContent>
+      </Dialog>
+      <Dialog open={cultureOpen} onOpenChange={setCultureOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('profile.dash.culture.dialogTitle')}</DialogTitle>
+            <DialogDescription>{t('profile.dash.culture.dialogBody')}</DialogDescription>
+          </DialogHeader>
+          <DetailsForm profile={profile} part="lifestyle" onSaved={() => setCultureOpen(false)} />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

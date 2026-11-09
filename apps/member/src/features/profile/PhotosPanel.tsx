@@ -16,7 +16,8 @@ import { keys, usePhotos } from '@/lib/queries';
 import { say, useI18n } from '@/lib/i18n';
 import { queryClient } from '@/lib/query-client';
 
-export function PhotosPanel({ profile }: { profile: ProfileView }) {
+/** `inDialog`: inside the demo's upload dialog (SCREEN-062), whose title and description say what the notice and heading would. */
+export function PhotosPanel({ profile, inDialog = false }: { profile: ProfileView; inDialog?: boolean }) {
   const photos = usePhotos(profile.id);
   const input = useRef<HTMLInputElement>(null);
   const { t } = useI18n();
@@ -61,10 +62,10 @@ export function PhotosPanel({ profile }: { profile: ProfileView }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <Notice>{t('photos.notice')}</Notice>
+      {!inDialog && <Notice>{t('photos.notice')}</Notice>}
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-serif text-2xl">{t('photos.title')}</h2>
+          {!inDialog && <h2 className="font-serif text-2xl">{t('photos.title')}</h2>}
           <span className="text-sm text-muted-foreground">{t('photos.count', { count: list.length })}</span>
         </div>
         {photos.isPending ? (
@@ -132,19 +133,20 @@ export function PhotosPanel({ profile }: { profile: ProfileView }) {
           </div>
         )}
       </Card>
+      {/* The demo's Toggle (.m-toggle): title and detail, and the switch. */}
       <Card>
-        <label className="flex items-start justify-between gap-4">
-          <span>
-            <span className="block font-semibold">{t('photos.showCover')}</span>
-            <span className="mt-1 block text-sm text-muted-foreground">{t('photos.showCover.hint')}</span>
-          </span>
+        <div className="m-toggle">
+          <div>
+            <strong>{t('photos.showCover')}</strong>
+            <p>{t('photos.showCover.hint')}</p>
+          </div>
           <Switch
             checked={profile.coverPublic}
             disabled={!canEdit || visibility.isPending}
             onCheckedChange={(checked) => visibility.mutate(checked)}
             aria-label={t('photos.showCover')}
           />
-        </label>
+        </div>
       </Card>
     </div>
   );

@@ -168,7 +168,7 @@ function DeleteProfileDialog({ profile, open, onClose }: { profile: ProfileView;
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={close}>
-            {t('common.cancel')}
+            {t('deleteProfile.keep')}
           </Button>
           <Button variant="destructive" disabled={needsSignIn || !understood || remove.isPending} onClick={() => remove.mutate()}>
             {remove.isPending ? t('account.dialog.deleting') : t('deleteProfile.dialog.submit')}

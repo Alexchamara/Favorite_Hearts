@@ -82,7 +82,14 @@ keys get an English value and a blank Sinhala value.
 | Member: wizard, Your story | The about, family and lifestyle parts keep their own headings, and photos come at the end of this step (the demo adds photos later, on the profile) | Photos are part of setup (owner, 5 Nov 2026) |
 | Member: wizard, Privacy | The private contacts plus the account holder's own phone and document checks (the demo has contact fields, social links and horoscope options here) | OWNER-DECISIONS §1, §5 |
 | Member: wizard, Review | The publishing panel (publish when the checks allow it, plan, delete) instead of the demo's read-back and agreement box; the agreement was given when the profile was created | OWNER-DECISIONS §2 |
-| Member: wizard panels | Contact, photo, verification and publishing panels lose their card frame inside a step, so the step reads as one page as in the demo | Demo layout |
+| Member: wizard and dialog panels | Contact, photo, verification and publishing panels lose their card frame inside a wizard step or a dialog, so it reads as one page as in the demo | Demo layout |
+| Member: profile page | "← Your profiles" above the heading (the demo has one profile per account); the right column adds this app's interests/connections card, the manager/candidate card, and the publishing, plan, "found a match" and delete panels; no horoscope or selfie cards (decided out); the photos section opens the photo manager instead of showing the cover switch inline | OWNER-DECISIONS §1, §4, §5 |
+| Member: profile sections | Private contacts open the wizard's Privacy step (the demo edits them inline, with a sharing box); no "Contact & social handles" section (social links are contact entries here) | OWNER-DECISIONS §5 |
+| Member: photo dialog | The app's photo manager (up to 5, cover, delete, cover switch) instead of the demo's single-file upload; its kicker and title follow the demo | Real uploads (R2), section 6 |
+| Member: culture dialog | The app's lifestyle and community fields, with caste "prefer not to say" by default, instead of the demo's district, mother tongue and family fields (those are in The essentials and Your story here) | Section 6 |
+| Member: delete dialog | Tick to confirm and a recent sign-in, instead of typing DELETE; the demo's "Keep profile" and primary-button confirm | RULE-AUDIT; OWNER-DECISIONS |
+| Member: removal buttons | "Delete this profile" and similar are the demo's red text button (`.m-text.m-danger`); the final confirm in a dialog is the demo's primary button | Demo markup |
+| Member: 44 px targets | The own-photo camera button (demo 34 px) and text actions in pages, steps and dialogs are at least 44 px | Stage 5e |
 
 More rows are added as each phase finds them.
 
@@ -284,4 +291,29 @@ SCREEN-028 to 032 (decision B3). SCREEN-070 (age wheel) is not built: the profil
 - **Checks:** typecheck clean; tests pass (API 166, website 5, text tools 9); `build:site` and the site check pass;
   walked end to end in the sandbox: role and declaration (error without it), essentials saved, story saved, privacy
   (contact from the verified number), review opened; no step scrolls sideways at 320 or 390 px.
+
+### ui-5b own profile and its dialogs (9 Nov 2026)
+
+SCREEN-042, 059, 062, 069.
+
+- **Profile page** (`ProfileDashboard` in `features/profile/ProfilePage.tsx`): a published profile's page is the demo's
+  "My profile": `.m-page-heading` ("Your story, your way", "{name}’s next chapter.", Edit profile), then
+  `.m-two-columns`: the profile (`.m-surface`: `.m-own-profile` with the cover photo and camera button, name and age,
+  occupation and city, who manages it, its status; the earned badges; `.m-profile-section`s for photos, culture and
+  everyday life, private contacts, in my own words with the values, `.m-detail-grid`, life beyond work, family and
+  background) beside the context cards (`.m-context-card`: trust, interests and connections, manager/candidate) and
+  the publishing, plan and delete panels.
+- **Edit profile** opens the same wizard with every step open (as the demo does for an existing profile); its Review
+  step and "Save and finish later" lead back to the profile page.
+- **Dialogs:** photos (SCREEN-062) and culture and lifestyle (059) open from the page in the demo's dialog; the delete
+  confirmation (069) keeps the decided tick and recent sign-in with the demo's buttons.
+- **Buttons:** the `danger` variant is now the demo's red text button; `destructive` (a dialog's final confirm) the
+  demo's primary button. The cover-photo switch is the demo's `.m-toggle`.
+- **Texts:** 22 new (blank Sinhala, on the waiting list).
+- **Pixel diff against the demo's profile page:** 10.8% (1440 px), 20.7% (390): the demo shows more fields inline
+  (contact form, cover switch) and has the horoscope and selfie cards; the rest is real data in place of the demo's.
+- **Checks:** typecheck clean; tests pass (API 166, website 5, text tools 9); `build:site` passes; no sideways scroll
+  at 390 or 1440 px; keyboard order: brand, More, dock, back, Edit profile, camera, the section buttons, all visible
+  and at least 44 px; the photo dialog returns focus to the camera button; Edit profile → wizard → Review → profile
+  page.
 

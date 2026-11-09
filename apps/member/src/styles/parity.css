@@ -96,17 +96,30 @@
   height: 44px;
 }
 
-/* Setup wizard: the demo's steps have no cards inside them. This app's contact, photo, verification and publishing
-   panels are cards (.m-surface) elsewhere; inside a wizard step they lose the card frame and read as one page. */
-#favorite-hearts-product .m-app .m-onboard-content .m-surface {
+/* Setup wizard and dialogs: the demo has no cards inside them. This app's contact, photo, verification and publishing
+   panels are cards (.m-surface) elsewhere; inside a wizard step or a dialog they lose the card frame and read as one
+   page. */
+#favorite-hearts-product .m-app :is(.m-onboard-content, .m-dialog) .m-surface,
+#favorite-hearts-product .m-app.m-dialog .m-surface {
   padding: 0 !important;
   border: 0 !important;
   background: none !important;
   box-shadow: none !important;
 }
-#favorite-hearts-product .m-app .m-onboard-content :is(.m-surface, .m-form-block) + .m-surface {
+#favorite-hearts-product .m-app .m-onboard-content :is(.m-surface, .m-form-block) + .m-surface,
+#favorite-hearts-product .m-app.m-dialog .m-surface + .m-surface {
   margin-top: 28px;
   padding-top: 28px !important;
   border-top: 1px solid var(--ui-line) !important;
   border-radius: 0;
+}
+
+/* Targets of at least 44 px (Stage 5e): the demo's own-photo camera button is 34 px and some text actions lose the
+   demo's 44 px minimum to later demo rules. */
+#favorite-hearts-product .m-app .m-own-photo button {
+  width: 44px !important;
+  height: 44px !important;
+}
+#favorite-hearts-product .m-app :is(.m-main, .m-onboard-content, .m-dialog) .m-text {
+  min-height: 44px;
 }

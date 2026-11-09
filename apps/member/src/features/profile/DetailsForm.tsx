@@ -24,7 +24,7 @@ type FormValue = string | string[];
  * (`register`), the parts have no buttons of their own: each registers its save, and the wizard's Continue runs them.
  */
 export type Save = (after: () => void) => void;
-type Flow = { id: string; onContinue?: () => void; last?: boolean; register?: (save: Save) => void; heading?: boolean; intro?: boolean };
+type Flow = { id: string; onContinue?: () => void; last?: boolean; register?: (save: Save) => void; heading?: boolean; intro?: boolean; bare?: boolean };
 
 const REQUIRED = new Set<Key>(['displayName', 'gender', 'birthDate', 'countryCode', 'city', 'occupation', 'education', 'heightCm', 'maritalStatus', 'bio']);
 
@@ -105,6 +105,27 @@ function Step({ title, intro, children, onSave, saving, failed, canEdit, flow }:
     );
   }
   const label = !flow.onContinue ? t('common.save') : flow.last ? t('details.saveContinuePhotos') : t('details.saveContinue');
+  if (flow.bare) {
+    // In a dialog (the demo's culture and lifestyle dialog, SCREEN-059): the dialog has the title; the fields and Save.
+    return (
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSave();
+        }}
+      >
+        <fieldset disabled={!canEdit || saving} className="m-form-grid">
+          {children}
+        </fieldset>
+        {failed instanceof ApiError && failed.code !== 'VALIDATION' && <Notice tone="error">{errorMessage(failed)}</Notice>}
+        {canEdit && (
+          <button type="submit" className="m-btn mt-5" disabled={saving}>
+            {saving ? t('common.saving') : t('common.save')}
+          </button>
+        )}
+      </form>
+    );
+  }
   return (
     <Card className="scroll-mt-6">
       <h2 id={flow.id} tabIndex={-1} className="font-serif text-2xl outline-none">
@@ -325,19 +346,21 @@ function showStep(id: string) {
 }
 
 /** The details form in the setup wizard: The essentials, or Your story (about, family, lifestyle). */
-export type DetailsPart = 'essentials' | 'story';
+export type DetailsPart = 'essentials' | 'story' | 'lifestyle';
 
 /**
  * `onDone` (while setting up outside the wizard) makes each step "Save and continue", the last one going on with
  * `onDone`. `part` and `saves` put the form in the wizard: only that part's sections, no buttons, and `saves.current`
  * set to a function that saves them one after another and then calls `after` (stopping at the first problem).
  */
-export function DetailsForm({ profile, onDone, part, saves }: { profile: ProfileView; onDone?: () => void; part?: DetailsPart; saves?: { current: Save | null } }) {
+export function DetailsForm({ profile, onDone, part, saves, onSaved }: { profile: ProfileView; onDone?: () => void; part?: DetailsPart; saves?: { current: Save | null }; onSaved?: () => void }) {
   const { t } = useI18n();
   const parts: Save[] = [];
   if (saves) saves.current = (after) => [...parts].reverse().reduce<() => void>((then, save) => () => save(then), after)();
   const flow = (index: number): Flow =>
-    saves
+    part === 'lifestyle'
+      ? { id: STEP_IDS[index]!, bare: true, onContinue: onSaved }
+      : saves
       ? // The essentials' heading and About's intro would repeat the wizard step's own title and lead.
         { id: STEP_IDS[index]!, register: (save) => void parts.push(save), heading: index > 0, intro: index > 1 }
       : {
@@ -352,7 +375,7 @@ export function DetailsForm({ profile, onDone, part, saves }: { profile: Profile
       {show('essentials') && <Essentials profile={profile} flow={flow(0)} />}
       {show('story') && <About profile={profile} flow={flow(1)} />}
       {show('story') && <Family profile={profile} flow={flow(2)} />}
-      {show('story') && <Lifestyle profile={profile} flow={flow(3)} />}
+      {(show('story') || part === 'lifestyle') && <Lifestyle profile={profile} flow={flow(3)} />}
     </div>
   );
 }
