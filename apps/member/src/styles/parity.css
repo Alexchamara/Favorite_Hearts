@@ -72,3 +72,24 @@
 .m-app.m-more-sheet:focus-visible {
   outline: none;
 }
+
+/* Entry brand: a link home here, a button in the demo. A later demo rule resets button fonts, so what the demo shows is
+   16 px regular, not its own .ma-brand 650 20 px; the link gets that same computed font. */
+.ma-entry .ma-header a.ma-brand {
+  font: 400 16px/1.6 Inter, -apple-system, system-ui, 'Segoe UI', sans-serif;
+  text-decoration: none;
+}
+
+/* Entry header targets: the brand link and the language switch are at least 44 px tall, as every control here (Stage
+   5e); the demo's header has no language switch and a 39 px brand. */
+.ma-entry .ma-header :is(a.ma-brand, .m-text) {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+/* The round theme button is 42 px in the demo; 44 px here, the minimum for every control. */
+.m-app .ma-theme {
+  width: 44px;
+  height: 44px;
+}

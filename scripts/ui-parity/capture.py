@@ -148,6 +148,11 @@ def ref_member(browser, args, out, rows):
             ('m-entry-signup', lambda: (page.fill('input[name=country]', 'Sri Lanka'),
                                         page.click('[data-action=locale-next]'))),
             ('m-entry-login', lambda: page.click('[data-action=login]')),
+            # The demo's code step, reached with its own sample login (reference screenshots only).
+            ('m-entry-code', lambda: (page.evaluate("document.querySelector('[data-action=sample]').click()"),
+                                      page.click('[data-action=continue]'), page.wait_for_timeout(600))),
+            ('m-entry-back', lambda: (page.evaluate("document.querySelector('[data-action=back]').click()"),
+                                      page.click('[data-action=login]'))),
             ('m-discover-free', lambda: page.evaluate("document.querySelector('[data-action=demo]').click()")),
             # The demo's own toolbar button marks its sample accounts paid, verified and published, so the locked
             # tabs open (reference screenshots only; the toolbar itself is hidden by REF_HIDE).
@@ -181,15 +186,32 @@ def ref_member(browser, args, out, rows):
 
 def prod_member(browser, args, out, rows):
     base = BASES[('prod', 'member')]
-    signed_out = ['m-entry-signin']
+    prefs = "localStorage.setItem('fh-visitor-preferences', JSON.stringify({language: 'en', country: 'LK'}))"
     signed_in = [
         ('m-dashboard', ''), ('m-discover', 'browse'), ('m-interests', 'requests'),
         ('m-connected', 'connections'), ('m-saved', 'shortlist'), ('m-trust', 'verify'), ('m-invite', 'invite'),
     ]
     for width in args.widths:
+        # First visit: the language and country step.
         context, page = new_page(browser, width, args)
         page.goto(base, wait_until='domcontentloaded')
-        shoot(page, out, signed_out[0], width, rows)
+        shoot(page, out, 'm-entry-locale', width, rows)
+        context.close()
+        # Returning visitor: sign-in, then the code step (the sandbox prints the code; nothing is sent).
+        context, page = new_page(browser, width, args)
+        context.add_init_script(prefs)
+        page.goto(base, wait_until='domcontentloaded')
+        shoot(page, out, 'm-entry-signin', width, rows)
+        try:
+            page.get_by_label(re.compile('^Email address')).fill(f'capture-{width}-{int(__import__("time").time())}@sandbox.test')
+            page.wait_for_function("!document.querySelector('.ma-panel form button[type=submit]').disabled", timeout=15000)
+            page.click('.ma-panel form button[type=submit]')
+            page.wait_for_selector('input[autocomplete=one-time-code]', timeout=15000)
+            page.locator('input[autocomplete=one-time-code]').blur()
+            shoot(page, out, 'm-entry-code', width, rows)
+        except Exception as exc:
+            rows.append({'name': 'm-entry-code', 'width': width, 'error': str(exc)})
+            print('ERROR m-entry-code', width, str(exc).splitlines()[0])
         context.close()
         if not args.state:
             continue

@@ -146,7 +146,6 @@ function useVerificationNeeded(): boolean {
 function MoreMenu({ onSignOut, onLanguage }: { onSignOut: () => void; onLanguage: (language: 'en' | 'si') => void }) {
   const { t, language } = useI18n();
   const { theme, toggleTheme } = useTheme();
-  const me = useMe().data!;
   const attention = useVerificationNeeded();
   const page = (route: string) => (language === 'si' ? `/si${route}` : route);
   return (
@@ -174,7 +173,7 @@ function MoreMenu({ onSignOut, onLanguage }: { onSignOut: () => void; onLanguage
       >
         <SheetHeader>
           <SheetTitle>{t('layout.menu.title')}</SheetTitle>
-          <SheetDescription>{t('layout.menu.signedInAs', { name: me.name || me.email || '' })}</SheetDescription>
+          <SheetDescription>{t(attention ? 'layout.menu.attention' : 'layout.menu.upToDate')}</SheetDescription>
         </SheetHeader>
         <label className="fh-language">
           <span>{t('layout.menu.language')}</span>
@@ -280,7 +279,7 @@ function Dock() {
 }
 
 /** Support channels and the policies, under the sign-in page: help before anyone has an account. */
-function SupportFooter() {
+export function SupportFooter() {
   const { t, language } = useI18n();
   // The website's pages in the language on screen: Sinhala ones are under /si/ (apps/website, Stage 5d).
   const page = (route: string) => (language === 'si' ? `/si${route}` : route);

@@ -3,13 +3,12 @@
  * SMS, the member's choice). SMS appears only when a provider is configured. After the first
  * sign-in the account holder adds their name.
  */
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, type ReactNode } from 'react';
 import type { LoginChannel } from '@fh/shared';
-import { CodeInput, useCodeCheck } from '@/components/form/code-input';
+import { CODE_LENGTH, CodeInput, useCodeCheck } from '@/components/form/code-input';
 import { PhoneField, TextField } from '@/components/form/fields';
 import { Notice } from '@/components/layout';
 import { useBotCheck } from '@/components/turnstile';
-import { Button } from '@/components/ui/button';
 import { errorMessage } from '@/lib/api';
 import { authClient } from '@/lib/auth-client';
 import { useI18n } from '@/lib/i18n';
@@ -19,7 +18,8 @@ import { authErrorMessage, enabledChannels, requestLoginCode, verifyLoginCode } 
 
 type Step = { kind: 'contact' } | { kind: 'code'; channel: LoginChannel; contact: string };
 
-export function SignIn({ onSignedIn, intro }: { onSignedIn?: () => void; intro?: string }) {
+/** `heading` draws the panel's kicker and title; the demo changes the title on the code step ("Verify it’s you."). */
+export function SignIn({ onSignedIn, intro, heading }: { onSignedIn?: () => void; intro?: string; heading?: (codeStep: boolean) => ReactNode }) {
   const channels = enabledChannels();
   const [channel, setChannel] = useState<LoginChannel>(channels[0] ?? 'email');
   const [contact, setContact] = useState('');
@@ -63,63 +63,72 @@ export function SignIn({ onSignedIn, intro }: { onSignedIn?: () => void; intro?:
 
   if (!channels.length) return <Notice tone="warning">{t('signIn.unavailable')}</Notice>;
 
+  // The demo's entry panel (account-entry.ts): the channel choice as its tabs, a grid form, one primary button, quiet
+  // text actions, and the small notice under the form.
   return (
-    <div className="flex flex-col gap-5">
-      {intro && <p className="text-muted-foreground">{intro}</p>}
+    <>
+      {heading?.(step.kind === 'code')}
+      {intro && <p>{intro}</p>}
       {status.data?.signupsPaused && (
         <Notice tone="warning" title={t('signIn.paused.title')}>
           {t('signIn.paused.body')}
         </Notice>
       )}
-      {error && <Notice tone="error">{error}</Notice>}
       {step.kind === 'contact' ? (
-        <form onSubmit={sendCode} className="flex flex-col gap-4">
+        <>
           {channels.length > 1 && (
-            <div role="radiogroup" aria-label={t('signIn.channel')} className="flex gap-2">
+            <div className="ma-tabs" role="group" aria-label={t('signIn.channel')}>
               {channels.map((option) => (
                 <button
                   key={option}
                   type="button"
-                  role="radio"
-                  aria-checked={channel === option}
+                  aria-pressed={channel === option}
                   onClick={() => {
                     setChannel(option);
                     setContact('');
                   }}
-                  className="min-h-11 flex-1 rounded-[10px] border text-sm font-semibold aria-checked:border-primary aria-checked:bg-primary aria-checked:text-primary-foreground"
                 >
                   {t(option === 'email' ? 'signIn.channel.email' : 'signIn.channel.sms')}
                 </button>
               ))}
             </div>
           )}
-          {channel === 'email' ? (
-            <TextField label={t('signIn.email')} type="email" inputMode="email" autoComplete="email" placeholder="you@example.com" value={contact} onChange={setContact} />
-          ) : (
-            <PhoneField label={t('signIn.mobile')} value={contact} onChange={setContact} />
-          )}
-          {bot.widget}
-          <Button type="submit" className="h-11" disabled={busy || !contact.trim() || !bot.ready}>
-            {busy ? t('signIn.sending') : t('signIn.send')}
-          </Button>
-          <p className="text-xs text-muted-foreground">
-            {t('signIn.newHere')}
-          </p>
-        </form>
+          <form onSubmit={sendCode}>
+            {channel === 'email' ? (
+              <TextField label={t('signIn.email')} type="email" inputMode="email" autoComplete="email" placeholder="you@example.com" value={contact} onChange={setContact} />
+            ) : (
+              <PhoneField label={t('signIn.mobile')} value={contact} onChange={setContact} />
+            )}
+            {bot.widget}
+            <button type="submit" className="m-btn" disabled={busy || !contact.trim() || !bot.ready}>
+              {busy ? t('signIn.sending') : t('signIn.send')}
+            </button>
+            <p className="m-error" role="alert">
+              {error}
+            </p>
+          </form>
+          <p className="ma-notice">{t('signIn.newHere')}</p>
+        </>
       ) : (
-        <div className="flex flex-col gap-4">
-          <p className="text-sm">
-            {rich('signIn.sent', { strong: (words) => <strong>{words}</strong> }, { contact: step.contact })}
-          </p>
-          <CodeInput label={t('signIn.code')} value={entry.value} onChange={entry.change} state={entry.state} message={entry.message} fromSms={step.channel === 'sms'} />
-          {bot.widget}
-          <div className="flex flex-wrap gap-4 text-sm">
-            <button type="button" className="text-brand underline underline-offset-4 disabled:opacity-60" onClick={() => void sendCode()} disabled={busy || !bot.ready}>
+        <>
+          <p>{rich('signIn.sent', { strong: (words) => <strong>{words}</strong> }, { contact: step.contact })}</p>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              entry.submit();
+            }}
+          >
+            <CodeInput label={t('signIn.code')} value={entry.value} onChange={entry.change} state={entry.state} message={entry.message} fromSms={step.channel === 'sms'} />
+            {bot.widget}
+            <button type="submit" className="m-btn" disabled={entry.value.length < CODE_LENGTH || entry.state !== 'idle'}>
+              {entry.state === 'checking' ? t('signIn.checking') : t('signIn.verify')}
+            </button>
+            <button type="button" className="m-text" onClick={() => void sendCode()} disabled={busy || !bot.ready}>
               {t('signIn.resend')}
             </button>
             <button
               type="button"
-              className="text-brand underline underline-offset-4"
+              className="m-text"
               onClick={() => {
                 setError(null);
                 setStep({ kind: 'contact' });
@@ -127,10 +136,13 @@ export function SignIn({ onSignedIn, intro }: { onSignedIn?: () => void; intro?:
             >
               {t(step.channel === 'email' ? 'signIn.otherEmail' : 'signIn.otherNumber')}
             </button>
-          </div>
-        </div>
+            <p className="m-error" role="alert">
+              {error}
+            </p>
+          </form>
+        </>
       )}
-    </div>
+    </>
   );
 }
 
@@ -150,8 +162,7 @@ export function NameStep() {
     await queryClient.invalidateQueries({ queryKey: keys.me });
   }
   return (
-    <form onSubmit={save} className="flex flex-col gap-4">
-      {error && <Notice tone="error">{error}</Notice>}
+    <form onSubmit={save}>
       <TextField
         label={t('name.label')}
         hint={t('name.hint')}
@@ -160,9 +171,12 @@ export function NameStep() {
         value={name}
         onChange={setName}
       />
-      <Button type="submit" className="h-11" disabled={busy || name.trim().length < 2}>
+      <button type="submit" className="m-btn" disabled={busy || name.trim().length < 2}>
         {busy ? t('common.saving') : t('common.continue')}
-      </Button>
+      </button>
+      <p className="m-error" role="alert">
+        {error}
+      </p>
     </form>
   );
 }

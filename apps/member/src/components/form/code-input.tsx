@@ -1,8 +1,8 @@
 /**
- * The six-digit code, one box per digit (owner, 6 Nov 2026). Under the boxes is one real input, so the phone's
- * "from Messages" suggestion, pasting and screen readers all work as with any text field. With `useCodeCheck` the code
- * is checked as soon as the sixth digit is in: the digits dim while checking, a wrong code shakes red and clears for
- * another try, and a right one becomes a tick.
+ * The six-digit code as one field, as in the demo (decision B2a, 9 Nov 2026; it replaces the one-box-per-digit design of
+ * 6 Nov). It is a normal .m-field input, so the phone's "from Messages" suggestion, pasting and screen readers work as
+ * with any text field. With `useCodeCheck` the code is checked as soon as the sixth digit is in; the line under the
+ * field says "Checking…", "Verified" or what was wrong.
  */
 import { useEffect, useId, useRef, useState } from 'react';
 import { Check } from 'lucide-react';
@@ -50,13 +50,17 @@ export function useCodeCheck(check: (code: string) => Promise<void>, onDone?: ()
       }, ERROR_MS);
     }
   }
+  /** The field's submit button: checks a full code that is not already being checked. */
+  const submit = () => {
+    if (value.length === CODE_LENGTH && state === 'idle') void run(value);
+  };
   const reset = () => {
     if (timer.current) clearTimeout(timer.current);
     setValue('');
     setState('idle');
     setMessage(null);
   };
-  return { value, state, message, change, reset };
+  return { value, state, message, change, submit, reset };
 }
 
 export function CodeInput({
@@ -107,82 +111,35 @@ export function CodeInput({
     return () => stop.abort();
   }, [fromSms]);
 
-  const active = focused && !locked ? Math.min(value.length, CODE_LENGTH - 1) : -1;
   const status = state === 'checking' ? t('signIn.checking') : state === 'success' ? t('code.verified') : state === 'error' || message ? message : null;
+  const problem = state === 'error' || (state === 'idle' && Boolean(message));
 
   return (
-    <div className="flex flex-col gap-2">
-      <label htmlFor={id} className="text-[13px] font-semibold">
-        {label}
-      </label>
-      <div className="flex w-fit max-w-full flex-col gap-2">
-      <div className="relative">
-        <div
-          key={state === 'error' ? 'shake' : 'still'}
-          aria-hidden="true"
-          className={cn('flex items-center gap-1.5 sm:gap-2', state === 'error' && 'animate-[code-shake_380ms_ease-in-out]', state === 'success' && 'invisible')}
-        >
-          {Array.from({ length: CODE_LENGTH }, (_, index) => {
-            const digit = value[index];
-            return (
-              <span
-                key={index}
-                className={cn(
-                  'relative grid h-13 w-11 place-items-center rounded-[10px] border bg-[var(--ui-surface)] font-sans text-2xl font-semibold tabular-nums transition-[border-color,background-color,color,opacity] duration-200 sm:h-14 sm:w-12',
-                  index === 3 && 'ml-2 sm:ml-3',
-                  digit && 'border-[color-mix(in_srgb,var(--ui-text)_28%,var(--ui-line))] bg-card',
-                  index === active && 'border-[var(--ui-purple)] ring-2 ring-[color-mix(in_srgb,var(--ui-purple)_22%,transparent)]',
-                  state === 'checking' && 'animate-pulse text-muted-foreground',
-                  state === 'error' && 'border-destructive bg-[color-mix(in_srgb,var(--ui-danger)_9%,var(--ui-surface))] text-destructive',
-                )}
-              >
-                {digit ? (
-                  <span key={`${index}-${digit}`} className="animate-[code-pop_160ms_cubic-bezier(0.2,0.9,0.3,1.3)]">
-                    {digit}
-                  </span>
-                ) : index === active ? (
-                  <span className="h-6 w-0.5 animate-[code-caret_1s_steps(1)_infinite] rounded-full bg-foreground" />
-                ) : null}
-              </span>
-            );
-          })}
-        </div>
-        {state === 'success' && (
-          <div aria-hidden="true" className="absolute inset-0 grid place-items-center">
-            <Check className="size-10 animate-[code-check_420ms_cubic-bezier(0.2,0.9,0.3,1.2)] text-foreground" strokeWidth={1.75} />
-          </div>
-        )}
-        {/* The real field, over the boxes: tapping anywhere on them puts the caret here. */}
-        <input
-          ref={input}
-          id={id}
-          value={value}
-          onChange={(event) => onChange(event.target.value.replace(/\D/g, '').slice(0, CODE_LENGTH))}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          inputMode="numeric"
-          pattern="[0-9]*"
-          autoComplete="one-time-code"
-          maxLength={CODE_LENGTH}
-          autoFocus={autoFocus}
-          readOnly={locked}
-          aria-describedby={statusId}
-          aria-invalid={state === 'error' ? true : undefined}
-          className="absolute inset-0 size-full cursor-text bg-transparent text-transparent caret-transparent opacity-0 outline-none selection:bg-transparent"
-        />
-      </div>
-      <p
-        id={statusId}
-        role="status"
-        className={cn(
-          'min-h-5 w-0 min-w-full text-sm',
-          state === 'success' && 'text-center',
-          state === 'error' || (state === 'idle' && message) ? 'font-medium text-destructive' : 'text-muted-foreground',
-        )}
-      >
+    <div className="m-field">
+      <span>
+        <label htmlFor={id}>{label}</label>
+      </span>
+      <input
+        ref={input}
+        id={id}
+        value={value}
+        onChange={(event) => onChange(event.target.value.replace(/\D/g, '').slice(0, CODE_LENGTH))}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        inputMode="numeric"
+        pattern="[0-9]*"
+        autoComplete="one-time-code"
+        maxLength={CODE_LENGTH}
+        autoFocus={autoFocus}
+        readOnly={locked}
+        aria-describedby={statusId}
+        aria-invalid={state === 'error' ? true : undefined}
+        className="block w-full tabular-nums"
+      />
+      <small id={statusId} role="status" className={cn('inline-flex min-h-5 items-center gap-1.5', problem && 'm-field-error')}>
+        {state === 'success' && <Check size={14} aria-hidden="true" />}
         {status}
-      </p>
-      </div>
+      </small>
     </div>
   );
 }

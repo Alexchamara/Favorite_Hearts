@@ -71,7 +71,12 @@ keys get an English value and a blank Sinhala value.
 | Member: trust badges | Same chips, icons and order as the demo, with the decided wording ("Candidate identity verified", never "· demo"); member and own-profile pages add each badge's meaning under the chips | OWNER-DECISIONS §5 |
 | Member: signed-in footer | Copyright only, as in the demo; help, terms and privacy moved into the More sheet | Demo layout |
 | Member: dialogs and sheets | Keep Stage 5e scrolling (`max-h`, `overflow-y-auto`) and focus return | WCAG 1.4.10, 2.4.3 |
-| Member: wording | The shell reuses the existing translated texts ("Your account", "Signed in as …", "Use the dark theme", "Sign out", "Requests", "Profiles") instead of the demo's ("Your Matrimony space", "Use dark mode", "Log out", "Interests", "Profile") until new texts can be added; see open question T-1 | Translation rule conflict |
+| Member: entry header | Beside the demo's "Matrimony" label: the other language (සිංහල / English), as on every app screen; brand and controls are 44 px tall (demo: brand 39 px, theme button 42 px) | Stage 5d language links; WCAG 2.5.8 and the 44 px rule |
+| Member: entry footer | "Need help?" with WhatsApp, call, email and the policies under the entry page (not in the demo) | Help before anyone has an account (X06) |
+| Member: language step | English and Sinhala only (Tamil hidden); no ⓘ note (it described Tamil coverage); the country list is the app's own, in the language on screen | OWNER-DECISIONS §10 |
+| Member: sign-in | One code-based form instead of the demo's Sign up / Log in tabs and passwords; the demo's tab look carries the Email / Phone (SMS) choice; "Send me a code" instead of "Create account" / "Log in"; the security check (Turnstile) on the contact and code steps | OWNER-DECISIONS §5 (passwordless), D7 |
+| Member: entry aside | The decided steps and note ("Sign in with a code…", "Browsing opens once you are verified…") instead of the demo's ("Verify your account…", "Browse free after setup…") | OWNER-DECISIONS §2, §5 |
+| Member: entry brand | A link home (the demo's is a button); it takes the font the demo button ends up with | Link semantics |
 
 More rows are added as each phase finds them.
 
@@ -201,10 +206,48 @@ Screenshots and diff reports stay outside the repository; rerun the tools above 
   inner column inside `.m-main` (removed screen by screen); toasts render outside `.m-app` (ui-10). The member CSS
   bundle is 732 KB (156 KB gzipped); about 470 KB of it is the `flag-icons` stylesheet the phone picker already used.
 
-### Open question T-1 (translations)
+### T-1 translations (decided 9 Nov 2026)
 
-The repository's test "members see nothing untranslated" (`apps/api/test/text.test.ts`) fails when a member-visible
-English text has no Sinhala. The instruction for this work is to leave new Sinhala texts blank unless supplied. Both
-cannot hold, so no new member texts were added in ui-3; the shell reuses existing translated texts. Options: (a) supply
-Sinhala for each new text as phases add them; (b) allow blank Sinhala for texts listed in a "waiting for translation"
-file, with English shown meanwhile, and keep the test strict for everything else; (c) keep the current wording.
+The owner chose a waiting list and the demo's wording:
+
+- `packages/shared/src/i18n/waiting/si.json` lists texts waiting for a Sinhala translator. `new`: no Sinhala yet (the
+  value is blank and members see the English; `textFor` treats a blank translation as missing). `englishChanged`: the
+  English changed to the demo's wording (value: the English before); the earlier Sinhala stays on screen as a draft.
+  A text whose placeholders changed is blanked instead, since the old Sinhala would not fit.
+- The test "members see nothing untranslated" allows blank Sinhala only for listed texts; a second test keeps the list
+  exact (listed texts exist, `new` ones are still blank, changed ones still have a translation and really changed).
+- `npm run text:status` reports the list; the reviewer's spreadsheet marks changed texts "English changed";
+  `npm run text:import` takes a text off the list once its Sinhala is imported or approved.
+- First entries (ui-4): 8 new (entry and sign-in texts, the More sheet description) and 16 changed (the shell's
+  wording now follows the demo: "Your Matrimony space", "Use dark mode", "Log out", "Interests", "Profile",
+  "More options", "Trust & access", "Website language", "Resend code", "Change details", "Verification code", and
+  "Matrimony navigation" / "More Matrimony options" for screen readers).
+
+### ui-4 entry and sign-in (9 Nov 2026)
+
+SCREEN-022, 023/024 (one passwordless sign-in), 026. SCREEN-025 and 027 (passwords) are not built (decided).
+
+- **Entry page** (`features/auth/Entry.tsx`): the demo's `.m-app.ma-entry` page, outside the app frame:
+  `header.ma-header` (`.ma-brand`, "Matrimony", the language switch, `.ma-theme`), `main.ma-layout` with
+  `section.ma-panel` and `aside.ma-info` (kicker, the serif promise, lead, `ol.ma-steps`, `.ma-note`).
+- **Language and country** (SCREEN-022, decision B2c): shown on a first visit when this browser has no country yet
+  (someone who chose on the website skips it). Language as the demo's `.fh-language-buttons`, country as the demo's
+  searchable field with a list. Saved only as a preference in `fh-visitor-preferences`, shared with the website; it
+  sets the language on screen and changes nothing about billing or profiles.
+- **Sign-in** (`features/auth/SignIn.tsx`): the demo's panel markup: `.ma-tabs` (Email / Phone (SMS)), the grid form,
+  `.m-btn`, `.ma-notice`, `.m-error`; the code step has the demo's title "Verify it’s you.", one code field,
+  "Verify & continue", "Resend code" and "Change details" (`.m-text`). The name step uses the same panel.
+- **Code field** (decision B2a): `CodeInput` is now one `.m-field` input (it replaces the one-box-per-digit design of
+  6 Nov) for sign-in, the phone check, invitations and the staff authenticator code; it still checks itself when the
+  sixth digit is in, fills from an SMS where the phone offers it, and says "Checking…", "Verified" or what was wrong.
+- **Fixed:** the 320 px overflow (WCAG 1.4.10): the security check uses Turnstile's compact size when its column is
+  narrower than 300 px. No member page scrolls sideways at 320 px now.
+- **Pixel diff against the demo** (before → after): sign-in vs the demo's log-in 25.4 → 17.7% (320 px), 22.8 → 18.9%
+  (390), 16.4 → 9.4% (768), 15.1 → 10.7% (1024), 11.8 → 8.2% (1440); the remainder is the demo's password fields and
+  tabs, which the decided sign-in does not have, plus the footer. Language step 2.4% (1440) to 8.9% (320); code step
+  5.6% (1440) to 12.5% (390). The code step at 1024 px was not captured (the sandbox limits code requests per minute).
+- **Checks:** typecheck clean; 180 tests pass (API 166 with the new waiting-list test, website 5, text tools 9);
+  `build:site` and the site check pass; keyboard order on the entry page: skip link, brand, language, theme, the two
+  language buttons, country, Continue, all with visible focus and at least 44 px; Sinhala: new texts show in English,
+  changed ones in their earlier Sinhala.
+

@@ -2,7 +2,7 @@
  * Home: sign in, then the profiles this account operates (own, managed or joined as candidate),
  * creating a profile, and the account's own verification status.
  */
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { ArrowUpRight, Check, Heart, Plus, ShieldCheck, UserRound, Users } from 'lucide-react';
 import { Link, Navigate, useNavigate } from 'react-router';
@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { errorMessage, post } from '@/lib/api';
 import { storeProfile, useMe, useMyCases, useProfiles } from '@/lib/queries';
 import { AccountCard } from '@/features/account/AccountCard';
+import { EntryShell, LocaleStep, useLocaleChosen } from '@/features/auth/Entry';
 import { NameStep, SignIn } from '@/features/auth/SignIn';
 import { useLabels } from '@/features/profile/options';
 import { useI18n } from '@/lib/i18n';
@@ -23,65 +24,46 @@ import { cn } from '@/lib/utils';
 export default function Home() {
   const me = useMe();
   const { t } = useI18n();
+  const [localeChosen, chooseLocale] = useLocaleChosen();
   if (me.isPending) return <AppShell><Loading /></AppShell>;
   if (me.data?.staffRole) return <Navigate to="/staff" replace />;
+  // Signed out and naming the account: the demo's own entry page. Signed in: the profiles dashboard in the app frame.
+  if (!me.data && !localeChosen)
+    return (
+      <EntryShell aside="title">
+        <LocaleStep onDone={chooseLocale} />
+      </EntryShell>
+    );
+  if (!me.data)
+    return (
+      <EntryShell>
+        <SignIn
+          heading={(codeStep) => (
+            <>
+              <span className={kickerClass}>{t('home.kicker')}</span>
+              <h1>{t(codeStep ? 'entry.code.title' : 'home.title')}</h1>
+              {!codeStep && <p>{t('home.intro')}</p>}
+              {me.isError && <Notice tone="warning">{t('home.serviceProblem')}</Notice>}
+            </>
+          )}
+        />
+      </EntryShell>
+    );
+  if (!me.data.name)
+    return (
+      <EntryShell>
+        <span className={kickerClass}>{t('home.welcome.kicker')}</span>
+        <h1>{t('home.welcome.title')}</h1>
+        <NameStep />
+      </EntryShell>
+    );
   return (
     <AppShell width="wide">
-      {!me.data ? (
-        <Welcome>
-          <p className={kickerClass}>{t('home.kicker')}</p>
-          <h1 className="mt-3 font-serif text-[2rem] leading-[1.15] sm:text-[2.4rem]">{t('home.title')}</h1>
-          <p className="mt-3 mb-6 text-muted-foreground">{t('home.intro')}</p>
-          {me.isError && (
-            <div className="mb-4">
-              <Notice tone="warning">{t('home.serviceProblem')}</Notice>
-            </div>
-          )}
-          <SignIn />
-        </Welcome>
-      ) : !me.data.name ? (
-        <Welcome>
-          <p className={kickerClass}>{t('home.welcome.kicker')}</p>
-          <h1 className="mt-3 mb-6 font-serif text-[2rem] leading-[1.15] sm:text-[2.4rem]">{t('home.welcome.title')}</h1>
-          <NameStep />
-        </Welcome>
-      ) : (
-        <Dashboard />
-      )}
+      <Dashboard />
     </AppShell>
   );
 }
 
-/** Signing in, as in the demo: the form on a card, and beside it what the account is for and how it goes. */
-function Welcome({ children }: { children: ReactNode }) {
-  const { t } = useI18n();
-  return (
-    <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-16 xl:gap-24">
-      <section className="rounded-[var(--ui-panel-radius)] border bg-card p-6 sm:p-11">{children}</section>
-      <aside className="lg:pt-8">
-        <p className={kickerClass}>{t('home.aside.kicker')}</p>
-        <p className="mt-2 font-serif text-[2.5rem] leading-[1.08] tracking-[-0.035em] sm:text-[3.5rem]">
-          {t('home.aside.title1')}
-          <br />
-          <em className="text-[var(--ui-copper)]">{t('home.aside.title2')}</em>
-        </p>
-        <p className="mt-6 text-muted-foreground">{t('home.aside.lead')}</p>
-        <h2 className="sr-only">{t('home.aside.steps')}</h2>
-        <ol className="mt-6 grid gap-4">
-          {(['1', '2', '3', '4'] as const).map((step) => (
-            <li key={step} className="flex items-start gap-3">
-              <span className="grid size-7 shrink-0 place-items-center rounded-full border border-[var(--ui-purple)] bg-[var(--ui-purple-soft)] text-xs font-bold text-[var(--ui-purple)]" aria-hidden="true">
-                {step}
-              </span>
-              <span className="pt-0.5">{t(`home.aside.step.${step}`)}</span>
-            </li>
-          ))}
-        </ol>
-        <p className="mt-8 max-w-[52ch] text-sm leading-relaxed text-muted-foreground">{t('home.aside.note')}</p>
-      </aside>
-    </div>
-  );
-}
 
 function Dashboard() {
   const profiles = useProfiles();

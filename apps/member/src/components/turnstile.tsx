@@ -69,7 +69,9 @@ function BotCheck({ onToken }: { onToken: (token: string | null) => void }) {
         widgetId = turnstile.render(box.current, {
           sitekey: env.turnstileSiteKey,
           theme: theme === 'dark' ? 'dark' : 'light',
-          size: 'flexible',
+          // 'flexible' needs at least 300 px; narrower forms (a 320 px phone) get the compact widget, so nothing scrolls
+          // sideways (WCAG 1.4.10).
+          size: box.current.clientWidth < 300 ? 'compact' : 'flexible',
           callback: (token: string) => {
             setProblem(null);
             onToken(token);

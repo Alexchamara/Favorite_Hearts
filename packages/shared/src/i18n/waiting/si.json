@@ -1,0 +1,31 @@
+{
+  "about": "Texts waiting for a Sinhala translator (owner decision T-1, 9 Nov 2026). \"new\": no Sinhala yet; members see the English. \"englishChanged\": the English changed (value: the English before); the earlier Sinhala is shown until it is reviewed again. npm run text:import removes a text once its Sinhala is imported or approved.",
+  "new": [
+    "entry.code.title",
+    "entry.locale.language",
+    "entry.locale.search",
+    "entry.locale.title",
+    "entry.matrimony",
+    "layout.menu.attention",
+    "layout.menu.upToDate",
+    "signIn.verify"
+  ],
+  "englishChanged": {
+    "layout.darkTheme": "Use the dark theme",
+    "layout.dock.profiles": "Profiles",
+    "layout.dock.requests": "Requests",
+    "layout.lightTheme": "Use the light theme",
+    "layout.mainNav": "Main",
+    "layout.menu.language": "Language",
+    "layout.menu.nav": "Account and help",
+    "layout.menu.open": "Open the menu",
+    "layout.menu.openAttention": "Open the menu. Your verification needs attention.",
+    "layout.menu.title": "Your account",
+    "layout.menu.verification": "Verification",
+    "layout.signOut": "Sign out",
+    "signIn.code": "Code",
+    "signIn.otherEmail": "Use a different email",
+    "signIn.otherNumber": "Use a different number",
+    "signIn.resend": "Send a new code"
+  }
+}

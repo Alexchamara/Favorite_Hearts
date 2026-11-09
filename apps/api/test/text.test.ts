@@ -52,6 +52,14 @@ const root = new URL('../../../packages/shared/src/i18n/', import.meta.url);
 const catalogue = (language: string, area: string): Record<string, string> =>
   JSON.parse(readFileSync(new URL(`${language}/${area}.json`, root), 'utf8'));
 const isStaff = (key: string) => key.startsWith('api.staff.') || key.startsWith('validation.staff.');
+/** Texts waiting for a translator (owner decision T-1, 9 Nov 2026): blank Sinhala allowed, English shown meanwhile. */
+const waiting = (language: string): { new: string[]; englishChanged: Record<string, string> } => {
+  try {
+    return { new: [], englishChanged: {}, ...JSON.parse(readFileSync(new URL(`waiting/${language}.json`, root), 'utf8')) };
+  } catch {
+    return { new: [], englishChanged: {} };
+  }
+};
 const marks = (text: string) => [...(text.match(/\{\w+\}/g) ?? []), ...(text.match(/<\/?\w+\/?>/g) ?? [])].sort();
 
 const ok = (res: Res, status = 200) => {
@@ -71,7 +79,25 @@ describe('text catalogues', () => {
         }
       }
       const si = catalogue('si', area);
-      for (const key of Object.keys(en)) if (!isStaff(key) && !si[key]?.trim()) problems.push(`si/${area}: ${key} has no Sinhala`);
+      const listed = new Set(waiting('si').new);
+      for (const key of Object.keys(en)) if (!isStaff(key) && !si[key]?.trim() && !listed.has(key)) problems.push(`si/${area}: ${key} has no Sinhala`);
+    }
+    assert.deepEqual(problems, []);
+  });
+
+  test('the waiting list is exact: listed texts exist, new ones are still blank, changed ones still have the old translation', () => {
+    const problems: string[] = [];
+    const all = Object.assign({}, ...AREAS.map((area) => catalogue('en', area))) as Record<string, string>;
+    const si = Object.assign({}, ...AREAS.map((area) => catalogue('si', area))) as Record<string, string>;
+    const list = waiting('si');
+    for (const key of list.new) {
+      if (!(key in all)) problems.push(`${key} is waiting but not in English`);
+      else if (si[key]?.trim()) problems.push(`${key} has Sinhala now: take it off the waiting list`);
+    }
+    for (const [key, before] of Object.entries(list.englishChanged)) {
+      if (!(key in all)) problems.push(`${key} is waiting but not in English`);
+      else if (all[key] === before) problems.push(`${key}: its English has not changed`);
+      else if (!si[key]?.trim()) problems.push(`${key} has no Sinhala: list it as new instead`);
     }
     assert.deepEqual(problems, []);
   });
@@ -146,6 +172,9 @@ describe('text catalogues', () => {
     assert.equal(textFor(catalogues, 'si', 'x.left', { count: 4 }), '4ක්');
     assert.equal(textFor(catalogues, 'si', 'x.only'), 'English only');
     assert.equal(textFor(catalogues, 'si', 'x.unknown'), 'x.unknown');
+    // A text waiting for a translator is blank in Sinhala: members see the English, never an empty label.
+    const waiting = { en: { 'x.new': 'New text' }, si: { 'x.new': '' } };
+    assert.equal(textFor(waiting, 'si', 'x.new'), 'New text');
   });
 });
 

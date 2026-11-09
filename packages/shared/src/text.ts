@@ -94,11 +94,13 @@ function pluralForm(language: Language, count: number): string {
 
 function pick(catalogue: Catalogue | undefined, language: Language, key: string, count: unknown): string | undefined {
   if (!catalogue) return undefined;
+  // A blank translation is one waiting for a translator (i18n/waiting/<language>.json): fall back to English.
+  const present = (text: string | undefined) => (text === '' ? undefined : text);
   if (typeof count === 'number') {
-    const plural = catalogue[`${key}_${pluralForm(language, count)}`] ?? catalogue[`${key}_other`];
+    const plural = present(catalogue[`${key}_${pluralForm(language, count)}`]) ?? present(catalogue[`${key}_other`]);
     if (plural !== undefined) return plural;
   }
-  return catalogue[key];
+  return present(catalogue[key]);
 }
 
 /**

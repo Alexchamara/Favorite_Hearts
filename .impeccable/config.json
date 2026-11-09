@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "createdAt": "2026-11-09T17:37:39.747Z",
+        "reason": "User approved decision B1 (9 Nov 2026): self-host Inter because the original demo's design system names Inter in every font stack; see docs/UI-PARITY.md"
+      }
+    ]
+  }
+}

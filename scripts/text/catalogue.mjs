@@ -36,6 +36,19 @@ export async function loadCatalogues(root = DEFAULT_ROOT, languages = ['en']) {
 
 export const loadReview = (root, language) => readJson(join(root, 'review', `${language}.json`), {});
 
+/**
+ * Texts waiting for a translator (i18n/waiting/<language>.json, owner decision T-1, 9 Nov 2026): `new` lists texts
+ * with no translation yet (blank, so members see the English); `englishChanged` maps texts whose English changed to
+ * the English before the change, keeping the old translation as a draft until it is reviewed again.
+ */
+export const loadWaiting = async (root, language) => ({ new: [], englishChanged: {}, ...(await readJson(join(root, 'waiting', `${language}.json`), {})) });
+
+async function saveWaiting(root, language, waiting) {
+  await mkdir(join(root, 'waiting'), { recursive: true });
+  const ordered = { about: waiting.about, new: [...waiting.new].sort(), englishChanged: Object.fromEntries(Object.keys(waiting.englishChanged).sort().map((key) => [key, waiting.englishChanged[key]])) };
+  await writeFile(join(root, 'waiting', `${language}.json`), `${JSON.stringify(ordered, null, 2)}\n`);
+}
+
 /** Writes a translation in the English order, so the files stay easy to compare. */
 async function saveArea(root, language, area, english, texts) {
   const ordered = Object.fromEntries(Object.keys(english).filter((key) => key in texts).map((key) => [key, texts[key]]));
@@ -154,6 +167,7 @@ export async function buildWorkbook({ root = DEFAULT_ROOT, language = 'si' } = {
   const languageName = LANGUAGE_NAMES[language] ?? language;
   const catalogues = await loadCatalogues(root, ['en', language]);
   const review = await loadReview(root, language);
+  const waiting = await loadWaiting(root, language);
   const counts = { total: 0, translated: 0, approved: 0, changed: 0 };
   const columns = [
     { title: 'Key', width: 26 },
@@ -174,7 +188,13 @@ export async function buildWorkbook({ root = DEFAULT_ROOT, language = 'si' } = {
         .map(([key, english]) => {
           const current = catalogues[language][area][key] ?? '';
           const reviewed = review[key];
-          const status = reviewed ? (reviewed.english === english ? 'Approved' : 'English changed') : 'Draft';
+          const status = reviewed
+            ? reviewed.english === english
+              ? 'Approved'
+              : 'English changed'
+            : key in waiting.englishChanged
+              ? 'English changed'
+              : 'Draft';
           counts.total += 1;
           if (current) counts.translated += 1;
           if (status === 'Approved') counts.approved += 1;
@@ -238,6 +258,7 @@ export async function importWorkbook(buffer, { root = DEFAULT_ROOT, language = '
   const languageName = LANGUAGE_NAMES[language] ?? language;
   const catalogues = await loadCatalogues(root, ['en', language]);
   const review = await loadReview(root, language);
+  const waiting = await loadWaiting(root, language);
   const report = { corrected: [], approved: [], discuss: [], unchanged: 0, problems: [] };
   const seen = new Set();
   for (const sheet of readWorkbook(buffer)) {
@@ -269,11 +290,14 @@ export async function importWorkbook(buffer, { root = DEFAULT_ROOT, language = '
         catalogues[language][area][key] = yours;
         review[key] = { english, at: today };
         report.corrected.push(key);
+        waiting.new = waiting.new.filter((waitingKey) => waitingKey !== key);
+        delete waiting.englishChanged[key];
       } else if (status === 'Approved') {
         if (!catalogues[language][area][key]) return report.problems.push(`${where}: marked Approved, but there is no ${languageName} text to approve.`);
         if (review[key]?.english !== english) {
           review[key] = { english, at: today };
           report.approved.push(key);
+          delete waiting.englishChanged[key];
         } else report.unchanged += 1;
       } else report.unchanged += 1;
     });
@@ -283,6 +307,7 @@ export async function importWorkbook(buffer, { root = DEFAULT_ROOT, language = '
     await mkdir(join(root, 'review'), { recursive: true });
     const ordered = Object.fromEntries(Object.keys(review).sort().map((key) => [key, review[key]]));
     await writeFile(join(root, 'review', `${language}.json`), `${JSON.stringify(ordered, null, 2)}\n`);
+    if (waiting.new.length || Object.keys(waiting.englishChanged).length || waiting.about) await saveWaiting(root, language, waiting);
   }
   return report;
 }
@@ -299,4 +324,10 @@ export async function status({ root = DEFAULT_ROOT, language = 'si' } = {}) {
     const changed = keys.filter((key) => review[key] && review[key].english !== catalogues.en[area][key]).length;
     return { area, total: keys.length, translated, approved, changed };
   });
+}
+
+/** How many texts wait for a translator (i18n/waiting/<language>.json): new ones, and ones whose English changed. */
+export async function waitingStatus({ root = DEFAULT_ROOT, language = 'si' } = {}) {
+  const waiting = await loadWaiting(root, language);
+  return { new: waiting.new.length, englishChanged: Object.keys(waiting.englishChanged).length };
 }

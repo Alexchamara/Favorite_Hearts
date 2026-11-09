@@ -157,35 +157,6 @@
   }
 }
 
-/* The code boxes (components/form/code-input.tsx): a new digit pops in, a wrong code shakes, the tick draws in. */
-@keyframes code-pop {
-  from {
-    opacity: 0;
-    transform: translateY(4px) scale(0.85);
-  }
-}
-@keyframes code-shake {
-  20%,
-  60% {
-    transform: translateX(-6px);
-  }
-  40%,
-  80% {
-    transform: translateX(6px);
-  }
-}
-@keyframes code-caret {
-  50% {
-    opacity: 0;
-  }
-}
-@keyframes code-check {
-  from {
-    opacity: 0;
-    transform: scale(0.6) rotate(-8deg);
-  }
-}
-
 /* Component details the demo set by data-slot (components/ui keeps its upstream classes). */
 @layer components {
   [data-slot="switch"] {
