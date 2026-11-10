@@ -1,6 +1,6 @@
 /**
  * Interests and Connected (SCREEN-036 to 041), as the demo's one tabbed page: Received, Sent, Mutual, Shared details,
- * History (decision B5) and, until the privacy page arrives (ui-8), Blocked. The dock's Interests opens it on Received
+ * History (decision B5). Blocked members are on Privacy & safety. The dock's Interests opens it on Received
  * (/requests), Connected on Mutual (/connections); the tab is in the address (?tab=), and every tab acts for one
  * profile: the one in `?as=`, or the account's published one, chosen here when the account runs several.
  *
@@ -15,15 +15,15 @@ import type { HistoryItem, ProfileView } from '@fh/shared';
 import { Confirm } from '@/components/confirm';
 import { AppShell, Loading, Notice } from '@/components/layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { del, errorMessage, post } from '@/lib/api';
+import { errorMessage, post } from '@/lib/api';
 import { formatDay } from '@/lib/format';
-import { refreshRelations, useBlocks, useConnections, useHistory, useReceived, useSent } from '@/lib/queries';
+import { refreshRelations, useConnections, useHistory, useReceived, useSent } from '@/lib/queries';
 import { say, useI18n, type AppTextKey } from '@/lib/i18n';
 import { ActingPicker, useActingProfile, withAs } from '@/features/browse/acting';
 import { useLabels } from '@/features/profile/options';
 import { ContactList, PersonRow } from '@/features/browse/MemberCard';
 
-const TABS = ['received', 'sent', 'mutual', 'shared', 'history', 'blocked'] as const;
+const TABS = ['received', 'sent', 'mutual', 'shared', 'history'] as const;
 type Tab = (typeof TABS)[number];
 /** Which dock item a tab belongs to: Interests (/requests) or Connected (/connections). */
 const PAGE_OF: Record<Tab, 'requests' | 'connections'> = {
@@ -32,7 +32,6 @@ const PAGE_OF: Record<Tab, 'requests' | 'connections'> = {
   history: 'requests',
   mutual: 'connections',
   shared: 'connections',
-  blocked: 'connections',
 };
 
 export default function RelationsPage({ kind }: { kind: 'requests' | 'connections' }) {
@@ -90,7 +89,6 @@ export default function RelationsPage({ kind }: { kind: 'requests' | 'connection
             <TabsTrigger value="mutual">{t('relations.tab.mutual')}</TabsTrigger>
             <TabsTrigger value="shared">{t('relations.tab.shared')}</TabsTrigger>
             <TabsTrigger value="history">{t('relations.tab.history')}</TabsTrigger>
-            <TabsTrigger value="blocked">{t('blocks.title')}</TabsTrigger>
           </TabsList>
           <TabsContent value="received">
             <ReceivedTab profile={acting} />
@@ -106,9 +104,6 @@ export default function RelationsPage({ kind }: { kind: 'requests' | 'connection
           </TabsContent>
           <TabsContent value="history">
             <HistoryTab profile={acting} />
-          </TabsContent>
-          <TabsContent value="blocked">
-            <BlockedTab profile={acting} />
           </TabsContent>
         </Tabs>
       )}
@@ -384,43 +379,6 @@ function HistoryTab({ profile }: { profile: ProfileView }) {
         ))
       ) : (
         <Empty title="relations.empty.history.title" body="relations.empty.history.body" />
-      )}
-    </div>
-  );
-}
-
-/** Profiles this profile blocked, and lifting a block (moves to Privacy & safety in ui-8). */
-function BlockedTab({ profile }: { profile: ProfileView }) {
-  const blocks = useBlocks(profile.id);
-  const { t } = useI18n();
-  const unblock = useMutation({
-    mutationFn: (id: string) => del(`/profiles/${profile.id}/blocks/${id}`),
-    onSuccess: async () => {
-      toast.success(say('connections.unblocked'));
-      await refreshRelations();
-    },
-    onError: (error) => toast.error(errorMessage(error)),
-  });
-  if (blocks.isPending) return <Loading />;
-  if (blocks.isError) return <Notice tone="error">{errorMessage(blocks.error)}</Notice>;
-  return (
-    <div className="m-surface">
-      {blocks.data.length ? (
-        blocks.data.map((item) => (
-          <div className="m-person-row" key={item.id}>
-            <div className="m-row-copy">
-              <strong>{item.displayName ?? t('blocks.aMember')}</strong>
-              <small>{t('blocks.since', { date: formatDay(item.blockedAt) })}</small>
-            </div>
-            <div className="m-row-actions">
-              <button type="button" className="m-btn m-secondary" disabled={unblock.isPending} onClick={() => unblock.mutate(item.id)}>
-                {t('blocks.unblock')}
-              </button>
-            </div>
-          </div>
-        ))
-      ) : (
-        <p>{t('blocks.none')}</p>
       )}
     </div>
   );

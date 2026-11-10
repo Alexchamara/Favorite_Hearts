@@ -13,12 +13,11 @@ import {
   Compass,
   FileText,
   Heart,
+  LockKeyhole,
   LogOut,
-  Mail,
   Menu,
   MessageCircle,
   Moon,
-  Phone,
   ShieldCheck,
   Sun,
   UserRound,
@@ -196,15 +195,11 @@ function MoreMenu({ onSignOut, onLanguage }: { onSignOut: () => void; onLanguage
         </button>
         <nav aria-label={t('layout.menu.nav')}>
           <MenuItem to="/verify" Icon={ShieldCheck} label={t('layout.menu.verification')} count={attention ? t('layout.menu.needsAttention') : undefined} />
+          <MenuItem to="/privacy" Icon={LockKeyhole} label={t('layout.menu.privacy')} />
+          <MenuItem to="/contact" Icon={MessageCircle} label={t('layout.menu.contact')} />
           <MenuItem href={page('/help/')} Icon={CircleHelp} label={t('layout.help')} />
           <MenuItem href={page('/terms/')} Icon={FileText} label={t('layout.terms')} />
           <MenuItem href={page('/privacy/')} Icon={FileText} label={t('layout.privacy')} />
-        </nav>
-        <nav aria-label={t('layout.menu.contact')}>
-          <MenuItem href={`https://wa.me/${phoneDigits}`} external Icon={MessageCircle} label={t('layout.whatsapp', { phone: phoneLabel })} />
-          <MenuItem href={`tel:${site.telephone}`} Icon={Phone} label={t('layout.call', { phone: phoneLabel })} />
-          <MenuItem href={`mailto:${site.email}`} Icon={Mail} label={site.email} />
-          <p className="m-menu-note">{t('layout.staffNeverAsk')}</p>
         </nav>
         <div className="m-menu-bottom">
           <button type="button" className="m-menu-logout" onClick={onSignOut}>

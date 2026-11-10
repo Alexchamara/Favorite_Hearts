@@ -9,7 +9,8 @@ import { toast } from 'sonner';
 import { normalizePhone } from '@fh/shared';
 import { CodeInput, useCodeCheck } from '@/components/form/code-input';
 import { PhoneField } from '@/components/form/fields';
-import { AppShell, Card, Loading, Notice, PageTitle } from '@/components/layout';
+import { ShieldCheck } from 'lucide-react';
+import { AppShell, Card, Loading, Notice } from '@/components/layout';
 import { useBotCheck } from '@/components/turnstile';
 import { Button } from '@/components/ui/button';
 import { authClient } from '@/lib/auth-client';
@@ -26,21 +27,38 @@ export default function VerifyPage() {
   // Opened from a profile's setup guide (?profile=…): offer the way back to publish it.
   const [params] = useSearchParams();
   const fromProfile = params.get('profile');
+  // The demo's Trust & access (SCREEN-043): the page heading, then one trust section (.m-trust-section) with the note on
+  // what the checks unlock and the checks as numbered steps (.m-trust-steps).
   return (
-    <AppShell>
-      <Link to="/" className="text-sm text-muted-foreground underline underline-offset-4">
+    <AppShell width="wide">
+      <Link to="/" className="m-text">
         {t('verify.back')}
       </Link>
-      <div className="mt-6">
-        <PageTitle kicker={t('verify.kicker')} title={t('verify.title')}>
-          {t('verify.intro')}
-        </PageTitle>
-        <div className="flex flex-col gap-6">
-          <PhoneCheck />
-          <DocumentCheck />
-          {fromProfile && <BackToProfile id={fromProfile} />}
+      <div className="m-page-heading">
+        <div>
+          <span className="m-kicker uppercase">{t('verify.kicker')}</span>
+          <h1>{t('verify.title')}</h1>
+          <p>{t('verify.intro')}</p>
         </div>
       </div>
+      {/* One wide column, as the demo's verification centre: the note on what the checks unlock, then the steps. */}
+      <section className="m-surface m-trust-section" aria-label={t('verify.title')}>
+        <span className="m-kicker uppercase">{t('profile.trust.title')}</span>
+        <p>{t('profile.trust.body')}</p>
+        <div className="m-note">
+          <ShieldCheck size={20} aria-hidden="true" />
+          <p>{t('verify.free')}</p>
+        </div>
+        <ol className="m-trust-steps">
+          <li>
+            <PhoneCheck />
+          </li>
+          <li>
+            <DocumentCheck />
+          </li>
+        </ol>
+        {fromProfile && <BackToProfile id={fromProfile} />}
+      </section>
     </AppShell>
   );
 }

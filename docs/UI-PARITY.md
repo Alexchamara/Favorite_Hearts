@@ -100,6 +100,10 @@ keys get an English value and a blank Sinhala value.
 | Member: report dialog | The app's report categories and details limit, Cancel beside Send report; the demo's kicker and safety note are added; no "Block this member instead" button (Block is beside Report on the profile) | Reports (section 7) |
 | Member: Interests and Connected | One tabbed page as in the demo, with a sixth tab, Blocked, until the Privacy & safety page (ui-8); the dock keeps Interests (Received, Sent, History) and Connected (Mutual, Shared details, Blocked) as two places, and choosing a tab of the other goes there; "Accept" / "Decline" are the decided request actions; Shared details also lists each connection's shared contacts (the demo shows them only in the profile) | Owner, 6 Nov 2026 (two dock places); sections 3, 4 |
 | Member: History | Declined and withdrawn requests both ways and ended connections, with the decided wording; no "Allow a fresh introduction" (the 7-day wait after a decline or withdrawal is the rule here) | Decision B5; section 4 |
+| Member: Trust & access | The account holder's own checks (phone by SMS, identity document reviewed by staff) as the demo's numbered steps; no selfie step or demo badge grid ("Review and badges"); the decided wording ("identity document reviewed") | OWNER-DECISIONS §5 |
+| Member: Privacy & safety | The visibility switch pauses and republishes (section 7); "found a match", delete-profile and account panels (download, delete) under "Close your profile or account"; no horoscope switch (out of scope) and no "Your reports" list (no endpoint lists a member's own reports; not built) | Sections 7, 9; OWNER-DECISIONS §1 |
+| Member: Contact us | Only real channels (WhatsApp, call, email; social pages once their addresses are set); no "Coming soon" cards; the note says staff never ask for a password or code | X06; site.config.json |
+| Member: More sheet | The demo's rows Trust & access, Privacy & safety, Contact us, then Help, Terms, Privacy (website pages); the contact numbers moved to Contact us | Demo layout |
 
 More rows are added as each phase finds them.
 
@@ -399,4 +403,26 @@ SCREEN-036 to 041.
   and the 7-day wait, History shows "You withdrew", the empty states show on Received, Mutual and Shared details,
   choosing Mutual from Interests moves to Connected (and the dock with it); no console errors; no sideways scroll at
   390 or 1440 px.
+
+### ui-8a Trust & access, Privacy & safety, Contact us (10 Nov 2026)
+
+SCREEN-043, 047, 048. SCREEN-044 (the invited candidate's view) keeps its existing invitation page; SCREEN-046 and 064
+(membership, payments, checkout) follow in ui-8b.
+
+- **Trust & access** (`features/trust/VerifyPage.tsx`): the page heading, then one `.m-trust-section` with the note
+  on what the checks unlock and the phone and document checks as `.m-trust-steps`.
+- **Privacy & safety** (`features/account/PrivacyPage.tsx`, `/privacy`): `.m-two-columns`: visibility (the demo's
+  `.m-toggle` pausing or showing the published profile), the privacy notes, blocked members (`.m-blocked-list`,
+  moved here from Connected), and closing the profile or account; beside the demo's intention card, safety list and
+  manager transparency.
+- **Contact us** (`features/account/ContactPage.tsx`, `/contact`): `.m-support-grid` of channel cards.
+- **More sheet:** Trust & access, Privacy & safety, Contact us, then the website's Help, Terms and Privacy.
+- **Fixed:** the card-flattening rule (wizard, dialogs, trust steps, profile sections) lost its background reset to a
+  two-id product.css rule; it now carries `:not(#fh-parity)` for the same weight.
+- **Texts:** 34 new.
+- **Pixel diff against the demo (1440 px):** Contact us 4.9%, Privacy & safety 8.9%, Trust & access 19.3% (the
+  demo's page adds a demo-only notice, the selfie step and a large badge grid).
+- **Checks:** typecheck clean; tests pass (API 168, website 5, text tools 9); `build:site` passes; in the sandbox:
+  pause switch hides and republishes Bina's profile, the More sheet lists the new rows, Connected keeps five tabs;
+  no console errors; no sideways scroll at 390 or 1440 px.
 

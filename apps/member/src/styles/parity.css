@@ -99,8 +99,10 @@
 /* Setup wizard and dialogs: the demo has no cards inside them. This app's contact, photo, verification and publishing
    panels are cards (.m-surface) elsewhere; inside a wizard step or a dialog they lose the card frame and read as one
    page. */
-#favorite-hearts-product .m-app :is(.m-onboard-content, .m-dialog) .m-surface,
-#favorite-hearts-product .m-app.m-dialog .m-surface {
+/* `:not(#fh-parity)` doubles the id weight: product.css has rules like `#favorite-hearts-product :is(body,
+   #favorite-hearts-product) .m-app[data-theme] .m-surface` (two ids) that set the card background with !important. */
+#favorite-hearts-product:not(#fh-parity) .m-app :is(.m-onboard-content, .m-dialog, .m-trust-section, .m-profile-section) .m-surface,
+#favorite-hearts-product:not(#fh-parity) .m-app.m-dialog .m-surface {
   padding: 0 !important;
   border: 0 !important;
   background: none !important;
@@ -122,4 +124,11 @@
 }
 #favorite-hearts-product .m-app :is(.m-main, .m-onboard-content, .m-dialog) .m-text {
   min-height: 44px;
+}
+
+/* Panels this app keeps as cards elsewhere (contacts, checks, "found a match", delete, account) also lose the card
+   frame inside the demo's trust section and profile sections (the setup-wizard rule above lists them). */
+#favorite-hearts-product .m-app .m-close-panels {
+  display: grid;
+  gap: 24px;
 }
