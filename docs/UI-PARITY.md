@@ -130,6 +130,8 @@ Tools in `scripts/ui-parity/` (development only, Python + Playwright + Pillow, n
   dashboard, Discover, Interests, Connected, Shortlist, profile, Trust, Membership, Privacy, Contact and Invite with
   `--state`, and the staff workspace with `--staff-state`; `--skip-entry` leaves out the signed-out entry screens.
 - `staff-login.py`: signs a sandbox staff account in (and turns on two-step login) for staff screenshots.
+- `checks.py`: browser checks against the sandbox (navigation, keyboard, dialogs, states, authorization, rejections,
+  Sinhala, reduced motion, safe area); exits 1 when one fails.
 - `compare.py`: side-by-side sheets (reference | repo | amplified difference) and a `report.md` sorted worst first.
 - `sandbox-login.py`: signs a synthetic sandbox member in for signed-in member screenshots.
 - `capture_states.py`: public interaction states (welcome dialog, menu, newsroom and help filters).
@@ -591,3 +593,48 @@ dark mode, which fails contrast and is dark here (ui-10); otherwise the same cau
 **Checks:** text contrast scan with no failures in either theme at 390, 768 and 1440 px; no sideways scroll at any
 captured width; no console errors signed in as a member, as the owner and signed out (the signed-out account check
 answers 401, as designed); typecheck clean; tests pass (API 168, website 5, text tools 9); `build:site` passes.
+
+### ui-12 tests (10 Nov 2026)
+
+`scripts/ui-parity/checks.py` runs 80 browser checks against the sandbox, signed in as a member with a plan (Bina), a
+member without one (Chathu), the owner and the backup reviewer, and signed out. All 80 pass:
+
+- **Navigation (11):** each dock item opens its page and is marked `aria-current="page"`; browser Back; the More
+  sheet's Trust & access, Privacy & safety and Contact us rows, and its Help, Terms and Privacy links to the website;
+  no console or page errors.
+- **Keyboard (4):** the first Tab reaches the visible skip link, which moves on to the page content; every focus stop on
+  Discover (40 Tabs) shows a focus ring and is at least 24 × 24 px (WCAG 2.5.8).
+- **Dialogs (42):** the More sheet, Discover preferences, the member profile sheet, the report dialog over it, the
+  delete-account confirmation and the staff payment review, each opened from the keyboard: it has a name, focus moves
+  in, 25 Tabs and 10 Shift+Tabs stay inside, everything behind is hidden from screen readers (except the toast live
+  region, which the dialog library keeps readable), Escape closes it and only it, and focus returns to the control
+  that opened it.
+- **States (4):** the first-load page with its status message; a page that fails to load shows the error page with
+  Reload and a way home; an empty list shows the demo's empty state; toasts render inside `.m-app` in a live region.
+- **Authorization (13):** signed out, member pages lead to sign-in and the API answers 401; a member sees "Staff only"
+  on the staff page and is refused (403) on staff and owner endpoints; the owner's member pages lead to the
+  workspace; the backup reviewer sees only Verification and Reports and is refused (403) on owner endpoints; a member
+  without a plan receives requests anonymously.
+- **Server rejection (2):** a wrong sign-in code is refused; the server's reason stays in the status region linked to
+  the field (announced), and the field is ready for a new try.
+- **Sinhala (6):** after switching in the More sheet, Discover, Interests, Privacy and Trust have `lang="si"`, Sinhala on
+  screen and no raw text keys; the staff page stays English; the switch back to English works.
+- **Motion and safe area (4):** with reduced motion, sheets appear without animation (they animate otherwise);
+  scrolled to the end at 390 px, the last text clears the dock; the viewport keeps the page inside the safe areas.
+
+**Found and fixed:**
+
+- **Member profile sheet:** closing it (Escape or the close button) left focus on the page body: the sheet is a route,
+  so going back unmounts it before the dialog can hand focus back. It now returns focus to the card that opened it
+  (WCAG 2.4.3).
+- **Sign-in:** the email field's placeholder was written in the screen, not a text; it is now `signIn.emailPlaceholder`
+  (blank in Sinhala, T-1 list).
+
+**Text coverage:** every key the member app uses is typed from the English catalogue, so the typecheck proves none is
+missing in English; a scan of member screens finds no other visible words, labels or placeholders outside the texts
+(staff screens are English-only by decision). `npm run text:status`: the app catalogue has 1412 texts, 1200 in
+Sinhala; 212 wait for a translator as `new` (members see the English) and 19 as `englishChanged` (the earlier Sinhala
+shows meanwhile). The API tests keep the rest: translations keep their placeholders, the waiting list is exact, errors
+and emails come in the member's language, Tamil stays hidden.
+
+**Checks:** typecheck clean; tests pass (API 168, website 5, text tools 9); `build:site` passes.

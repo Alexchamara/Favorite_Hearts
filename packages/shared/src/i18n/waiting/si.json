@@ -210,6 +210,7 @@
     "relations.viewShared",
     "report.kicker",
     "report.note",
+    "signIn.emailPlaceholder",
     "signIn.verify",
     "verify.free"
   ],

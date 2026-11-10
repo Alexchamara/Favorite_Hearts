@@ -95,7 +95,7 @@ export function SignIn({ onSignedIn, intro, heading }: { onSignedIn?: () => void
           )}
           <form onSubmit={sendCode}>
             {channel === 'email' ? (
-              <TextField label={t('signIn.email')} type="email" inputMode="email" autoComplete="email" placeholder="you@example.com" value={contact} onChange={setContact} />
+              <TextField label={t('signIn.email')} type="email" inputMode="email" autoComplete="email" placeholder={t('signIn.emailPlaceholder')} value={contact} onChange={setContact} />
             ) : (
               <PhoneField label={t('signIn.mobile')} value={contact} onChange={setContact} />
             )}

@@ -3,7 +3,7 @@
  * until both accept, parents' names and contact details only after both accept, income labelled self-declared,
  * caste only when shared. Requests, blocks and reports act for the profile chosen in `?as=`.
  */
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { ArrowLeft, ArrowRight, BriefcaseBusiness, CheckCircle2, Flag, LockKeyhole, MapPin, Phone, UserRound, Users } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router';
@@ -54,6 +54,20 @@ export function MemberSheet() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const { theme } = useTheme();
+  // The sheet is a route: closing it goes back in history and unmounts it, so the dialog never hands focus back.
+  // The list behind stays mounted; focus returns to the control that opened the sheet (WCAG 2.4.3).
+  const [opener] = useState(() => (document.activeElement instanceof HTMLElement ? document.activeElement : null));
+  useEffect(
+    () => () => {
+      setTimeout(() =>
+        requestAnimationFrame(() => {
+          const lost = !document.activeElement || document.activeElement === document.body;
+          if (lost && opener?.isConnected) opener.focus();
+        }),
+      );
+    },
+    [opener],
+  );
   return (
     <Sheet open onOpenChange={(open) => !open && navigate(-1)}>
       <SheetContent side="right" className="m-app m-detail-sheet" data-theme={theme}>

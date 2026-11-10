@@ -62,6 +62,7 @@
   "signIn.channel.email": "ඊමේල්",
   "signIn.channel.sms": "දුරකථනය (SMS)",
   "signIn.email": "ඊමේල් ලිපිනය",
+  "signIn.emailPlaceholder": "",
   "signIn.mobile": "ජංගම දුරකථන අංකය",
   "signIn.sending": "යවමින්…",
   "signIn.send": "මට කේතයක් එවන්න",

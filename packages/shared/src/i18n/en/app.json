@@ -62,6 +62,7 @@
   "signIn.channel.email": "Email",
   "signIn.channel.sms": "Phone (SMS)",
   "signIn.email": "Email address",
+  "signIn.emailPlaceholder": "you@example.com",
   "signIn.mobile": "Mobile number",
   "signIn.sending": "Sending…",
   "signIn.send": "Send me a code",
