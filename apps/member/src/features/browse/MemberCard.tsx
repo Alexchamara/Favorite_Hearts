@@ -1,7 +1,7 @@
 /** A member as other members see them in lists: cover (blurred unless allowed), name, age, work and place. */
 import type { ReactNode } from 'react';
 import { BriefcaseBusiness, LockKeyhole, MapPin, Users } from 'lucide-react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import type { MemberCard, PhotoView, SharedContact } from '@fh/shared';
 import { TrustBadges } from '@/components/badges';
 import { cn } from '@/lib/utils';
@@ -107,10 +107,12 @@ export function DiscoverCard({ card, href, action }: { card: MemberCard; href: s
   const place = placeOf(card);
   const photo = card.cover;
   const navigate = useNavigate();
+  // The list stays behind the profile, which opens as the demo's side sheet (App.tsx).
+  const state = { background: useLocation() };
   return (
     <article className="m-card" aria-labelledby={`card-${card.id}`}>
       <div className="m-card-identity">
-        <Link className="m-card-photo" to={href} tabIndex={-1} aria-hidden="true">
+        <Link className="m-card-photo" to={href} state={state} tabIndex={-1} aria-hidden="true">
           {photo ? (
             <div className="m-portrait" style={{ backgroundImage: `url(${photo.url})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
           ) : (
@@ -122,7 +124,7 @@ export function DiscoverCard({ card, href, action }: { card: MemberCard; href: s
         <div className="m-card-identity-copy">
           <div className="m-card-title">
             {/* A button, as in the demo (its styles are for buttons); "View profile" below is the link. */}
-            <button type="button" id={`card-${card.id}`} onClick={() => navigate(href)}>
+            <button type="button" id={`card-${card.id}`} onClick={() => navigate(href, { state })}>
               {name}
               {card.age !== null && <span>, {card.age}</span>}
             </button>
@@ -155,7 +157,7 @@ export function DiscoverCard({ card, href, action }: { card: MemberCard; href: s
           {t('card.privateUntilAccepted')}
         </div>
         <div className="m-card-actions">
-          <Link className="m-btn m-secondary" to={href} aria-describedby={`card-${card.id}`}>
+          <Link className="m-btn m-secondary" to={href} state={state} aria-describedby={`card-${card.id}`}>
             {t('browse.view')}
           </Link>
         </div>
@@ -167,6 +169,7 @@ export function DiscoverCard({ card, href, action }: { card: MemberCard; href: s
 /** A compact row for request and connection lists. */
 export function MemberRow({ card, href, children }: { card: MemberCard | null; href?: string; children?: ReactNode }) {
   const { t } = useI18n();
+  const background = useLocation();
   const placeOf = usePlaceOf();
   return (
     <div className="flex flex-wrap items-center gap-4 py-3">
@@ -176,7 +179,7 @@ export function MemberRow({ card, href, children }: { card: MemberCard | null; h
           <>
             <p className="font-semibold">
               {href ? (
-                <Link to={href} className="underline-offset-4 hover:underline">
+                <Link to={href} state={{ background }} className="underline-offset-4 hover:underline">
                   {card.displayName ?? t('member.member')}
                 </Link>
               ) : (

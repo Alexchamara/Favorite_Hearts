@@ -96,6 +96,8 @@ keys get an English value and a blank Sinhala value.
 | Member: Discover rail | The acting-profile card shows the profile's status instead of the demo's "Profile readiness" percentage (the demo's figure is invented); its rows are Membership and Trust & access (Privacy & safety arrives with ui-8) | Real data |
 | Member: Discover count | The result count counts the profiles loaded so far ("20+ profiles" while more pages wait); the API returns no total | API paging |
 | Member: preferences dialog | The app's filters (age, height, religion, marital status, caste with consent, culture and lifestyle) in the demo's dialog and folding sections; location lives in the toolbar's location filter; no "selfie-verified only", horoscope or "what matters most" choices | OWNER-DECISIONS §1, §6 |
+| Member: profile sheet | No Horoscope tab or selfie tag (decided out); the request is "Send a request" with the decided confirmation of what will be shared, not "Send interest"; Block and Report sit under the actions; the acting-profile choice (managers) shows in the sheet; opened from its own address the same content is a page, with "← Discover" | OWNER-DECISIONS §1, §4 |
+| Member: report dialog | The app's report categories and details limit, Cancel beside Send report; the demo's kicker and safety note are added; no "Block this member instead" button (Block is beside Report on the profile) | Reports (section 7) |
 
 More rows are added as each phase finds them.
 
@@ -352,4 +354,25 @@ SCREEN-033, 034, 035, 057, 058. SCREEN-055/056 (profile sheet) and 066 (report) 
   no sideways scroll at 390 or 1440 px.
 - **Sandbox note:** `scripts/ui-parity/sandbox-login.py` now sets the visitor preference first, since the entry page
   asks for language and country on a first visit (ui-4).
+
+### ui-6b member profile sheet and report dialog (10 Nov 2026)
+
+SCREEN-055, 056, 066.
+
+- **Profile sheet** (`features/browse/MemberPage.tsx`): the demo's `.m-app.m-detail-sheet`: `.m-sheet-header` ("A person,
+  not a percentage", name and age, `.m-row-facts` with work and place), `.m-detail-scroll` with the photo carousel
+  (`.m-photo-carousel`, previous / next and the count, the blurred-photo note), `.m-detail-body` with the tags, the
+  tabs (`.m-tabs.m-profile-tabs`: About, Family & values, Contact & social handles; facts as `.m-profile-facts`,
+  hobbies and values as `.m-values`, contacts in `.m-private-box.m-contact-card`), then `.m-detail-actions`
+  (Shortlist and the request, or where it stands) and Block / Report.
+- **Opening:** from Discover, the shortlist, requests or connections the profile opens as the demo's side sheet over
+  that list (App.tsx renders the list from `state.background` and the sheet on top); closing it returns to the list
+  with its filters. From its own address it is a page. Every rule stays on the server (blurred photos, names and
+  contacts after both accept, plan gates).
+- **Report dialog** (`ReportDialog.tsx`): the demo's kicker ("Your safety matters") and note on what a report does.
+- **Texts:** 15 new.
+- **Checks:** typecheck clean; tests pass (API 167, website 5, text tools 9); `build:site` passes; in the sandbox: a
+  profile opens as a sheet over Discover (the list stays behind it), focus moves into the sheet, Escape returns to
+  `/browse?sort=name`, the address alone opens the page, tabs and the report dialog work; no sideways scroll at 390
+  or 1440 px.
 

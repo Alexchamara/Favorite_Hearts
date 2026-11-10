@@ -4,6 +4,7 @@
  */
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { useMutation } from '@tanstack/react-query';
+import { Flag, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { REPORT_CATEGORIES } from '@fh/shared';
 import { SelectField, TextAreaField } from '@/components/form/fields';
@@ -53,18 +54,25 @@ export function ReportDialog({
       <DialogContent>
         <form onSubmit={submit} className="flex flex-col gap-4">
           <DialogHeader>
+            <span className="m-kicker uppercase">{t('report.kicker')}</span>
             <DialogTitle>{photoId ? t('report.photoTitle') : t('report.profileTitle', { name })}</DialogTitle>
             <DialogDescription>{t(photoId ? 'report.photoBody' : 'report.profileBody', { name })}</DialogDescription>
           </DialogHeader>
           {report.isError && <Notice tone="error">{errorMessage(report.error)}</Notice>}
           <SelectField label={t('report.reason')} value={category} onChange={setCategory} options={REPORT_CATEGORIES.map((value) => ({ value, label: reportCategoryLabels[value] }))} />
           <TextAreaField label={t('report.detail')} rows={4} maxLength={1000} value={detail} onChange={setDetail} />
+          {/* The demo's note on what a report does (and does not do). */}
+          <div className="m-note">
+            <ShieldCheck size={20} aria-hidden="true" />
+            <p>{t('report.note')}</p>
+          </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               {t('common.cancel')}
             </Button>
             <Button type="submit" disabled={!category || report.isPending}>
               {report.isPending ? t('signIn.sending') : t('report.submit')}
+              <Flag size={16} aria-hidden="true" />
             </Button>
           </DialogFooter>
         </form>

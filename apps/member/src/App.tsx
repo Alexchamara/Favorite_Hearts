@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ReactNode } from 'react';
-import { Navigate, Route, Routes, useLocation } from 'react-router';
+import { Navigate, Route, Routes, useLocation, type Location } from 'react-router';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { AppShell, Loading, Notice, PageTitle } from '@/components/layout';
 import { Toaster } from '@/components/ui/sonner';
@@ -11,6 +11,7 @@ const ProfilePage = lazy(() => import('@/features/profile/ProfilePage'));
 const NewProfilePage = lazy(() => import('@/features/profile/NewProfilePage'));
 const BrowsePage = lazy(() => import('@/features/browse/BrowsePage'));
 const MemberPage = lazy(() => import('@/features/browse/MemberPage'));
+const MemberSheet = lazy(() => import('@/features/browse/MemberPage').then((module) => ({ default: module.MemberSheet })));
 const VerifyPage = lazy(() => import('@/features/trust/VerifyPage'));
 const PhoneUploadPage = lazy(() => import('@/features/trust/PhoneUploadPage'));
 const InvitePage = lazy(() => import('@/features/invite/InvitePage'));
@@ -28,14 +29,18 @@ function MemberOnly({ children }: { children: ReactNode }) {
 }
 
 export default function App() {
-  const { pathname } = useLocation();
+  const location = useLocation();
+  // A member's profile opened from a list arrives with that list as its background (state.background): the list stays
+  // on screen and the profile opens over it as the demo's side sheet (SCREEN-055). From its own address it is a page.
+  const background = (location.state as { background?: Location } | null)?.background;
+  const { pathname } = background ?? location;
   const { t, rich } = useI18n();
   return (
     <>
       <Toaster position="top-center" containerAriaLabel={t('common.notifications')} />
       <ErrorBoundary key={pathname}>
         <Suspense fallback={<AppShell><Loading /></AppShell>}>
-          <Routes>
+          <Routes location={background ?? location}>
             <Route path="/" element={<Home />} />
             <Route path="/profiles/new" element={<MemberOnly><NewProfilePage /></MemberOnly>} />
             <Route path="/profiles/:id/:section?" element={<MemberOnly><ProfilePage /></MemberOnly>} />
@@ -74,6 +79,11 @@ export default function App() {
               }
             />
           </Routes>
+          {background && (
+            <Routes>
+              <Route path="/members/:id" element={<MemberOnly><MemberSheet /></MemberOnly>} />
+            </Routes>
+          )}
         </Suspense>
       </ErrorBoundary>
     </>

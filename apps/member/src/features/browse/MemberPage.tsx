@@ -3,215 +3,339 @@
  * until both accept, parents' names and contact details only after both accept, income labelled self-declared,
  * caste only when shared. Requests, blocks and reports act for the profile chosen in `?as=`.
  */
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { BriefcaseBusiness, Flag, MapPin } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BriefcaseBusiness, CheckCircle2, Flag, LockKeyhole, MapPin, Phone, UserRound, Users } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { toast } from 'sonner';
 import type { MemberProfileView, ProfileView, RelationView } from '@fh/shared';
 import { TrustBadges } from '@/components/badges';
 import { Confirm } from '@/components/confirm';
-import { AppShell, Card, kickerClass, Loading, Notice } from '@/components/layout';
+import { AppShell, Notice } from '@/components/layout';
 import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ApiError, errorMessage, post } from '@/lib/api';
 import { refreshRelations, useMember, usePhotos } from '@/lib/queries';
 import { suggestionLabel, useLabels } from '@/features/profile/options';
 import { formatDay } from '@/lib/format';
 import { say, useI18n, type AppTextKey } from '@/lib/i18n';
+import { useTheme } from '@/lib/theme';
 import { ActingPicker, useActingProfile, withAs } from './acting';
-import { ContactList, PhotoFrame, usePlaceOf } from './MemberCard';
+import { ContactList, usePlaceOf } from './MemberCard';
 import { ReportDialog } from './ReportDialog';
 import { SaveButton } from './shortlist';
 
+/**
+ * Another member's profile (SCREEN-055/056), in the demo's detail markup: header (.m-sheet-header), the photo carousel
+ * (.m-photo-carousel), tags, tabs (.m-tabs.m-profile-tabs: About, Family & values, Contact & social handles) and the
+ * actions (.m-detail-actions). Opened from a list it is the demo's side sheet over that list (App.tsx keeps the list
+ * behind it); opened from its address it is a page.
+ */
 export default function MemberPage() {
   const { id = '' } = useParams();
-  const { acting, profiles, choose, ready } = useActingProfile();
-  const member = useMember(id, acting?.id ?? null, ready);
-  const error = member.error instanceof ApiError ? member.error : null;
   const { t } = useI18n();
+  const { acting } = useActingProfile();
   return (
     <AppShell width="wide">
-      <Link to={withAs('/browse', acting)} className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground">
+      <Link to={withAs('/browse', acting)} className="m-text">
         {t('memberPage.back')}
       </Link>
-      <div className="mt-5 flex flex-col gap-6">
-        {ready && <ActingPicker profiles={profiles} acting={acting} onChoose={choose} />}
-        {member.isPending ? (
-          <Loading />
-        ) : error?.code === 'VERIFICATION_REQUIRED' ? (
-          <Notice title={t('browse.notVerified.title')}>
-            {t('browse.notVerified.body')}{' '}
-            <Link to="/verify" className="text-brand underline underline-offset-4">
-              {t('profile.goToVerification')}
-            </Link>
-          </Notice>
-        ) : member.isError ? (
-          <Notice tone="error">{errorMessage(member.error)}</Notice>
-        ) : (
-          <MemberView view={member.data} acting={acting} />
-        )}
+      <div className="m-detail-sheet m-detail-page">
+        <MemberDetail id={id} Heading={PageHeading} />
       </div>
     </AppShell>
   );
 }
 
+/** The side sheet, over the list it was opened from; closing it goes back there. */
+export function MemberSheet() {
+  const { id = '' } = useParams();
+  const navigate = useNavigate();
+  const { theme } = useTheme();
+  return (
+    <Sheet open onOpenChange={(open) => !open && navigate(-1)}>
+      <SheetContent side="right" className="m-app m-detail-sheet" data-theme={theme}>
+        <MemberDetail id={id} Heading={SheetHeading} />
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+type HeadingProps = { kicker: string; title: ReactNode; facts: ReactNode };
+function SheetHeading({ kicker, title, facts }: HeadingProps) {
+  return (
+    <SheetHeader className="m-sheet-header">
+      <span className="m-kicker uppercase">{kicker}</span>
+      <SheetTitle>{title}</SheetTitle>
+      <SheetDescription className="m-row-facts">{facts}</SheetDescription>
+    </SheetHeader>
+  );
+}
+function PageHeading({ kicker, title, facts }: HeadingProps) {
+  return (
+    <div className="m-sheet-header">
+      <span className="m-kicker uppercase">{kicker}</span>
+      <h1>{title}</h1>
+      <p className="m-row-facts">{facts}</p>
+    </div>
+  );
+}
+
+function MemberDetail({ id, Heading }: { id: string; Heading: (props: HeadingProps) => ReactNode }) {
+  const { acting, profiles, choose, ready } = useActingProfile();
+  const member = useMember(id, acting?.id ?? null, ready);
+  const error = member.error instanceof ApiError ? member.error : null;
+  const { t } = useI18n();
+  if (member.isPending) return <Heading kicker={t('memberPage.kicker')} title={t('common.loading')} facts={null} />;
+  if (error?.code === 'VERIFICATION_REQUIRED' || member.isError)
+    return (
+      <>
+        <Heading kicker={t('memberPage.kicker')} title={t('memberPage.thisMember')} facts={null} />
+        <div className="m-detail-body">
+          {error?.code === 'VERIFICATION_REQUIRED' ? (
+            <Notice title={t('browse.notVerified.title')}>
+              {t('browse.notVerified.body')}{' '}
+              <Link to="/verify" className="text-brand underline underline-offset-4">
+                {t('profile.goToVerification')}
+              </Link>
+            </Notice>
+          ) : (
+            <Notice tone="error">{errorMessage(member.error)}</Notice>
+          )}
+        </div>
+      </>
+    );
+  return <MemberView view={member.data} acting={acting} picker={ready && profiles.length > 1 ? <ActingPicker profiles={profiles} acting={acting} onChoose={choose} /> : null} Heading={Heading} />;
+}
+
 const label = <T extends string>(labels: Record<T, string>, value: T | null) => (value ? labels[value] : null);
 
+/** The demo's facts list (.m-profile-facts): only what the member shared. */
 function Facts({ items }: { items: [string, ReactNode][] }) {
   const { t } = useI18n();
   const shown = items.filter(([, value]) => value !== null && value !== undefined && value !== '');
-  if (!shown.length) return <p className="mt-2 text-sm text-muted-foreground">{t('memberPage.nothing')}</p>;
+  if (!shown.length) return <p>{t('memberPage.nothing')}</p>;
   return (
-    <dl className="mt-3 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
+    <dl className="m-profile-facts">
       {shown.map(([term, value]) => (
         <div key={term}>
-          <dt className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">{term}</dt>
-          <dd className="mt-0.5">{value}</dd>
+          <dt>{term}</dt>
+          <dd>{value}</dd>
         </div>
       ))}
     </dl>
   );
 }
 
-function MemberView({ view, acting }: { view: MemberProfileView; acting: ProfileView | null }) {
+/** The demo's photo carousel: one photo at a time, with previous / next and the count. */
+function PhotoCarousel({ view, name }: { view: MemberProfileView; name: string }) {
+  const { t } = useI18n();
+  const track = useRef<HTMLDivElement>(null);
+  const [index, setIndex] = useState(0);
+  const photos = view.photos;
+  const count = photos.length;
+  const move = (next: number) => {
+    setIndex(next);
+    track.current?.scrollTo({ left: next * track.current.clientWidth, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  };
+  return (
+    <section className="m-photo-carousel" aria-label={t('memberPage.photos')}>
+      <div
+        ref={track}
+        className="m-photo-track"
+        onScroll={(event) => event.currentTarget.clientWidth && setIndex(Math.round(event.currentTarget.scrollLeft / event.currentTarget.clientWidth))}
+      >
+        {count ? (
+          photos.map((photo, i) => (
+            <div className="m-photo-slide" key={photo.id}>
+              <img src={photo.url} alt={t('memberPage.photoOf', { name, number: i + 1, count })} />
+            </div>
+          ))
+        ) : (
+          <div className="m-photo-slide">
+            <div className="m-portrait m-photo-private">
+              <LockKeyhole size={30} aria-hidden="true" />
+            </div>
+          </div>
+        )}
+      </div>
+      {photos.some((photo) => photo.blurred) && (
+        <span className="m-photo-lock">
+          <LockKeyhole size={14} aria-hidden="true" />
+          {t('memberPage.blurred')}
+        </span>
+      )}
+      {count > 1 && (
+        <div className="m-photo-controls">
+          <button type="button" aria-label={t('memberPage.prevPhoto')} disabled={index === 0} onClick={() => move(index - 1)}>
+            <ArrowLeft size={17} aria-hidden="true" />
+          </button>
+          <span aria-live="polite">
+            {index + 1} / {count}
+          </span>
+          <button type="button" aria-label={t('memberPage.nextPhoto')} disabled={index >= count - 1} onClick={() => move(index + 1)}>
+            <ArrowRight size={17} aria-hidden="true" />
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function MemberView({ view, acting, picker, Heading }: { view: MemberProfileView; acting: ProfileView | null; picker: ReactNode; Heading: (props: HeadingProps) => ReactNode }) {
   const { t } = useI18n();
   const labels = useLabels();
   const placeOf = usePlaceOf();
+  const [tab, setTab] = useState('about');
   const name = view.displayName ?? t('memberPage.thisMember');
-  const blurred = view.photos.some((photo) => photo.blurred);
   const place = placeOf(view);
   return (
     <>
-      <div className="flex flex-col gap-3">
-        <p className={kickerClass}>
-          {view.management === 'manager' && view.managerRelationship
-            ? t('memberPage.managedBy', { relationship: labels.relationshipLabels[view.managerRelationship].toLowerCase() })
-            : t('memberPage.selfManaged')}
-        </p>
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <h1 className="font-serif text-[2.25rem] leading-[1.1] sm:text-5xl">
+      <Heading
+        kicker={t('memberPage.kicker')}
+        title={
+          <>
             {name}
-            {view.age !== null && <span className="text-muted-foreground">, {view.age}</span>}
-          </h1>
-          <SaveButton actingId={acting?.id ?? null} profileId={view.id} />
+            {view.age !== null && `, ${view.age}`}
+          </>
+        }
+        facts={
+          <>
+            {view.occupation && (
+              <span>
+                <BriefcaseBusiness size={14} aria-hidden="true" />
+                {view.occupation}
+              </span>
+            )}
+            {place && (
+              <span>
+                <MapPin size={14} aria-hidden="true" />
+                {place}
+              </span>
+            )}
+          </>
+        }
+      />
+      <div className="m-detail-scroll">
+        <PhotoCarousel view={view} name={name} />
+        <div className="m-detail-body">
+          {picker}
+          <div className="m-detail-tags">
+            <span className="m-tag">
+              <Users size={13} aria-hidden="true" />
+              {view.management === 'manager' && view.managerRelationship
+                ? t('memberPage.managedBy', { relationship: labels.relationshipLabels[view.managerRelationship].toLowerCase() })
+                : t('memberPage.selfManaged')}
+            </span>
+            <TrustBadges badges={view.badges} />
+          </div>
+          <Tabs value={tab} onValueChange={setTab} className="m-tabs m-profile-tabs">
+            <TabsList>
+              <TabsTrigger value="about">
+                <UserRound size={15} aria-hidden="true" />
+                {t('memberPage.tab.about')}
+              </TabsTrigger>
+              <TabsTrigger value="family">
+                <Users size={15} aria-hidden="true" />
+                {t('memberPage.tab.family')}
+              </TabsTrigger>
+              <TabsTrigger value="contacts">
+                <Phone size={15} aria-hidden="true" />
+                {t('memberPage.tab.contacts')}
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="about">
+              <section>
+                <h3>{t('memberPage.inWords', { name })}</h3>
+                {view.bio && <p className="m-bio">{view.bio}</p>}
+                <Facts
+                  items={[
+                    [t('details.education'), view.education],
+                    [t('details.timeline'), label(labels.timelineLabels, view.timeline)],
+                    [t('details.religion'), label(labels.religionLabels, view.religion)],
+                    [t('memberPage.languages'), view.languages?.map((language) => suggestionLabel(t, 'spokenLanguage', language)).join(', ')],
+                    [t('details.marital'), label(labels.maritalLabels, view.maritalStatus)],
+                    [t('details.height'), view.heightCm ? t('memberPage.heightValue', { height: view.heightCm }) : null],
+                    [t('details.income'), view.incomeRange === 'prefer_not_to_say' ? null : label(labels.incomeLabels, view.incomeRange)],
+                    [t('details.relocation'), label(labels.relocationLabels, view.relocation)],
+                    [t('details.horoscope'), label(labels.horoscopeLabels, view.horoscopeImportance)],
+                  ]}
+                />
+              </section>
+              <section>
+                <h3>{t('profile.dash.beyond.title')}</h3>
+                <div className="m-values">
+                  {view.hobbies?.length ? view.hobbies.map((hobby) => <span key={hobby}>{hobby}</span>) : <p>{t('memberPage.noHobbies')}</p>}
+                </div>
+              </section>
+              <section>
+                <h3>{t('profile.dash.culture.title')}</h3>
+                <Facts
+                  items={[
+                    [t('memberPage.motherTongue'), view.motherTongue],
+                    [t('details.diet'), label(labels.dietLabels, view.diet)],
+                    [t('details.smoking'), label(labels.habitLabels, view.smoking)],
+                    [t('details.drinking'), label(labels.habitLabels, view.drinking)],
+                    [t('details.children'), label(labels.childrenLabels, view.childrenPlan)],
+                    [t('details.community'), label(labels.communityLabels, view.communityOpenness)],
+                    [t('memberPage.casteShared'), view.caste],
+                  ]}
+                />
+              </section>
+              <button type="button" className="m-btn m-secondary m-contact-shortcut" onClick={() => setTab('contacts')}>
+                {t('memberPage.viewContacts')}
+                <ArrowRight size={15} aria-hidden="true" />
+              </button>
+            </TabsContent>
+            <TabsContent value="family">
+              <section>
+                <h3>{t('profile.dash.family.title')}</h3>
+                <p className="m-bio">{view.family.familyStory || t('memberPage.nothing')}</p>
+              </section>
+              <section>
+                <h3>{t('memberPage.valuesTitle')}</h3>
+                <div className="m-values">{view.values?.length ? view.values.map((value) => <span key={value}>{labels.valueLabels[value]}</span>) : <p>{t('memberPage.nothing')}</p>}</div>
+              </section>
+              <section>
+                <h3>{t('memberPage.parents')}</h3>
+                <Facts
+                  items={[
+                    [t('memberPage.mother'), [view.family.motherName, view.family.motherOccupation].filter(Boolean).join(' · ') || null],
+                    [t('memberPage.father'), [view.family.fatherName, view.family.fatherOccupation].filter(Boolean).join(' · ') || null],
+                    [t('memberPage.sisters'), view.family.sisters?.join(', ')],
+                    [t('memberPage.brothers'), view.family.brothers?.join(', ')],
+                    [t('details.involvement'), label(labels.involvementLabels, view.family.familyInvolvement)],
+                  ]}
+                />
+                {!view.family.namesShown && <p className="m-small-print">{t('memberPage.namesLater')}</p>}
+              </section>
+            </TabsContent>
+            <TabsContent value="contacts">
+              <div className="m-private-box m-contact-card">
+                {view.contacts ? <CheckCircle2 size={21} aria-hidden="true" /> : <LockKeyhole size={21} aria-hidden="true" />}
+                <div>
+                  <h3>{t('memberPage.contacts')}</h3>
+                  {view.contacts ? (
+                    <ContactList contacts={view.contacts} />
+                  ) : (
+                    <p>
+                      {t(
+                        view.contactsHidden === 'plan_needed'
+                          ? 'memberPage.contacts.plan'
+                          : view.contactsHidden === 'not_allowed'
+                            ? 'connections.hidden.candidate'
+                            : 'memberPage.contacts.afterAccept',
+                      )}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+          <RelationPanel view={view} acting={acting} />
         </div>
-        <p className="flex flex-wrap gap-x-5 gap-y-1 text-muted-foreground">
-          {view.occupation && (
-            <span className="inline-flex items-center gap-1.5">
-              <BriefcaseBusiness className="size-4" aria-hidden="true" />
-              {view.occupation}
-            </span>
-          )}
-          {place && (
-            <span className="inline-flex items-center gap-1.5">
-              <MapPin className="size-4" aria-hidden="true" />
-              {place}
-            </span>
-          )}
-        </p>
-        <TrustBadges badges={view.badges} explain />
-      </div>
-
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-8">
-      <div className="flex min-w-0 flex-col gap-6">
-
-      {view.photos.length > 0 && (
-        <section aria-label={t('memberPage.photos')}>
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {view.photos.map((photo) => (
-              <li key={photo.id} className="flex flex-col gap-1">
-                <PhotoFrame photo={photo} name={view.displayName} className="rounded-[12px]" />
-                {acting && (
-                  <ReportDialog
-                    reporterProfileId={acting.id}
-                    profileId={view.id}
-                    photoId={photo.id}
-                    name={name}
-                    trigger={
-                      <button type="button" className="self-start text-xs text-muted-foreground underline underline-offset-4">
-                        {t('memberPage.reportPhoto')}
-                      </button>
-                    }
-                  />
-                )}
-              </li>
-            ))}
-          </ul>
-          {blurred && <p className="mt-2 text-sm text-muted-foreground">{t('memberPage.blurred')}</p>}
-        </section>
-      )}
-
-      <Card>
-        <h2 className="font-serif text-2xl">{t('details.about.title')}</h2>
-        {view.bio && <p className="mt-3 leading-relaxed whitespace-pre-line">{view.bio}</p>}
-        <Facts
-          items={[
-            [t('details.height'), view.heightCm ? t('memberPage.heightValue', { height: view.heightCm }) : null],
-            [t('details.marital'), label(labels.maritalLabels, view.maritalStatus)],
-            [t('details.religion'), label(labels.religionLabels, view.religion)],
-            [t('details.education'), view.education],
-            [t('memberPage.languages'), view.languages?.map((language) => suggestionLabel(t, 'spokenLanguage', language)).join(', ')],
-            [t('memberPage.motherTongue'), view.motherTongue],
-            [t('details.values'), view.values?.map((v) => labels.valueLabels[v]).join(', ')],
-            [t('details.hobbies'), view.hobbies?.join(', ')],
-            [t('details.timeline'), label(labels.timelineLabels, view.timeline)],
-            [t('details.relocation'), label(labels.relocationLabels, view.relocation)],
-            [t('details.horoscope'), label(labels.horoscopeLabels, view.horoscopeImportance)],
-            [t('details.income'), view.incomeRange === 'prefer_not_to_say' ? null : label(labels.incomeLabels, view.incomeRange)],
-          ]}
-        />
-      </Card>
-
-      <Card>
-        <h2 className="font-serif text-2xl">{t('details.lifestyle.title')}</h2>
-        <Facts
-          items={[
-            [t('details.diet'), label(labels.dietLabels, view.diet)],
-            [t('details.smoking'), label(labels.habitLabels, view.smoking)],
-            [t('details.drinking'), label(labels.habitLabels, view.drinking)],
-            [t('details.children'), label(labels.childrenLabels, view.childrenPlan)],
-            [t('details.community'), label(labels.communityLabels, view.communityOpenness)],
-            [t('memberPage.casteShared'), view.caste],
-          ]}
-        />
-      </Card>
-
-      <Card>
-        <h2 className="font-serif text-2xl">{t('details.family.title')}</h2>
-        {view.family.familyStory && <p className="mt-3 leading-relaxed whitespace-pre-line">{view.family.familyStory}</p>}
-        <Facts
-          items={[
-            [t('memberPage.mother'), [view.family.motherName, view.family.motherOccupation].filter(Boolean).join(', ') || null],
-            [t('memberPage.father'), [view.family.fatherName, view.family.fatherOccupation].filter(Boolean).join(', ') || null],
-            [t('memberPage.sisters'), view.family.sisters?.join(', ')],
-            [t('memberPage.brothers'), view.family.brothers?.join(', ')],
-            [t('details.involvement'), label(labels.involvementLabels, view.family.familyInvolvement)],
-          ]}
-        />
-        {!view.family.namesShown && <p className="mt-3 text-sm text-muted-foreground">{t('memberPage.namesLater')}</p>}
-      </Card>
-      </div>
-      <aside className="order-first flex flex-col gap-6 lg:sticky lg:top-6 lg:order-none">
-      <RelationPanel view={view} acting={acting} />
-
-        <Card>
-          <h2 className="font-serif text-2xl">{t('memberPage.contacts')}</h2>
-          {view.contacts ? (
-            <ContactList contacts={view.contacts} />
-          ) : (
-            <p className="mt-2 text-sm text-muted-foreground">
-              {t(
-                view.contactsHidden === 'plan_needed'
-                  ? 'memberPage.contacts.plan'
-                  : view.contactsHidden === 'not_allowed'
-                    ? 'connections.hidden.candidate'
-                    : 'memberPage.contacts.afterAccept',
-              )}
-            </p>
-          )}
-        </Card>
-      </aside>
       </div>
     </>
   );
@@ -309,17 +433,20 @@ function RelationPanel({ view, acting }: { view: MemberProfileView; acting: Prof
   }
 
   return (
-    <Card>
-      <h2 className="font-serif text-2xl">{t('relation.title')}</h2>
-      <div className="mt-3 flex flex-col gap-3 text-sm">{status}</div>
-      <div className="mt-6 flex flex-wrap gap-4 border-t pt-4 text-sm">
+    <>
+      {/* The demo's actions: the shortlist and the request (or where it stands), then quieter safety actions. */}
+      <div className="m-detail-actions">
+        <SaveButton actingId={acting.id} profileId={view.id} />
+        {status}
+      </div>
+      <div className="m-detail-safety">
         <Confirm
           title={t('relation.block.title', { name })}
           action={t('relation.block')}
           destructive
           onConfirm={() => block.mutate()}
           trigger={
-            <button type="button" className="text-muted-foreground underline underline-offset-4">
+            <button type="button" className="m-text m-danger">
               {t('relation.block')}
             </button>
           }
@@ -332,14 +459,14 @@ function RelationPanel({ view, acting }: { view: MemberProfileView; acting: Prof
           profileId={view.id}
           name={name}
           trigger={
-            <button type="button" className="inline-flex items-center gap-1 text-muted-foreground underline underline-offset-4">
-              <Flag className="size-3.5" aria-hidden="true" />
+            <button type="button" className="m-text">
+              <Flag size={14} aria-hidden="true" />
               {t('relation.report')}
             </button>
           }
         />
       </div>
-    </Card>
+    </>
   );
 }
 
