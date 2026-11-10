@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { CURRENCIES, PLAN_TIERS, type OwnerPlanView } from '@fh/shared';
 import { Confirm } from '@/components/confirm';
 import { SelectField, TextAreaField, TextField } from '@/components/form/fields';
-import { Card, Loading, Notice, PageTitle } from '@/components/layout';
+import { Card, Loading, Notice } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { ApiError, del, errorMessage, patch, post } from '@/lib/api';
 import { formatDay, formatMoney, moneyInput, parseMoney } from '@/lib/format';
@@ -114,10 +114,9 @@ export function PlansAdmin() {
   const plans = useOwnerPlans();
   const [adding, setAdding] = useState(false);
   return (
-    <>
-      <PageTitle kicker="Owner" title="Plans and prices">
-        Changes apply to new payments. A payment already started keeps the plan and price it was quoted.
-      </PageTitle>
+    <div className="m-surface m-staff-area">
+      <h3>Plans and prices</h3>
+      <p>Changes apply to new payments. A payment already started keeps the plan and price it was quoted.</p>
       {adding ? (
         <NewPlan onDone={() => setAdding(false)} />
       ) : (
@@ -136,7 +135,7 @@ export function PlansAdmin() {
           ))}
         </div>
       )}
-    </>
+    </div>
   );
 }
 

@@ -7,6 +7,7 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { ShieldCheck } from 'lucide-react';
 import { renderSVG } from 'uqr';
 import type { DocumentSide, StaffQueueItem, VerificationCaseView } from '@fh/shared';
 import { CodeInput, useCodeCheck } from '@/components/form/code-input';
@@ -14,24 +15,27 @@ import { CheckboxField, TextAreaField, TextField } from '@/components/form/field
 import { AppShell, Card, Loading, Notice, PageTitle } from '@/components/layout';
 import { useBotCheck } from '@/components/turnstile';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { api, errorMessage, post } from '@/lib/api';
+import { formatWhen } from '@/lib/format';
 import { authClient } from '@/lib/auth-client';
-import { keys, resetSession, useMe } from '@/lib/queries';
+import { keys, resetSession, useMe, useOwnerPayments } from '@/lib/queries';
 import { queryClient } from '@/lib/query-client';
 import { ENGLISH_LABELS } from '@/features/profile/options';
 import { PaymentDetailsAdmin } from './PaymentDetailsAdmin';
 import { PaymentsQueue } from './PaymentsQueue';
 import { PlansAdmin } from './PlansAdmin';
-import { ReportsQueue } from './ReportsQueue';
+import { ReportsQueue, useStaffReports } from './ReportsQueue';
 import { ServiceAdmin } from './ServiceAdmin';
+import { Empty } from './Empty';
 
 const { documentLabels } = ENGLISH_LABELS;
 
 export default function StaffApp() {
   const me = useMe();
   return (
-    <AppShell home="/staff">
+    <AppShell home="/staff" width={me.data?.staffRole && me.data.twoFactorEnabled ? 'wide' : 'narrow'}>
       {me.isPending ? (
         <Loading />
       ) : !me.data ? (
@@ -53,39 +57,85 @@ export default function StaffApp() {
 type Area = 'documents' | 'reports' | 'payments' | 'plans' | 'details' | 'service';
 
 const areas: { value: Area; label: string; ownerOnly?: boolean }[] = [
-  { value: 'documents', label: 'Identity documents' },
-  { value: 'reports', label: 'Reports' },
   { value: 'payments', label: 'Payments', ownerOnly: true },
+  { value: 'documents', label: 'Verification' },
+  { value: 'reports', label: 'Reports' },
   { value: 'plans', label: 'Plans', ownerOnly: true },
   { value: 'details', label: 'Payment details', ownerOnly: true },
   { value: 'service', label: 'Service', ownerOnly: true },
 ];
 
 /**
- * Identity documents and reports: both roles review both (section 10). Payments, plans, payment details and the
- * service switches are the owner's alone; the backup reviewer never sees those tabs, and the server refuses them anyway.
+ * The demo's private review workspace (SCREEN-049): heading, the rules in a note, counts of what waits, then one tab
+ * per area. Identity documents and reports: both roles review both (section 10). Payments, plans, payment details and
+ * the service switches are the owner's alone; the backup reviewer never sees those tabs or the payments count, and the
+ * server refuses them anyway. The demo's consent and featured-profile tabs are not built (no such review here).
  */
 function StaffWorkspace({ role }: { role: 'owner' | 'backup_reviewer' }) {
-  const [area, setArea] = useState<Area>('documents');
-  const visible = areas.filter((item) => role === 'owner' || !item.ownerOnly);
+  const owner = role === 'owner';
+  const [area, setArea] = useState<Area>(owner ? 'payments' : 'documents');
+  const visible = areas.filter((item) => owner || !item.ownerOnly);
   return (
     <>
-      <Tabs value={area} onValueChange={(value) => setArea(value as Area)}>
-        <TabsList className="mb-6 h-auto w-full flex-wrap justify-start gap-1 bg-[var(--ui-soft)] p-1">
+      <div className="m-page-heading">
+        <div>
+          <span className="m-kicker uppercase">Private review workspace</span>
+          <h1>Trust deserves attention.</h1>
+          <p>{owner ? 'Owner' : 'Backup reviewer'}: review what members sent, and decide each case yourself.</p>
+        </div>
+      </div>
+      <div className="m-note">
+        <ShieldCheck size={21} aria-hidden="true" />
+        <span>
+          Every document, receipt and reported item you open is logged. Accepting a document gives the badge
+          “identity document reviewed”, nothing more.
+          {owner && ' Approve a payment only after you find the transfer in the real bank, Wise or PayPal statement.'}
+        </span>
+      </div>
+      <ReviewStats owner={owner} />
+      <Tabs value={area} onValueChange={(value) => setArea(value as Area)} className="m-tabs">
+        <TabsList>
           {visible.map((item) => (
-            <TabsTrigger key={item.value} value={item.value} className="min-h-10 flex-none px-4">
+            <TabsTrigger key={item.value} value={item.value}>
               {item.label}
             </TabsTrigger>
           ))}
         </TabsList>
       </Tabs>
-      {area === 'documents' && <ReviewQueue role={role} />}
-      {area === 'reports' && <ReportsQueue role={role} />}
-      {role === 'owner' && area === 'payments' && <PaymentsQueue />}
-      {role === 'owner' && area === 'plans' && <PlansAdmin />}
-      {role === 'owner' && area === 'details' && <PaymentDetailsAdmin />}
-      {role === 'owner' && area === 'service' && <ServiceAdmin />}
+      {area === 'documents' && <ReviewQueue />}
+      {area === 'reports' && <ReportsQueue />}
+      {owner && area === 'payments' && <PaymentsQueue />}
+      {owner && area === 'plans' && <PlansAdmin />}
+      {owner && area === 'details' && <PaymentDetailsAdmin />}
+      {owner && area === 'service' && <ServiceAdmin />}
     </>
+  );
+}
+
+/** The demo's .m-review-stats: what waits for a decision, from the same lists the tabs show. */
+function ReviewStats({ owner }: { owner: boolean }) {
+  const documents = useCases('pending');
+  const reports = useStaffReports('open');
+  return (
+    <div className="m-review-stats">
+      {owner && <PaymentStat />}
+      <Stat label="Identity reviews" count={documents.data?.length} />
+      <Stat label="Open reports" count={reports.data?.length} />
+    </div>
+  );
+}
+
+function PaymentStat() {
+  const payments = useOwnerPayments('pending_review', '');
+  return <Stat label="Payment proofs" count={payments.data?.length} />;
+}
+
+function Stat({ label, count }: { label: string; count: number | undefined }) {
+  return (
+    <div>
+      <span>{label}</span>
+      <strong>{count ?? '–'}</strong>
+    </div>
   );
 }
 
@@ -263,23 +313,29 @@ const statuses = [
   ['rejected', 'Not accepted'],
 ] as const;
 
-function ReviewQueue({ role }: { role: 'owner' | 'backup_reviewer' }) {
-  const [status, setStatus] = useState<VerificationCaseView['status']>('pending');
-  const [selected, setSelected] = useState<string | null>(null);
-  const queue = useQuery({
+function useCases(status: VerificationCaseView['status']) {
+  return useQuery({
     queryKey: keys.staffQueue(status),
     queryFn: async () => (await api<{ cases: StaffQueueItem[] }>(`/staff/verification?status=${status}`)).cases,
   });
+}
+
+const caseName = (item: StaffQueueItem) => (item.subject.accountDeleted ? 'Deleted account' : item.subject.name || 'Unnamed account');
+
+/** The demo's identity review queue: one .m-person-row per case; the case opens in a dialog. */
+function ReviewQueue() {
+  const [status, setStatus] = useState<VerificationCaseView['status']>('pending');
+  const [selected, setSelected] = useState<string | null>(null);
+  const queue = useCases(status);
   const current = queue.data?.find((item) => item.id === selected) ?? null;
   return (
-    <>
-      <PageTitle kicker={role === 'owner' ? 'Owner' : 'Backup reviewer'} title="Identity documents">
-        Compare the document with the account details. Badges only ever say “identity document reviewed”.
-      </PageTitle>
-      <Tabs value={status} onValueChange={(value) => { setStatus(value as typeof status); setSelected(null); }}>
-        <TabsList className="mb-4 h-auto bg-[var(--ui-soft)] p-1">
+    <div className="m-surface">
+      <h3>Identity review queue</h3>
+      <p>Compare the document with the account details. Badges only ever say “identity document reviewed”.</p>
+      <Tabs value={status} onValueChange={(value) => { setStatus(value as typeof status); setSelected(null); }} className="m-tabs">
+        <TabsList aria-label="Show cases">
           {statuses.map(([value, label]) => (
-            <TabsTrigger key={value} value={value} className="min-h-10 px-4">
+            <TabsTrigger key={value} value={value}>
               {label}
             </TabsTrigger>
           ))}
@@ -290,30 +346,39 @@ function ReviewQueue({ role }: { role: 'owner' | 'backup_reviewer' }) {
       ) : queue.isError ? (
         <Notice tone="error">{errorMessage(queue.error)}</Notice>
       ) : queue.data.length === 0 ? (
-        <Notice>Nothing here.</Notice>
+        <Empty title={status === 'pending' ? 'Nothing awaiting identity review.' : 'Nothing here.'} text="Documents members send for review appear here." />
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
-          <ul className="flex flex-col gap-2">
-            {queue.data.map((item) => (
-              <li key={item.id}>
-                <button
-                  type="button"
-                  aria-pressed={item.id === selected}
-                  onClick={() => setSelected(item.id)}
-                  className="w-full rounded-[12px] border bg-card p-4 text-left text-sm hover:border-[var(--ui-accent)] aria-pressed:border-[var(--ui-purple)]"
-                >
-                  <p className="font-semibold">{item.subject.accountDeleted ? 'Deleted account' : item.subject.name || 'Unnamed account'}</p>
-                  <p className="text-muted-foreground">
-                    {documentLabels[item.documentType]} · sent {new Date(item.submittedAt).toLocaleString()}
-                  </p>
-                </button>
-              </li>
-            ))}
-          </ul>
-          {current ? <CaseDetail key={current.id} item={current} /> : <Notice>Choose a case to review.</Notice>}
-        </div>
+        queue.data.map((item) => (
+          <div className="m-person-row" key={item.id}>
+            <div className="m-row-copy">
+              <strong>{caseName(item)}</strong>
+              <p>
+                {documentLabels[item.documentType]} · sent {formatWhen(item.submittedAt)}
+              </p>
+            </div>
+            <button type="button" className="m-btn m-secondary" onClick={() => setSelected(item.id)}>
+              {item.status === 'pending' ? 'Review' : 'Open'}
+            </button>
+          </div>
+        ))
       )}
-    </>
+      <Dialog open={!!current} onOpenChange={(open) => { if (!open) setSelected(null); }}>
+        <DialogContent>
+          {current && (
+            <>
+              <DialogHeader>
+                <span className="m-kicker uppercase">Identity review</span>
+                <DialogTitle>{caseName(current)}</DialogTitle>
+                <DialogDescription>
+                  {documentLabels[current.documentType]} · sent {formatWhen(current.submittedAt)}
+                </DialogDescription>
+              </DialogHeader>
+              <CaseDetail key={current.id} item={current} />
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
 
@@ -353,9 +418,8 @@ function CaseDetail({ item }: { item: StaffQueueItem }) {
   });
   const { subject } = item;
   return (
-    <Card>
-      <h2 className="font-serif text-2xl">{subject.accountDeleted ? 'Deleted account' : subject.name || 'Unnamed account'}</h2>
-      <dl className="mt-4 grid gap-2 text-sm">
+    <div>
+      <dl className="grid gap-2 text-sm">
         <div>
           <dt className="inline font-semibold">Document: </dt>
           <dd className="inline">{documentLabels[item.documentType]}</dd>
@@ -403,9 +467,9 @@ function CaseDetail({ item }: { item: StaffQueueItem }) {
       ) : (
         <p className="mt-6 text-sm">
           {item.status === 'approved' ? 'Accepted' : `Not accepted: ${item.decisionReason}`}
-          {item.reviewedAt && ` on ${new Date(item.reviewedAt).toLocaleString()}`}.
+          {item.reviewedAt && ` on ${formatWhen(item.reviewedAt)}`}.
         </p>
       )}
-    </Card>
+    </div>
   );
 }

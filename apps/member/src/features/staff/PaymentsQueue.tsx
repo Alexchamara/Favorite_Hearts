@@ -10,12 +10,16 @@ import { toast } from 'sonner';
 import { REFUND_CONSEQUENCES, REFUND_REASONS, type OwnerPaymentDetail, type OwnerPaymentItem, type ResidenceFlag } from '@fh/shared';
 import { Confirm } from '@/components/confirm';
 import { CheckboxField, SelectField, TextAreaField, TextField } from '@/components/form/fields';
-import { Card, Loading, Notice, PageTitle } from '@/components/layout';
+import { ArrowUpRight } from 'lucide-react';
+import { Card, Loading, Notice } from '@/components/layout';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { api, del, errorMessage, patch, post } from '@/lib/api';
 import { formatMoney, formatWhen, waitedFor } from '@/lib/format';
 import { useOwnerPayment, useOwnerPayments, useOwnerPlans, useOwnerProfilePlan } from '@/lib/queries';
 import { queryClient } from '@/lib/query-client';
+import { Empty } from './Empty';
 import { ENGLISH_BILLING, type PaymentStatus, type RefundReason } from '@/features/billing/labels';
 
 const { channelLabels, countryName, refundReasonLabels, termText } = ENGLISH_BILLING;
@@ -63,33 +67,34 @@ function flagText(flag: ResidenceFlag, item: OwnerPaymentItem): string {
 
 const refresh = () => queryClient.invalidateQueries({ queryKey: ['owner'] });
 
+/**
+ * The demo's payment proof queue: filters, then a table of payments; "Review" opens the payment in the demo's
+ * "Review the proof." dialog. A payment just decided may leave the list, but its dialog stays open.
+ */
 export function PaymentsQueue() {
   const [status, setStatus] = useState('waiting');
   const [typed, setTyped] = useState('');
   const [query, setQuery] = useState('');
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<OwnerPaymentItem | null>(null);
   const list = useOwnerPayments(status, query);
   function search(event: FormEvent) {
     event.preventDefault();
     setQuery(typed.trim());
-    setSelected(null);
   }
   return (
-    <>
-      <PageTitle kicker="Owner" title="Payments">
+    <div className="m-surface">
+      <h3>Payment proof queue</h3>
+      <p>
         Approve a payment only after you find the transfer in the real bank, Wise or PayPal statement. A receipt image
         alone is not enough.
-      </PageTitle>
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end">
+      </p>
+      <div className="my-5 flex flex-col gap-3 sm:flex-row sm:items-end">
         <SelectField
           label="Show"
           className="sm:w-72"
           value={status}
           placeholder="Choose…"
-          onChange={(value) => {
-            setStatus(value || 'waiting');
-            setSelected(null);
-          }}
+          onChange={(value) => setStatus(value || 'waiting')}
           options={filters}
         />
         <form onSubmit={search} className="flex flex-1 items-end gap-2">
@@ -102,7 +107,7 @@ export function PaymentsQueue() {
       {query && (
         <p className="mb-4 text-sm">
           Showing payments matching <strong>{query}</strong>.{' '}
-          <button type="button" className="text-brand underline underline-offset-4" onClick={() => { setQuery(''); setTyped(''); }}>
+          <button type="button" className="m-text" onClick={() => { setQuery(''); setTyped(''); }}>
             Clear
           </button>
         </p>
@@ -111,46 +116,64 @@ export function PaymentsQueue() {
         <Loading />
       ) : list.isError ? (
         <Notice tone="error">{errorMessage(list.error)}</Notice>
-      ) : list.data.length === 0 && !selected ? (
-        <Notice>Nothing here.</Notice>
+      ) : list.data.length === 0 ? (
+        <Empty title={status === 'waiting' && !query ? 'Nothing waiting for review.' : 'Nothing here.'} text="Payments members start appear here, oldest receipt first." />
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-          {/* A payment just decided leaves this list, but stays open beside it. */}
-          {list.data.length === 0 ? (
-            <Notice>Nothing else here.</Notice>
-          ) : (
-            <ul className="flex flex-col gap-2">
+        <div className="m-table-scroll">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Member / reference</TableHead>
+                <TableHead>Plan</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Action</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {list.data.map((item) => (
-                <li key={item.id}>
-                  <button
-                    type="button"
-                    aria-pressed={item.id === selected}
-                    onClick={() => setSelected(item.id)}
-                    className="w-full rounded-[12px] border bg-card p-4 text-left text-sm hover:border-[var(--ui-accent)] aria-pressed:border-[var(--ui-purple)]"
-                  >
-                    <p className="flex flex-wrap items-baseline justify-between gap-x-3 font-semibold">
-                      <span className="font-mono">{item.reference}</span>
-                      <span>{formatMoney(item.amountMinor, item.currency)}</span>
-                    </p>
-                    <p className="text-muted-foreground">
-                      {item.profile.displayName ?? 'Deleted profile'} · {item.plan.name ?? item.plan.id}
-                    </p>
-                    <p className="text-muted-foreground">
-                      {statusLabels[item.status]}
-                      {(item.status === 'pending_review' || item.status === 'held') && item.proofSubmittedAt && ` · waiting ${waitedFor(item.proofSubmittedAt)}`}
-                    </p>
-                    {item.residenceFlags.length > 0 && (
-                      <p className="mt-1 inline-flex rounded-full border border-[var(--ui-accent)] px-2 py-0.5 text-xs font-semibold">Check residence</p>
-                    )}
-                  </button>
-                </li>
+                <TableRow key={item.id}>
+                  <TableCell>
+                    <strong>{item.profile.displayName ?? 'Deleted profile'}</strong>
+                    <p className="font-mono">{item.reference}</p>
+                  </TableCell>
+                  <TableCell>{item.plan.name ?? item.plan.id}</TableCell>
+                  <TableCell>{formatMoney(item.amountMinor, item.currency)}</TableCell>
+                  <TableCell>
+                    <span className="m-tag">{statusLabels[item.status]}</span>
+                    {(item.status === 'pending_review' || item.status === 'held') && item.proofSubmittedAt && <p>waiting {waitedFor(item.proofSubmittedAt)}</p>}
+                    {item.residenceFlags.length > 0 && <p><strong>Check residence</strong></p>}
+                  </TableCell>
+                  <TableCell>
+                    <button type="button" className="m-text" onClick={() => setSelected(item)}>
+                      {item.status === 'pending_review' || item.status === 'held' ? 'Review proof' : 'Open'}
+                      <ArrowUpRight size={14} aria-hidden="true" />
+                    </button>
+                  </TableCell>
+                </TableRow>
               ))}
-            </ul>
-          )}
-          {selected ? <PaymentDetail key={selected} id={selected} /> : <Notice>Choose a payment to review.</Notice>}
+            </TableBody>
+          </Table>
         </div>
       )}
-    </>
+      <Dialog open={!!selected} onOpenChange={(open) => { if (!open) setSelected(null); }}>
+        <DialogContent>
+          {selected && (
+            <>
+              <DialogHeader>
+                <span className="m-kicker uppercase">Payment review</span>
+                <DialogTitle>Review the proof.</DialogTitle>
+                <DialogDescription>
+                  <span className="font-mono">{selected.reference}</span> · {formatMoney(selected.amountMinor, selected.currency)} ·{' '}
+                  {selected.plan.name ?? selected.plan.id}
+                </DialogDescription>
+              </DialogHeader>
+              <PaymentDetail key={selected.id} id={selected.id} />
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
 
@@ -173,10 +196,7 @@ function PaymentDetail({ id }: { id: string }) {
   return (
     <div className="flex flex-col gap-6">
       <Card>
-        <p className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">{statusLabels[item.status]}</p>
-        <h2 className="mt-1 font-serif text-2xl">
-          <span className="font-mono">{item.reference}</span> · {formatMoney(item.amountMinor, item.currency)}
-        </h2>
+        <span className="m-tag">{statusLabels[item.status]}</span>
         <dl className="mt-4 grid gap-2 text-sm">
           <Row label="Plan">
             {item.plan.name ?? item.plan.id} ({termText(item.plan.termMonths ?? 0)}, level {item.plan.level ?? '?'})

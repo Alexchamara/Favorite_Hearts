@@ -8,37 +8,49 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { REPORT_STATUSES, type StaffReportContent, type StaffReportItem } from '@fh/shared';
 import { TextAreaField } from '@/components/form/fields';
-import { Card, Loading, Notice, PageTitle } from '@/components/layout';
+import { Flag } from 'lucide-react';
+import { Loading, Notice } from '@/components/layout';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { api, errorMessage, post } from '@/lib/api';
+import { formatWhen } from '@/lib/format';
 import { keys } from '@/lib/queries';
 import { queryClient } from '@/lib/query-client';
 import { ENGLISH_LABELS } from '@/features/profile/options';
 import { englishPlaceOf as placeOf, PhotoFrame } from '@/features/browse/MemberCard';
+import { Empty } from './Empty';
 
 const { reportCategoryLabels } = ENGLISH_LABELS;
 
 const statusNames: Record<(typeof REPORT_STATUSES)[number], string> = { open: 'Open', upheld: 'Upheld', dismissed: 'Dismissed' };
 
-export function ReportsQueue({ role }: { role: 'owner' | 'backup_reviewer' }) {
-  const [status, setStatus] = useState<(typeof REPORT_STATUSES)[number]>('open');
-  const [selected, setSelected] = useState<string | null>(null);
-  const queue = useQuery({
+export function useStaffReports(status: (typeof REPORT_STATUSES)[number]) {
+  return useQuery({
     queryKey: keys.staffReports(status),
     queryFn: async () => (await api<{ reports: StaffReportItem[] }>(`/staff/reports?status=${status}`)).reports,
   });
+}
+
+const targetName = (item: StaffReportItem) => `${item.target.displayName ?? 'Deleted profile'}${item.target.photoId ? ' · a photo' : ''}`;
+
+/** The demo's safety reports list: one .m-request-row per report; the report opens in a dialog. */
+export function ReportsQueue() {
+  const [status, setStatus] = useState<(typeof REPORT_STATUSES)[number]>('open');
+  const [selected, setSelected] = useState<string | null>(null);
+  const queue = useStaffReports(status);
   const current = queue.data?.find((item) => item.id === selected) ?? null;
   return (
-    <>
-      <PageTitle kicker={role === 'owner' ? 'Owner' : 'Backup reviewer'} title="Reports">
+    <div className="m-surface">
+      <h3>Safety reports</h3>
+      <p>
         Serious reports hide the content at once; others after three different verified members. Restore anything hidden
         wrongly.
-      </PageTitle>
-      <Tabs value={status} onValueChange={(value) => { setStatus(value as typeof status); setSelected(null); }}>
-        <TabsList className="mb-4 h-auto bg-[var(--ui-soft)] p-1">
+      </p>
+      <Tabs value={status} onValueChange={(value) => { setStatus(value as typeof status); setSelected(null); }} className="m-tabs">
+        <TabsList aria-label="Show reports">
           {REPORT_STATUSES.map((value) => (
-            <TabsTrigger key={value} value={value} className="min-h-10 px-4">
+            <TabsTrigger key={value} value={value}>
               {statusNames[value]}
             </TabsTrigger>
           ))}
@@ -49,34 +61,40 @@ export function ReportsQueue({ role }: { role: 'owner' | 'backup_reviewer' }) {
       ) : queue.isError ? (
         <Notice tone="error">{errorMessage(queue.error)}</Notice>
       ) : queue.data.length === 0 ? (
-        <Notice>Nothing here.</Notice>
+        <Empty title={status === 'open' ? 'No reports to review.' : 'Nothing here.'} text="Private reports from members appear here." />
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
-          <ul className="flex flex-col gap-2">
-            {queue.data.map((item) => (
-              <li key={item.id}>
-                <button
-                  type="button"
-                  aria-pressed={item.id === selected}
-                  onClick={() => setSelected(item.id)}
-                  className="w-full rounded-[12px] border bg-card p-4 text-left text-sm hover:border-[var(--ui-accent)] aria-pressed:border-[var(--ui-purple)]"
-                >
-                  <p className="font-semibold">
-                    {item.target.displayName ?? 'Deleted profile'}
-                    {item.target.photoId && ' · a photo'}
-                  </p>
-                  <p className="text-muted-foreground">
-                    {reportCategoryLabels[item.category]} · {new Date(item.createdAt).toLocaleString()}
-                  </p>
-                  {item.target.hidden && <p className="mt-1 text-xs font-semibold text-destructive">Hidden now</p>}
-                </button>
-              </li>
-            ))}
-          </ul>
-          {current ? <ReportDetail key={current.id} item={current} /> : <Notice>Choose a report to review.</Notice>}
-        </div>
+        queue.data.map((item) => (
+          <div className="m-request-row" key={item.id}>
+            <Flag size={19} aria-hidden="true" />
+            <div>
+              <strong>{targetName(item)}</strong>
+              <p>{reportCategoryLabels[item.category]}</p>
+              <small>{formatWhen(item.createdAt)}</small>
+            </div>
+            <span className="m-tag">{item.target.hidden ? 'Hidden now' : statusNames[item.status]}</span>
+            <button type="button" className="m-btn m-secondary" onClick={() => setSelected(item.id)}>
+              {item.status === 'open' ? 'Review' : 'Open'}
+            </button>
+          </div>
+        ))
       )}
-    </>
+      <Dialog open={!!current} onOpenChange={(open) => { if (!open) setSelected(null); }}>
+        <DialogContent>
+          {current && (
+            <>
+              <DialogHeader>
+                <span className="m-kicker uppercase">Report review</span>
+                <DialogTitle>{reportCategoryLabels[current.category]}</DialogTitle>
+                <DialogDescription>
+                  {targetName(current)} · {formatWhen(current.createdAt)}
+                </DialogDescription>
+              </DialogHeader>
+              <ReportDetail key={current.id} item={current} />
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
 
@@ -101,9 +119,8 @@ function ReportDetail({ item }: { item: StaffReportItem }) {
     },
   });
   return (
-    <Card>
-      <h2 className="font-serif text-2xl">{reportCategoryLabels[item.category]}</h2>
-      <dl className="mt-4 grid gap-2 text-sm">
+    <div>
+      <dl className="grid gap-2 text-sm">
         <div>
           <dt className="inline font-semibold">Reported: </dt>
           <dd className="inline">
@@ -149,7 +166,7 @@ function ReportDetail({ item }: { item: StaffReportItem }) {
       ) : (
         <p className="mt-6 text-sm">{item.status === 'upheld' ? 'Upheld.' : 'Dismissed.'}</p>
       )}
-    </Card>
+    </div>
   );
 }
 

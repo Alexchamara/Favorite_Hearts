@@ -107,6 +107,12 @@ keys get an English value and a blank Sinhala value.
 | Member: Membership | The decided plans (Starter, Premium 3 months, Premium 6 months) with their prices per residence (LKR or USD), terms and request limits, in the demo's three card styles by plan level (Starter green, Premium 3 months gold, Premium 6 months lavender) and three columns on wide screens; no free tier card, boost or ownership-fee card; "Your plan" shows what is left of today's and this month's requests; the actions follow the decided rules (renew in the last 7 days, upgrade, no downgrade) | OWNER-DECISIONS §2, §3, §9; decision B6 |
 | Member: checkout | The demo's kicker, "One step closer." and three steps, then this app's real form: country of residence (currency), payment channel set up by the owner, refund terms and the lost-days confirmation for an upgrade; the owner's own payment instructions and a unique reference after it starts; receipts uploaded on the page, not in the dialog | Section 9; RULE-AUDIT P-items |
 | Member: payment history | The demo's table, with the payment reference as an extra column | Section 9 |
+| Staff: review workspace | English only; the lead line names the role (owner or backup reviewer); the note states the real rules (every look is logged, the badge says "identity document reviewed", payments approved only against the real statement) instead of the demo's sample-data note; no "Member view" button (staff accounts are not member accounts) | Owner, 3 Nov 2026; section 10 |
+| Staff: counts | Payment proofs (owner only), Identity reviews, Open reports; no "Candidate consent" (SCREEN-051 not built); three or two counts share the row on wide screens | Section 10; decision list |
+| Staff: tabs | Payments (owner), Verification, Reports, then the owner's Plans, Payment details and Service; no Consent or Featured profiles tabs (not built: no consent queue, no decision on paid visibility); the backup reviewer sees Verification and Reports only | Section 10; RULE-AUDIT N01/N02 |
+| Staff: queues | Each queue has its status filter (Waiting / Accepted / Not accepted; Open / Upheld / Dismissed; the payment filter and reference search) inside the demo's surface; identity cases and reports open in a dialog with the documents, content and decision forms the rules require, where the demo approves from the row | Section 7, 10 |
+| Staff: payment review | The demo's "Review the proof." dialog holds the full payment: details, residence check, receipts (each look logged), approve with the statement line, hold or reject, refund, settlement correction, owner note, profile plan and history | Section 9 |
+| Tables | Row lines in the text colour, as in the demo (its Tailwind base leaves borders at currentColor) | Demo CSS |
 
 More rows are added as each phase finds them.
 
@@ -448,4 +454,34 @@ SCREEN-046, 064.
   the page shows the active plan and three cards with the decided actions (only the upgrade is open while Premium 3
   months runs), the checkout opens with the demo's steps and the lost-days warning; no console errors; no sideways
   scroll at 390 or 1440 px.
+
+### ui-9 staff workspace (10 Nov 2026)
+
+SCREEN-049, 050, 052, 065 (051, candidate consent, is not built).
+
+- **Workspace** (`features/staff/StaffApp.tsx`): the demo's heading ("Private review workspace", "Trust deserves
+  attention."), a note with the real rules, the demo's counts (`.m-review-stats`) from the same lists the tabs show, and
+  the demo's tabs (`.m-tabs`). The owner opens on Payments, the backup reviewer on Verification. Staff screens stay
+  English-only (no translation keys). Sign-in and two-step set-up are unchanged.
+- **Queues:** identity documents as `.m-person-row` rows, reports as `.m-request-row` rows (flag, member, reason,
+  date, status tag), payments as the demo's table in `.m-table-scroll` (member and reference, plan, amount, status,
+  "Review proof"); each in a `.m-surface` with its heading, its status filter and the demo's empty state.
+- **Review dialogs:** "Payment review / Review the proof." with reference, amount and plan, then the full payment;
+  "Identity review" and "Report review" dialogs hold the existing case and report panels. A payment decided in the
+  dialog stays open there after it leaves the list.
+- **Owner areas:** Plans, Payment details and Service are one surface each (`.m-staff-area`); their inner panels lose
+  the card frame, with a line between them.
+- **parity.css:** the counts' row for two or three counts; `.m-staff-area` in the frame rule. The divider between
+  panels in a wizard step, a dialog or an owner area never showed (the frame rule beat it), so it now has the same
+  weight. Wizard steps (Story, Photos, Privacy) and dialogs from ui-5 now show the thin line ui-5a meant. Table row
+  lines take the text colour as in the demo, which also changes the ui-8b payment history table.
+- **Tooling:** `scripts/ui-parity/staff-login.py` signs a sandbox staff account in through the real screens and turns
+  on two-step login with a code computed from the key the set-up screen shows (sandbox only). Sample data for the shots:
+  the owner enabled a test bank channel; Chathu started a Starter payment with a generated receipt and filed one report.
+- **Pixel diff against the demo's workspace:** 5.4% (1440 px), 14.9% (390 px): one sample payment against the demo's
+  six, three counts against four, the staff header (Log out) against the member menu.
+- **Checks:** typecheck clean; tests pass (API 168, website 5, text tools 9); `build:site` passes; in the sandbox as
+  owner and as backup reviewer at 390, 1024 and 1440 px: no sideways scroll, no console errors; the backup reviewer
+  sees only Verification and Reports and two counts; the review dialogs take focus, keep Tab inside and return focus
+  to "Review proof" on Escape.
 

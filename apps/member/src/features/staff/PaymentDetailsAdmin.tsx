@@ -8,7 +8,7 @@ import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import type { PaymentSettingView } from '@fh/shared';
 import { CheckboxField, TextAreaField } from '@/components/form/fields';
-import { Card, Loading, Notice, PageTitle } from '@/components/layout';
+import { Card, Loading, Notice } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { errorMessage, put } from '@/lib/api';
 import { formatWhen } from '@/lib/format';
@@ -28,10 +28,9 @@ const examples: Record<PaymentSettingView['channel'], string> = {
 export function PaymentDetailsAdmin() {
   const settings = useOwnerSettings();
   return (
-    <>
-      <PageTitle kicker="Owner" title="Payment details">
-        Members pay into these details. They see only the methods you switch on, with the amount and their own reference.
-      </PageTitle>
+    <div className="m-surface m-staff-area">
+      <h3>Payment details</h3>
+      <p>Members pay into these details. They see only the methods you switch on, with the amount and their own reference.</p>
       <div className="mb-6">
         <Notice tone="warning" title="Check every character">
           Members send real money to what you enter here. Every change is logged with the old and new details.
@@ -48,7 +47,7 @@ export function PaymentDetailsAdmin() {
           ))}
         </div>
       )}
-    </>
+    </div>
   );
 }
 

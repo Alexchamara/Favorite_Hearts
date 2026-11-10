@@ -101,19 +101,21 @@
    page. */
 /* `:not(#fh-parity)` doubles the id weight: product.css has rules like `#favorite-hearts-product :is(body,
    #favorite-hearts-product) .m-app[data-theme] .m-surface` (two ids) that set the card background with !important. */
-#favorite-hearts-product:not(#fh-parity) .m-app :is(.m-onboard-content, .m-dialog, .m-trust-section, .m-profile-section) .m-surface,
+#favorite-hearts-product:not(#fh-parity) .m-app :is(.m-onboard-content, .m-dialog, .m-trust-section, .m-profile-section, .m-staff-area) .m-surface,
 #favorite-hearts-product:not(#fh-parity) .m-app.m-dialog .m-surface {
   padding: 0 !important;
   border: 0 !important;
   background: none !important;
   box-shadow: none !important;
 }
-#favorite-hearts-product .m-app .m-onboard-content :is(.m-surface, .m-form-block) + .m-surface,
-#favorite-hearts-product .m-app.m-dialog .m-surface + .m-surface {
+/* `:not(#fh-parity)` here too, or the frame rule above wins and the separator never shows. */
+#favorite-hearts-product:not(#fh-parity) .m-app .m-onboard-content :is(.m-surface, .m-form-block) + .m-surface,
+#favorite-hearts-product:not(#fh-parity) .m-app .m-staff-area .m-surface + .m-surface,
+#favorite-hearts-product:not(#fh-parity) .m-app.m-dialog .m-surface + .m-surface {
   margin-top: 28px;
   padding-top: 28px !important;
   border-top: 1px solid var(--ui-line) !important;
-  border-radius: 0;
+  border-radius: 0 !important;
 }
 
 /* Targets of at least 44 px (Stage 5e): the demo's own-photo camera button is 34 px and some text actions lose the
@@ -139,4 +141,24 @@
   #favorite-hearts-product:not(#fh-parity) .m-app .m-plans:has(> .m-plan:nth-child(3)) {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+}
+
+/* Staff workspace (ui-9): the demo shows four counts; here the owner sees three (payment proofs, identity reviews, open
+   reports) and the backup reviewer two, since the demo's consent queue is not built (SCREEN-051). Wider than the demo's
+   600 px phone layout, the counts share the row. The owner's plans, payment details and service areas are one surface
+   each (.m-staff-area); their inner panels lose the card frame, as in the setup wizard. */
+@media (min-width: 601px) {
+  #favorite-hearts-product .m-review-stats:has(> :nth-child(3):last-child) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  #favorite-hearts-product .m-review-stats:has(> :nth-child(2):last-child) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Table rows (.m-table-scroll: the staff payment queue, the member payment history): the demo's row lines are its text
+   colour, because its Tailwind base leaves borders at currentColor; this app's base gives every border the theme's
+   line colour. */
+#favorite-hearts-product .m-app .m-table-scroll tr {
+  border-color: currentColor;
 }

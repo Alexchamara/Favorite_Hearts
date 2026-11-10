@@ -9,7 +9,7 @@ import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import type { OperationsFlagView } from '@fh/shared';
 import { TextField } from '@/components/form/fields';
-import { Card, Loading, Notice, PageTitle } from '@/components/layout';
+import { Card, Loading, Notice } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { errorMessage, put } from '@/lib/api';
 import { formatWhen } from '@/lib/format';
@@ -54,11 +54,9 @@ const wording: Record<OperationsFlagView['key'], Wording> = {
 export function ServiceAdmin() {
   const flags = useOwnerOperations();
   return (
-    <>
-      <PageTitle kicker="Owner" title="Service">
-        Pause new sign-ups or document submissions while the review queue catches up, and choose whether a document needs a
-        selfie.
-      </PageTitle>
+    <div className="m-surface m-staff-area">
+      <h3>Service</h3>
+      <p>Pause new sign-ups or document submissions while the review queue catches up, and choose whether a document needs a selfie.</p>
       {flags.isPending ? (
         <Loading />
       ) : flags.isError ? (
@@ -70,7 +68,7 @@ export function ServiceAdmin() {
           ))}
         </div>
       )}
-    </>
+    </div>
   );
 }
 
