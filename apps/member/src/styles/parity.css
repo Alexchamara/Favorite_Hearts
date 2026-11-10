@@ -132,3 +132,11 @@
   display: grid;
   gap: 24px;
 }
+
+/* Membership: three decided plans (Starter, Premium 3 months, Premium 6 months) sit in three columns on wide screens;
+   the demo's grid holds its two plans in two (decision B6). */
+@media (min-width: 1024px) {
+  #favorite-hearts-product:not(#fh-parity) .m-app .m-plans:has(> .m-plan:nth-child(3)) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

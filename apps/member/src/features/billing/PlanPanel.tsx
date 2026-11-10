@@ -6,7 +6,7 @@
  */
 import { useRef, useState, type FormEvent } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Copy } from 'lucide-react';
+import { ArrowRight, Check, Clock, Copy, Crown, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   MAX_PAYMENT_PROOFS,
@@ -19,9 +19,10 @@ import {
 } from '@fh/shared';
 import { Confirm } from '@/components/confirm';
 import { CheckboxField, SelectField } from '@/components/form/fields';
-import { Card, Loading, Notice } from '@/components/layout';
+import { Loading, Notice } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { errorMessage, post } from '@/lib/api';
 import { formatDay, formatMoney, formatWhen } from '@/lib/format';
 import { say, useI18n, type Translate } from '@/lib/i18n';
@@ -79,6 +80,11 @@ export function PlanSummary({ usage }: { usage: PlanUsage }) {
   );
 }
 
+/**
+ * The demo's Membership page (SCREEN-046): heading (with the plan in force), the demo's note, a banner while a receipt
+ * waits for review, the open payment's steps, the plan cards (.m-plans of .m-plan, the middle one featured), and the
+ * payment history table. The rules are the server's (sections 2, 3, 9).
+ */
 export function PlanPanel({ profile }: { profile: ProfileView }) {
   const billing = useBilling(profile.id);
   const usage = usePlan(profile.id);
@@ -89,35 +95,63 @@ export function PlanPanel({ profile }: { profile: ProfileView }) {
   const overview = billing.data;
   const open = overview.openPayment;
   const past = overview.history.filter((payment) => payment.id !== open?.id);
+  const active = Boolean(usage.data?.active);
+  const currency = (overview.residenceCountry ?? profile.fields.countryCode ?? 'LK') === 'LK' ? 'LKR' : 'USD';
   return (
-    <div className="flex flex-col gap-6">
-      {usage.data?.active && (
-        <Card>
-          <h2 className="font-serif text-2xl">{t('plan.yours')}</h2>
-          <div className="mt-2">
-            <PlanSummary usage={usage.data} />
-          </div>
-        </Card>
+    <>
+      <div className="m-page-heading">
+        <div>
+          <span className="m-kicker uppercase">{t('membership.kicker')}</span>
+          <h1>{t(active ? 'membership.titleActive' : 'membership.title')}</h1>
+          <p>{t(active ? 'membership.leadActive' : 'membership.lead')}</p>
+        </div>
+        {active && usage.data?.endsAt && (
+          <span className="m-tag">
+            <Crown size={14} aria-hidden="true" />
+            {t('plan.until', { plan: usage.data.planName ?? t('plan.active'), date: formatWhen(usage.data.endsAt) })}
+          </span>
+        )}
+      </div>
+      <div className="m-note">
+        <FileText size={20} aria-hidden="true" />
+        <span>{t('membership.note')}</span>
+      </div>
+      {open?.status === 'pending_review' && (
+        <div className="m-banner">
+          <Clock size={21} aria-hidden="true" />
+          <span>
+            <strong>{t('membership.pending.title')}</strong> {t('membership.pending.body')}
+          </span>
+          <button type="button" onClick={() => document.getElementById('open-payment')?.scrollIntoView({ behavior: 'smooth' })}>
+            {t('membership.pending.view')}
+          </button>
+        </div>
+      )}
+      {active && usage.data && (
+        <section className="m-surface" aria-labelledby="plan-yours">
+          <h3 id="plan-yours">{t('plan.yours')}</h3>
+          <PlanSummary usage={usage.data} />
+        </section>
       )}
       {open && <OpenPayment payment={open} />}
-      <section aria-labelledby="plans-heading" className="flex flex-col gap-4">
-        <div>
-          <h2 id="plans-heading" className="font-serif text-2xl">
-            {t('plan.plans')}
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">{t('plan.plans.intro')}</p>
-        </div>
+      <section aria-labelledby="plans-heading">
+        <h2 id="plans-heading" className="sr-only">
+          {t('plan.plans')}
+        </h2>
         {overview.options.length === 0 ? (
           <Notice>{t('plan.none')}</Notice>
         ) : (
-          overview.options.map((option) => (
-            <PlanChoice key={option.id} option={option} blockedByOpen={Boolean(open)} onChoose={() => setChoosing(option)} />
-          ))
+          <div className="m-plans">
+            {overview.options.map((option, index) => (
+              <PlanChoice key={option.id} option={option} index={index} currency={currency} blockedByOpen={Boolean(open)} onChoose={() => setChoosing(option)} />
+            ))}
+          </div>
         )}
+        <p className="m-small-print">{t('plan.plans.intro')}</p>
       </section>
-      {past.length > 0 && <PaymentHistory payments={past} />}
+      <PaymentHistory payments={past} />
       <CheckoutDialog option={choosing} overview={overview} profile={profile} onClose={() => setChoosing(null)} />
-    </div>
+    </>
   );
 }
 
@@ -140,29 +174,48 @@ function changeText(t: Translate, option: PlanOption): string {
   }
 }
 
-function PlanChoice({ option, blockedByOpen, onChoose }: { option: PlanOption; blockedByOpen: boolean; onChoose: () => void }) {
+/** The demo's plan card: tier kicker, name, what it is, the price, the term, the action, and what it unlocks. */
+function PlanChoice({ option, index, currency, blockedByOpen, onChoose }: { option: PlanOption; index: number; currency: string; blockedByOpen: boolean; onChoose: () => void }) {
   const { t } = useI18n();
   const { limitsText, termText } = useBillingLabels();
   const blocked = option.change.kind === 'blocked';
+  const featured = index === 1;
+  const price = option.prices.find((p) => p.currency === currency) ?? option.prices[0];
   const action = t(option.change.kind === 'upgrade' ? 'plan.action.upgrade' : option.change.kind === 'renewal' ? 'plan.action.renew' : 'plan.action.choose');
+  const tier = index === 0 ? 'membership.tier.1' : index === 1 ? 'membership.tier.2' : 'membership.tier.3';
   return (
-    <Card>
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h3 className="font-serif text-xl">{option.name}</h3>
-        <p className="text-sm font-semibold">{option.prices.map((price) => formatMoney(price.amountMinor, price.currency)).join(' · ')}</p>
-      </div>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {termText(option.termMonths)} · {limitsText(option)}
-      </p>
-      {option.description && <p className="mt-2 text-sm">{option.description}</p>}
-      <p className="mt-3 text-sm">{changeText(t, option)}</p>
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <Button className="h-11" disabled={blocked || blockedByOpen} onClick={onChoose}>
-          {action}
-        </Button>
-        {blockedByOpen && !blocked && <p className="text-xs text-muted-foreground">{t('plan.finishOpen')}</p>}
-      </div>
-    </Card>
+    // Decision B6: the demo's three card styles (keyed in its CSS by data-plan) follow the plans by level, not by name.
+    <article
+      data-plan={(['essential', 'matrimony', 'ownership-transfer'] as const)[Math.min(index, 2)]}
+      data-plan-id={option.id}
+      className={`m-plan ${featured ? 'featured' : ''}`}
+      aria-labelledby={`plan-${option.id}`}
+    >
+      {featured && <div className="m-plan-ribbon uppercase">{t('membership.ribbon')}</div>}
+      <span className="m-kicker uppercase">{t(tier)}</span>
+      <h2 id={`plan-${option.id}`}>{option.name}</h2>
+      <p>{option.description ?? changeText(t, option)}</p>
+      {price && (
+        <div className="m-price">
+          <small>{price.currency}</small>
+          {formatMoney(price.amountMinor, price.currency).replace(price.currency, '').trim()}
+        </div>
+      )}
+      <small>{t('membership.afterApproval', { term: termText(option.termMonths) })}</small>
+      <button type="button" className={`m-btn ${featured ? '' : 'm-secondary'} m-full`} disabled={blocked || blockedByOpen} onClick={onChoose}>
+        {action}
+        <ArrowRight size={15} aria-hidden="true" />
+      </button>
+      {blockedByOpen && !blocked && <small>{t('plan.finishOpen')}</small>}
+      <ul>
+        {[limitsText(option), t('membership.feature.interested'), t('membership.feature.accept'), t('membership.feature.contact')].map((feature) => (
+          <li key={feature}>
+            <Check size={16} aria-hidden="true" />
+            {feature}
+          </li>
+        ))}
+      </ul>
+    </article>
   );
 }
 
@@ -222,9 +275,21 @@ function CheckoutDialog({
       <DialogContent>
         <form onSubmit={submit} className="flex flex-col gap-4">
           <DialogHeader>
-            <DialogTitle>{t('checkout.title', { plan: option.name, term: termText(option.termMonths) })}</DialogTitle>
-            <DialogDescription>{changeText(t, option)}</DialogDescription>
+            <span className="m-kicker uppercase">{t('checkout.kicker')}</span>
+            <DialogTitle>{t('checkout.closer')}</DialogTitle>
+            <DialogDescription>
+              {t('checkout.title', { plan: option.name, term: termText(option.termMonths) })} {changeText(t, option)}
+            </DialogDescription>
           </DialogHeader>
+          {/* The demo's three steps: transfer, upload the receipt, our review. */}
+          <div className="m-payment-steps">
+            {(['1', '2', '3'] as const).map((n) => (
+              <span key={n}>
+                <b>{n}</b>
+                {t(`checkout.step.${n}`)}
+              </span>
+            ))}
+          </div>
           {start.isError && <Notice tone="error">{errorMessage(start.error)}</Notice>}
           <SelectField
             label={t('checkout.country')}
@@ -324,9 +389,9 @@ function OpenPayment({ payment }: { payment: PaymentView }) {
     }
   };
   return (
-    <Card className="border-[var(--ui-accent)]">
-      <p className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">{t('open.kicker')}</p>
-      <h2 className="mt-1 font-serif text-2xl">{t('open.title', { plan: payment.planName ?? t('open.plan'), amount })}</h2>
+    <section className="m-surface" id="open-payment" aria-labelledby="open-payment-title">
+      <span className="m-kicker uppercase">{t('open.kicker')}</span>
+      <h2 id="open-payment-title">{t('open.title', { plan: payment.planName ?? t('open.plan'), amount })}</h2>
       <p className="mt-1 text-sm text-muted-foreground">{paymentStatusLabels[payment.status]}</p>
 
       {payment.status === 'held' && payment.message && (
@@ -346,7 +411,10 @@ function OpenPayment({ payment }: { payment: PaymentView }) {
         <li>
           <p>{rich('open.send', { strong: (words) => <strong>{words}</strong> }, { amount, channel: channelPhrases[payment.channel] })}</p>
           {payment.instructions ? (
-            <pre className="mt-2 rounded-[10px] border bg-[var(--ui-soft)] p-3 font-sans text-sm whitespace-pre-wrap">{payment.instructions}</pre>
+            // The owner's own payment instructions, shown as written, in the demo's bank-details box.
+            <div className="m-bank-details mt-2">
+              <pre className="font-sans text-sm whitespace-pre-wrap">{payment.instructions}</pre>
+            </div>
           ) : (
             <p className="mt-2 text-muted-foreground">{t('open.detailsGone')}</p>
           )}
@@ -387,7 +455,7 @@ function OpenPayment({ payment }: { payment: PaymentView }) {
           </Confirm>
         </div>
       )}
-    </Card>
+    </section>
   );
 }
 
@@ -443,35 +511,53 @@ function ReceiptUpload({ payment }: { payment: PaymentView }) {
   );
 }
 
+/** The demo's payment history (.m-payment-history): a table that scrolls sideways on a phone, or the empty state. */
 function PaymentHistory({ payments }: { payments: PaymentView[] }) {
-  const { t, rich } = useI18n();
+  const { t } = useI18n();
   const { paymentStatusLabels, refundReasonLabels } = useBillingLabels();
   return (
-    <section aria-labelledby="history-heading">
-      <h2 id="history-heading" className="font-serif text-2xl">
-        {t('history.title')}
-      </h2>
-      <ul className="mt-3 flex flex-col gap-2">
-        {payments.map((payment) => (
-          <li key={payment.id} className="rounded-[12px] border bg-card p-4 text-sm">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-4">
-              <p className="font-semibold">
-                {payment.planName ?? t('open.plan')} · {formatMoney(payment.amountMinor, payment.currency)}
-              </p>
-              <p className="text-muted-foreground">{formatDay(payment.createdAt)}</p>
-            </div>
-            <p className="mt-1 text-muted-foreground">
-              {rich(
-                'history.line',
-                { mono: (words) => <span className="font-mono">{words}</span> },
-                { reference: payment.reference, status: paymentStatusLabels[payment.status] },
-              )}
-              {payment.refundReason && t('history.refund', { reason: refundReasonLabels[payment.refundReason].toLowerCase() })}
-            </p>
-            {payment.message && !OPEN.includes(payment.status) && <p className="mt-1">{payment.message}</p>}
-          </li>
-        ))}
-      </ul>
+    <section className="m-surface m-payment-history" aria-labelledby="history-heading">
+      <h3 id="history-heading">{t('history.title')}</h3>
+      <p>{t('history.lead')}</p>
+      {payments.length ? (
+        <div className="m-table-scroll">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t('history.col.date')}</TableHead>
+                <TableHead>{t('history.col.plan')}</TableHead>
+                <TableHead>{t('history.col.amount')}</TableHead>
+                <TableHead>{t('history.col.status')}</TableHead>
+                <TableHead>{t('history.col.reference')}</TableHead>
+                <TableHead>{t('history.col.note')}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {payments.map((payment) => (
+                <TableRow key={payment.id}>
+                  <TableCell>{formatDay(payment.createdAt)}</TableCell>
+                  <TableCell>{payment.planName ?? t('open.plan')}</TableCell>
+                  <TableCell>{formatMoney(payment.amountMinor, payment.currency)}</TableCell>
+                  <TableCell>
+                    <span className="m-tag">{paymentStatusLabels[payment.status]}</span>
+                  </TableCell>
+                  <TableCell className="font-mono">{payment.reference}</TableCell>
+                  <TableCell>
+                    {payment.message && !OPEN.includes(payment.status) ? payment.message : null}
+                    {payment.refundReason && t('history.refund', { reason: refundReasonLabels[payment.refundReason].toLowerCase() })}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      ) : (
+        <div className="m-empty">
+          <FileText size={28} aria-hidden="true" />
+          <h3>{t('history.empty.title')}</h3>
+          <p>{t('history.empty.body')}</p>
+        </div>
+      )}
     </section>
   );
 }

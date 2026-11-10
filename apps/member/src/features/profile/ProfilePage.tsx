@@ -42,10 +42,13 @@ export default function ProfilePage() {
     );
   return (
     <AppShell width="wide">
-      {/* Not in the demo (one profile per account there): back to this account's profiles. */}
-      <Link to="/" className="m-text">
-        {t('verify.back')}
-      </Link>
+      {/* Not in the demo (one profile per account there): back to this account's profiles. The Membership page has its
+          own way back, to this profile. */}
+      {section !== 'plan' && (
+        <Link to="/" className="m-text">
+          {t('verify.back')}
+        </Link>
+      )}
       <div className="mt-5">
         {profile.isPending ? (
           <Loading />
@@ -205,6 +208,17 @@ function ProfileScreen({ profile }: { profile: ProfileView }) {
     plan: t('profile.tab.plan'),
     people: peopleLabel,
   };
+  // The plan is the demo's Membership page, on its own (SCREEN-046).
+  if (current === 'plan')
+    return (
+      <>
+        <button type="button" className="m-text" onClick={() => goTo('overview')}>
+          <ArrowLeft size={16} aria-hidden="true" />
+          {t('profile.back')}
+        </button>
+        <PlanPanel profile={profile} />
+      </>
+    );
   if (current === 'overview' && !setup) return <ProfileDashboard profile={profile} peopleLabel={showPeople ? peopleLabel : null} onOpen={goTo} />;
   return (
     <>
@@ -216,7 +230,7 @@ function ProfileScreen({ profile }: { profile: ProfileView }) {
           <ProfileSteps profile={profile} open={current} onOpen={goTo} />
           {/* The open section; it takes focus when opened, so keyboard and screen reader users land in it. */}
           <section id="profile-section" tabIndex={-1} aria-label={names[current]} className="flex flex-col gap-6 rounded-[var(--ui-panel-radius)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]">
-            {(current === 'plan' || current === 'people') && (
+            {current === 'people' && (
               <button type="button" className="inline-flex min-h-11 items-center gap-1.5 self-start text-sm font-semibold text-[var(--ui-purple)] underline-offset-4 hover:underline" onClick={() => goTo('overview')}>
                 <ArrowLeft className="size-4" aria-hidden="true" />
                 {t('profile.back')}
@@ -242,7 +256,6 @@ function ProfileScreen({ profile }: { profile: ProfileView }) {
                 <NextStep profile={profile} after="verify" onOpen={goTo} />
               </>
             )}
-            {current === 'plan' && <PlanPanel profile={profile} />}
             {current === 'people' && <PeoplePanel profile={profile} />}
           </section>
         </div>

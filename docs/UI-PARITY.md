@@ -104,6 +104,9 @@ keys get an English value and a blank Sinhala value.
 | Member: Privacy & safety | The visibility switch pauses and republishes (section 7); "found a match", delete-profile and account panels (download, delete) under "Close your profile or account"; no horoscope switch (out of scope) and no "Your reports" list (no endpoint lists a member's own reports; not built) | Sections 7, 9; OWNER-DECISIONS §1 |
 | Member: Contact us | Only real channels (WhatsApp, call, email; social pages once their addresses are set); no "Coming soon" cards; the note says staff never ask for a password or code | X06; site.config.json |
 | Member: More sheet | The demo's rows Trust & access, Privacy & safety, Contact us, then Help, Terms, Privacy (website pages); the contact numbers moved to Contact us | Demo layout |
+| Member: Membership | The decided plans (Starter, Premium 3 months, Premium 6 months) with their prices per residence (LKR or USD), terms and request limits, in the demo's three card styles by plan level (Starter green, Premium 3 months gold, Premium 6 months lavender) and three columns on wide screens; no free tier card, boost or ownership-fee card; "Your plan" shows what is left of today's and this month's requests; the actions follow the decided rules (renew in the last 7 days, upgrade, no downgrade) | OWNER-DECISIONS §2, §3, §9; decision B6 |
+| Member: checkout | The demo's kicker, "One step closer." and three steps, then this app's real form: country of residence (currency), payment channel set up by the owner, refund terms and the lost-days confirmation for an upgrade; the owner's own payment instructions and a unique reference after it starts; receipts uploaded on the page, not in the dialog | Section 9; RULE-AUDIT P-items |
+| Member: payment history | The demo's table, with the payment reference as an extra column | Section 9 |
 
 More rows are added as each phase finds them.
 
@@ -425,4 +428,24 @@ SCREEN-043, 047, 048. SCREEN-044 (the invited candidate's view) keeps its existi
 - **Checks:** typecheck clean; tests pass (API 168, website 5, text tools 9); `build:site` passes; in the sandbox:
   pause switch hides and republishes Bina's profile, the More sheet lists the new rows, Connected keeps five tabs;
   no console errors; no sideways scroll at 390 or 1440 px.
+
+### ui-8b Membership, checkout and payment history (10 Nov 2026)
+
+SCREEN-046, 064.
+
+- **Membership page** (`features/billing/PlanPanel.tsx`, `/profiles/:id/plan`, now a page of its own with a way back to
+  the profile): the demo's heading ("Your membership is active." or "Unlock more connections.", the plan in force as a
+  tag), its note, the pending-review banner (`.m-banner`), the plan in force with its request counts, the open
+  payment's steps (`.m-surface` with the owner's instructions in `.m-bank-details`), the plan cards (`.m-plans` of
+  `.m-plan`, the middle one featured), and the payment history (`.m-payment-history` with the table in
+  `.m-table-scroll`, or the demo's empty state).
+- **Checkout dialog** (SCREEN-064): the demo's kicker, title and `.m-payment-steps` above the existing form.
+- **Texts:** 31 new; three ("See who is interested", "Accept requests", "Contact details after you both accept") reuse
+  the website pricing page's approved Sinhala, so they are not on the waiting list.
+- **Pixel diff against the demo's Membership (Bina, Premium 3 months active):** 19.3% (1440 px), 30.4% (390): the app
+  has three plans and the request-count panel; the demo has two plans and a boost card.
+- **Checks:** typecheck clean; tests pass (API 168, website 5, text tools 9); `build:site` passes; in the sandbox:
+  the page shows the active plan and three cards with the decided actions (only the upgrade is open while Premium 3
+  months runs), the checkout opens with the demo's steps and the lost-days warning; no console errors; no sideways
+  scroll at 390 or 1440 px.
 
