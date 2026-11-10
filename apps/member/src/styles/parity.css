@@ -162,3 +162,62 @@
 #favorite-hearts-product .m-app .m-table-scroll tr {
   border-color: currentColor;
 }
+
+/* Toasts (components/toast-host.tsx): the one Toaster renders inside the page's .m-app, as in the demo, through a
+   holder element that adds no box of its own. */
+#favorite-hearts-product .m-app > .m-toast-host {
+  display: contents;
+}
+
+/* Text contrast (WCAG 1.4.3, ui-10). The demo's product.css gives some text and panels fixed light-theme colours, and
+   its later design-system layer moved only part of the page onto theme tokens: the side card became a light surface
+   but kept its cream link ("Connected" is near-invisible in the demo), and in dark mode empty states, trust steps,
+   review counts and value chips stay light under light text. These rules use the demo's own theme tokens
+   (styles/index.css), so no colour is new; each failing pair was measured in both apps (docs/UI-PARITY.md, ui-10). */
+#favorite-hearts-product:not(#fh-parity) .m-app :is(
+    .m-card-title button span, .m-progress-label > span, .m-safety-list, .m-table-scroll th, .m-review-stats span,
+    .m-discovery-summary, .m-footer, .m-step-head, .m-step-labels, .m-save-draft) {
+  color: var(--ui-muted);
+}
+#favorite-hearts-product:not(#fh-parity) .m-app :is(.m-intention-card em, .m-onboard-aside h1 em) {
+  color: var(--ui-copper);
+}
+#favorite-hearts-product:not(#fh-parity) .m-app .m-intention-card button {
+  color: var(--ui-text);
+  border-top-color: var(--ui-line);
+}
+#favorite-hearts-product:not(#fh-parity) .m-app .m-value-picker button:not(.selected) {
+  color: var(--ui-muted);
+}
+#favorite-hearts-product:not(#fh-parity) .m-app[data-theme='dark'] :is(.m-empty, .m-trust-steps > li) {
+  background: var(--ui-bg);
+  border-color: var(--ui-line);
+}
+#favorite-hearts-product:not(#fh-parity) .m-app[data-theme='dark'] :is(.m-review-stats > div, .m-value-picker button:not(.selected)) {
+  background: var(--ui-surface);
+  border-color: var(--ui-line);
+}
+#favorite-hearts-product:not(#fh-parity) .m-app[data-theme='dark'] :is(
+    .m-rail-links button > span, .m-banner button, .m-trust-steps strong) {
+  color: var(--ui-text);
+}
+/* The sort button's label keeps product.css's `.m-choice` ink (#40342a, !important) in dark mode. */
+#favorite-hearts-product:not(#fh-parity) .m-app[data-theme='dark'] .m-discover-toolbar > .m-choice span {
+  color: var(--ui-text) !important;
+}
+#favorite-hearts-product:not(#fh-parity) .m-app[data-theme='dark'] .m-common {
+  color: var(--ui-copper);
+}
+
+/* First-load and error page (.m-loading, components/layout.tsx AppLoading): the demo's short loading words fit any
+   width; the error page's longer ones keep a 16 px side gutter and stay centred like them. */
+#favorite-hearts-product .m-app.m-loading {
+  padding-inline: 16px;
+  text-align: center;
+}
+/* Its brand link and text link are at least 44 px tall, as every control here (Stage 5e). */
+#favorite-hearts-product .m-app.m-loading :is(.m-brand, .m-text) {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}

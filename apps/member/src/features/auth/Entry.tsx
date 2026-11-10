@@ -7,10 +7,11 @@
  * language on screen, and changes nothing about billing or a profile. Someone who already chose on the website goes
  * straight to sign-in.
  */
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Moon, Sun } from 'lucide-react';
 import { LANGUAGE_NAMES } from '@fh/shared';
 import { SupportFooter } from '@/components/layout';
+import { useToastRoot } from '@/components/toast-host';
 import { useCountries } from '@/features/profile/options';
 import { useI18n } from '@/lib/i18n';
 import { useTheme } from '@/lib/theme';
@@ -46,8 +47,10 @@ export function EntryShell({ children, aside = 'full' }: { children: ReactNode; 
   const { theme, toggleTheme } = useTheme();
   const { t, language, setLanguage } = useI18n();
   const other = language === 'en' ? 'si' : 'en';
+  const root = useRef<HTMLDivElement>(null);
+  useToastRoot(root);
   return (
-    <div className="m-app ma-entry" data-theme={theme}>
+    <div className="m-app ma-entry" data-theme={theme} ref={root}>
       <a href="#main" className="m-skip-link">
         {t('layout.skip')}
       </a>

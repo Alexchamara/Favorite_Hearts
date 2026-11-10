@@ -6,7 +6,7 @@ import { ArrowUpRight, Heart, Plus, ShieldCheck } from 'lucide-react';
 import { Link, Navigate, useNavigate } from 'react-router';
 import { DEFAULT_MANAGER_CAPACITY, type ProfileView } from '@fh/shared';
 import { TrustBadges } from '@/components/badges';
-import { AppShell, Card, kickerClass, Loading, Notice, PageTitle } from '@/components/layout';
+import { AppLoading, AppShell, Card, kickerClass, Loading, Notice, PageTitle } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { errorMessage } from '@/lib/api';
 import { useMe, useMyCases, useProfiles } from '@/lib/queries';
@@ -20,7 +20,7 @@ export default function Home() {
   const me = useMe();
   const { t } = useI18n();
   const [localeChosen, chooseLocale] = useLocaleChosen();
-  if (me.isPending) return <AppShell><Loading /></AppShell>;
+  if (me.isPending) return <AppLoading />;
   if (me.data?.staffRole) return <Navigate to="/staff" replace />;
   // Signed out and naming the account: the demo's own entry page. Signed in: the profiles dashboard in the app frame.
   if (!me.data && !localeChosen)

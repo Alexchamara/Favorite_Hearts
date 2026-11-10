@@ -113,6 +113,9 @@ keys get an English value and a blank Sinhala value.
 | Staff: queues | Each queue has its status filter (Waiting / Accepted / Not accepted; Open / Upheld / Dismissed; the payment filter and reference search) inside the demo's surface; identity cases and reports open in a dialog with the documents, content and decision forms the rules require, where the demo approves from the row | Section 7, 10 |
 | Staff: payment review | The demo's "Review the proof." dialog holds the full payment: details, residence check, receipts (each look logged), approve with the statement line, hold or reject, refund, settlement correction, owner note, profile plan and history | Section 9 |
 | Tables | Row lines in the text colour, as in the demo (its Tailwind base leaves borders at currentColor) | Demo CSS |
+| Text contrast, both themes | Text the demo leaves below WCAG AA takes the demo's own theme tokens: in both themes the side card's link ("Connected", cream on a cream card in the demo) and its italic line, the profile age, "Profile readiness", the safety list, table headings, the review counts' labels and the setup wizard's step labels, step count and "Save and finish later"; in dark mode the empty states, the trust steps, the review counts and value chips get the dark surface instead of staying light, and the sort button, the right rail's links, banner buttons, "Private until mutual acceptance", the sort summary and the footer get the dark text colours | WCAG 2.2 AA (1.4.3); measured in both apps (ui-10) |
+| Toasts | Inside the page's `.m-app`, as in the demo, through one Toaster that stays mounted, so a toast shown just before a page change stays on screen | Demo layout; ui-10 |
+| First-load and error pages | The demo's first-load page (`.m-loading`: brand, heart, "Your next chapter.") while the account loads; a screen that fails to render shows the same frame with its message, Reload and a link home, instead of a bare notice outside `.m-app`; moving between pages keeps the frame with "Loading…" | Demo layout; ui-10 |
 
 More rows are added as each phase finds them.
 
@@ -120,8 +123,11 @@ More rows are added as each phase finds them.
 
 Tools in `scripts/ui-parity/` (development only, Python + Playwright + Pillow, not part of any build):
 
-- `capture.py`: reference and repo screenshots at 320, 390, 768, 1024 and 1440 px, light theme, reduced motion,
-  English.
+- `capture.py`: reference and repo screenshots at 320, 390, 768, 1024 and 1440 px, reduced motion, English; light
+  theme unless `--theme dark` (both apps keep the theme as `fh-matrimony-theme`). The repo member set covers the
+  dashboard, Discover, Interests, Connected, Shortlist, profile, Trust, Membership, Privacy, Contact and Invite with
+  `--state`, and the staff workspace with `--staff-state`; `--skip-entry` leaves out the signed-out entry screens.
+- `staff-login.py`: signs a sandbox staff account in (and turns on two-step login) for staff screenshots.
 - `compare.py`: side-by-side sheets (reference | repo | amplified difference) and a `report.md` sorted worst first.
 - `sandbox-login.py`: signs a synthetic sandbox member in for signed-in member screenshots.
 - `capture_states.py`: public interaction states (welcome dialog, menu, newsroom and help filters).
@@ -485,3 +491,37 @@ SCREEN-049, 050, 052, 065 (051, candidate consent, is not built).
   sees only Verification and Reports and two counts; the review dialogs take focus, keep Tab inside and return focus
   to "Review proof" on Escape.
 
+### ui-10 states and themes (10 Nov 2026)
+
+- **Toasts** (`components/toast-host.tsx`): the one Toaster renders into a holder that each page-level `.m-app`
+  (`AppShell`, `EntryShell`, the first-load page) takes in while it is on screen, first child as in the demo
+  (`display: contents`, no box). Before, toasts sat outside `.m-app`: in dark mode they stayed light, and their corners
+  were 10 px instead of the demo's 12.8 px. Measured against the demo in both themes at 390 and 1440 px: same font,
+  size, colours, border, radius, shadow, padding and position. A toast shown just before a page change is still there
+  on the next page.
+- **Contrast** (`styles/parity.css`): every visible text on 11 member screens and the 6 staff areas, at 390 and
+  1440 px in both themes, plus the More sheet, filters, member profile, report, delete-account, payment and report
+  review dialogs, was measured against its background (WCAG AA: 4.5:1, 3:1 for large text). The same scan on the demo
+  finds the same failures, so all of them come from the demo's stylesheets: product.css gives these parts fixed
+  light-theme colours, and the later design-system layer moved only part of the page onto theme tokens. Before (1440 px):
+  24 failing elements in dark mode (lowest 1.0:1: the trust steps' light panels under light text), 11 in light mode
+  (lowest 1.29:1: the side card's "Connected" link). After: none, in either theme, at either width. The fixes use the demo's
+  own theme tokens; no colour is new. Left as they are: the brand's decorative dot (part of the logotype).
+- **Empty states:** the locked Received tab (no plan yet, no anonymous previews) now shows the demo's empty state
+  ("A little room for possibility.") instead of a plain "No requests yet." line; that text is removed.
+- **First-load and error pages** (`AppLoading` in `components/layout.tsx`, `components/error-boundary.tsx`): the demo's
+  `.m-loading` page while the account loads; the error page uses the same frame with `role="alert"`, the Reload button
+  and the link home (44 px targets, 16 px side gutter). Two new texts (`appLoading.title`, `appLoading.body`, the demo's
+  words) wait for Sinhala (T-1 list, `new`).
+- **Focus, motion, safe areas:** tabbing through Discover, Interests, Privacy and Contact shows a visible focus
+  indicator on every stop in both themes (14 distinct styles, none below 3:1); with reduced motion, toasts and sheets
+  appear without transitions (0.4–0.5 s otherwise); the viewport tag matches the demo's (no `viewport-fit=cover`), so
+  browsers keep the page inside the safe areas and the dock's `env(safe-area-inset-bottom)` padding is harmless.
+- **Dark-theme pixel diff against the demo** (390 / 1440 px): Contact 8.9 / 9.2%, Privacy 13.3 / 5.4%, Profile
+  18.3 / 10.2%, staff 29.9 / 13.9%, Interests 33.3 / 23.0%, Shortlist 33.4 / 27.1%, Trust 34.4 / 31.9%. Most of the
+  higher numbers are the panels that are now dark where the demo leaves them light (the intended difference above);
+  the rest is each screen's own layout differences, as in light mode.
+- **Tooling:** `capture.py --theme dark`, the screens added since ui-3, and `--staff-state` / `--skip-entry`.
+- **Checks:** typecheck clean; tests pass (API 168, website 5, text tools 9); `build:site` passes; signed in as a member,
+  as the owner and signed out at 390, 1024 and 1440 px in dark mode: no sideways scroll, no console errors (the signed-out
+  account check answers 401, as designed), one toast holder on every page.

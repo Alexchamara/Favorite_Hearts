@@ -9,6 +9,10 @@ playwright install chromium) and is never part of a build.
   python scripts/ui-parity/capture.py --target prod --set public --out shots/prod
   python scripts/ui-parity/capture.py --target ref  --set member --out shots/ref
   python scripts/ui-parity/capture.py --target prod --set member --out shots/prod --state member-state.json
+  python scripts/ui-parity/capture.py --target prod --set member --out shots/prod-dark --theme dark --state member-state.json --staff-state owner-state.json
+
+--theme sets the app's own theme choice (the demo and the member app both keep it as fh-matrimony-theme in local
+storage); --scheme only sets the browser's colour preference, which neither app follows.
 
 Servers (.claude/launch.json names): reference-demo (:8080, reference/Favorite-Hearts-Integrated/dist),
 website-dev (:4321), walkthrough-api (:8798) + walkthrough-member (:5184, sandbox data only).
@@ -97,6 +101,7 @@ def new_page(browser, width, args, state=None):
         reduced_motion='reduce', locale='en-US', color_scheme=args.scheme,
         storage_state=state, service_workers='block',
     )
+    context.add_init_script(f"try{{localStorage.setItem('fh-matrimony-theme','{args.theme}')}}catch(e){{}}")
     if args.inter:
         css = inter_css(args.inter)
         context.add_init_script(
@@ -189,41 +194,67 @@ def prod_member(browser, args, out, rows):
     prefs = "localStorage.setItem('fh-visitor-preferences', JSON.stringify({language: 'en', country: 'LK'}))"
     signed_in = [
         ('m-dashboard', ''), ('m-discover', 'browse'), ('m-interests', 'requests'),
-        ('m-connected', 'connections'), ('m-saved', 'shortlist'), ('m-trust', 'verify'), ('m-invite', 'invite'),
+        ('m-connected', 'connections'), ('m-saved', 'shortlist'), ('m-profile', 'profiles/{pid}'),
+        ('m-trust', 'verify'), ('m-membership', 'profiles/{pid}/plan'), ('m-privacy', 'privacy'),
+        ('m-contact', 'contact'), ('m-invite', 'invite'),
     ]
     for width in args.widths:
-        # First visit: the language and country step.
-        context, page = new_page(browser, width, args)
-        page.goto(base, wait_until='domcontentloaded')
-        shoot(page, out, 'm-entry-locale', width, rows)
-        context.close()
-        # Returning visitor: sign-in, then the code step (the sandbox prints the code; nothing is sent).
-        context, page = new_page(browser, width, args)
-        context.add_init_script(prefs)
-        page.goto(base, wait_until='domcontentloaded')
-        shoot(page, out, 'm-entry-signin', width, rows)
-        try:
-            page.get_by_label(re.compile('^Email address')).fill(f'capture-{width}-{int(__import__("time").time())}@sandbox.test')
-            page.wait_for_function("!document.querySelector('.ma-panel form button[type=submit]').disabled", timeout=15000)
-            page.click('.ma-panel form button[type=submit]')
-            page.wait_for_selector('input[autocomplete=one-time-code]', timeout=15000)
-            page.locator('input[autocomplete=one-time-code]').blur()
-            shoot(page, out, 'm-entry-code', width, rows)
-        except Exception as exc:
-            rows.append({'name': 'm-entry-code', 'width': width, 'error': str(exc)})
-            print('ERROR m-entry-code', width, str(exc).splitlines()[0])
-        context.close()
-        if not args.state:
-            continue
-        context, page = new_page(browser, width, args, state=args.state)
-        for name, path in signed_in:
+        if not args.skip_entry:
+            entry_shots(browser, base, prefs, width, args, out, rows)
+        if args.state:
+            signed_in_shots(browser, base, signed_in, width, args, out, rows)
+        if args.staff_state:
+            context, page = new_page(browser, width, args, state=args.staff_state)
             try:
-                page.goto(base + path, wait_until='domcontentloaded')
-                shoot(page, out, name, width, rows)
+                page.goto(base + 'staff', wait_until='domcontentloaded')
+                page.wait_for_selector('.m-review-stats', timeout=15000)
+                shoot(page, out, 'm-admin', width, rows)
             except Exception as exc:
-                rows.append({'name': name, 'width': width, 'error': str(exc)})
-                print('ERROR', name, width, str(exc).splitlines()[0])
-        context.close()
+                rows.append({'name': 'm-admin', 'width': width, 'error': str(exc)})
+                print('ERROR m-admin', width, str(exc).splitlines()[0])
+            context.close()
+
+
+def entry_shots(browser, base, prefs, width, args, out, rows):
+    # First visit: the language and country step.
+    context, page = new_page(browser, width, args)
+    page.goto(base, wait_until='domcontentloaded')
+    shoot(page, out, 'm-entry-locale', width, rows)
+    context.close()
+    # Returning visitor: sign-in, then the code step (the sandbox prints the code; nothing is sent).
+    context, page = new_page(browser, width, args)
+    context.add_init_script(prefs)
+    page.goto(base, wait_until='domcontentloaded')
+    shoot(page, out, 'm-entry-signin', width, rows)
+    try:
+        page.get_by_label(re.compile('^Email address')).fill(f'capture-{width}-{int(__import__("time").time())}@sandbox.test')
+        page.wait_for_function("!document.querySelector('.ma-panel form button[type=submit]').disabled", timeout=15000)
+        page.click('.ma-panel form button[type=submit]')
+        page.wait_for_selector('input[autocomplete=one-time-code]', timeout=15000)
+        page.locator('input[autocomplete=one-time-code]').blur()
+        shoot(page, out, 'm-entry-code', width, rows)
+    except Exception as exc:
+        rows.append({'name': 'm-entry-code', 'width': width, 'error': str(exc)})
+        print('ERROR m-entry-code', width, str(exc).splitlines()[0])
+    context.close()
+
+
+def signed_in_shots(browser, base, signed_in, width, args, out, rows):
+    context, page = new_page(browser, width, args, state=args.state)
+    # The member's own profile, from the first profile link on the dashboard.
+    page.goto(base, wait_until='domcontentloaded')
+    page.wait_for_selector('a[href*="/profiles/"]:not([href$="/new"])', timeout=15000)
+    pid = page.evaluate(
+        "[...document.querySelectorAll('a[href*=\"/profiles/\"]')].map(a => a.getAttribute('href'))"
+        ".find(h => !h.endsWith('/new')).split('/profiles/')[1].split('/')[0]")
+    for name, path in signed_in:
+        try:
+            page.goto(base + path.format(pid=pid), wait_until='domcontentloaded')
+            shoot(page, out, name, width, rows)
+        except Exception as exc:
+            rows.append({'name': name, 'width': width, 'error': str(exc)})
+            print('ERROR', name, width, str(exc).splitlines()[0])
+    context.close()
 
 
 def main():
@@ -236,6 +267,9 @@ def main():
     p.add_argument('--scheme', choices=['light', 'dark'], default='light')
     p.add_argument('--inter', help='folder holding Inter-*.woff2 (member set)')
     p.add_argument('--state', help='Playwright storage state of a signed-in sandbox member (prod member set)')
+    p.add_argument('--staff-state', help='storage state of a signed-in sandbox staff account (staff-login.py)')
+    p.add_argument('--theme', choices=['light', 'dark'], default='light', help="the app's own theme choice")
+    p.add_argument('--skip-entry', action='store_true', help='prod member set: skip the signed-out entry screens')
     args = p.parse_args()
     if args.set_ == 'public':
         args.inter = None

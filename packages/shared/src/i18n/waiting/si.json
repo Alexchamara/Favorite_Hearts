@@ -1,6 +1,8 @@
 {
   "about": "Texts waiting for a Sinhala translator (owner decision T-1, 9 Nov 2026). \"new\": no Sinhala yet; members see the English. \"englishChanged\": the English changed (value: the English before); the earlier Sinhala is shown until it is reviewed again. npm run text:import removes a text once its Sinhala is imported or approved.",
   "new": [
+    "appLoading.body",
+    "appLoading.title",
     "browse.empty.body",
     "browse.empty.reset",
     "browse.empty.title",

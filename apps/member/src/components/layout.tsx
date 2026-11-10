@@ -5,7 +5,7 @@
  * Their look comes from the demo's stylesheets (styles/source/). Signed-out visitors and staff get the header without
  * the dock or the More sheet.
  */
-import { useCallback, type ReactNode } from 'react';
+import { useCallback, useRef, type ReactNode } from 'react';
 import {
   ArrowUpRight,
   Bookmark,
@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { LANGUAGE_NAMES } from '@fh/shared';
+import { useToastRoot } from '@/components/toast-host';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { put } from '@/lib/api';
 import { authClient } from '@/lib/auth-client';
@@ -74,8 +75,10 @@ export function AppShell({ children, home = '/', width = 'narrow', onboarding = 
     await resetSession();
     navigate(home);
   };
+  const root = useRef<HTMLDivElement>(null);
+  useToastRoot(root);
   return (
-    <div className="m-app" data-theme={theme}>
+    <div className="m-app" data-theme={theme} ref={root}>
       <a href="#main" className="m-skip-link">
         {t('layout.skip')}
       </a>
@@ -353,6 +356,29 @@ export function Notice({ tone = 'info', title, children }: { tone?: 'info' | 'wa
         {title && <strong>{title}</strong>}
         {children && (title ? <div className="mt-1">{children}</div> : children)}
       </div>
+    </div>
+  );
+}
+
+/**
+ * The demo's first-load page (.m-app.m-loading in product/preview/matrimony.tsx): the brand, a heart and "Your next
+ * chapter." while the account loads. `alert` turns it into the error page (ErrorBoundary) with its own words and
+ * actions, as the demo shows its load error there.
+ */
+export function AppLoading({ title, alert, children }: { title?: string; alert?: string; children?: ReactNode }) {
+  const { theme } = useTheme();
+  const { t, language } = useI18n();
+  const root = useRef<HTMLDivElement>(null);
+  useToastRoot(root);
+  return (
+    <div className="m-app m-loading" data-theme={theme} ref={root}>
+      <Brand href={language === 'si' ? '/si/' : '/'} />
+      <div className="m-loading-heart" aria-hidden="true">
+        <Heart size={36} />
+      </div>
+      <h1>{title ?? t('appLoading.title')}</h1>
+      {alert ? <p role="alert">{alert}</p> : <p role="status">{t('appLoading.body')}</p>}
+      {children}
     </div>
   );
 }

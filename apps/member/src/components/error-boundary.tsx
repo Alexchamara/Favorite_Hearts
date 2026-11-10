@@ -1,5 +1,5 @@
 import { Component, type ReactNode } from 'react';
-import { Notice } from '@/components/layout';
+import { AppLoading } from '@/components/layout';
 import { say } from '@/lib/i18n';
 
 /**
@@ -15,20 +15,16 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: 
 
   render() {
     if (!this.state.failed) return this.props.children;
+    // The demo's load-error page (.m-app.m-loading with its alert and a button), not a bare notice outside .m-app.
     return (
-      <main className="mx-auto w-full max-w-3xl px-4 py-12">
-        <Notice tone="error" title={say('errorPage.title')}>
-          <p>{say('errorPage.body')}</p>
-          <p className="mt-3 flex flex-wrap gap-4">
-            <button type="button" className="underline underline-offset-4" onClick={() => window.location.reload()}>
-              {say('errorPage.reload')}
-            </button>
-            <a className="underline underline-offset-4" href="/app/">
-              {say('errorPage.home')}
-            </a>
-          </p>
-        </Notice>
-      </main>
+      <AppLoading title={say('errorPage.title')} alert={say('errorPage.body')}>
+        <button type="button" className="m-btn" onClick={() => window.location.reload()}>
+          {say('errorPage.reload')}
+        </button>
+        <a className="m-text" href="/app/">
+          {say('errorPage.home')}
+        </a>
+      </AppLoading>
     );
   }
 }

@@ -1,6 +1,8 @@
 {
   "common.somethingWrong": "යම් දෝෂයක් සිදු විය. කරුණාකර නැවත උත්සාහ කරන්න.",
   "common.loading": "පූරණය වෙමින්…",
+  "appLoading.title": "",
+  "appLoading.body": "",
   "common.cancel": "අවලංගු කරන්න",
   "common.close": "වසන්න",
   "layout.skip": "ප්‍රධාන අන්තර්ගතයට යන්න",
@@ -678,7 +680,6 @@
   "requests.received": "ලැබුණු",
   "requests.planShows.title": "ඒවා එවූයේ කවුදැයි සැලැස්මක් මගින් පෙන්වයි",
   "requests.planShows.body": "සැලැස්මක් සමඟ උනන්දුවක් දක්වන්නේ කවුදැයි ඔබට දැකිය හැකි අතර පිළිගත හැක. සැලසුම් සහ මිල ගණන් ඔබේ පැතිකඩේ සැලැස්ම කොටසේ ඇත.",
-  "requests.none": "තවම ඉල්ලීම් නැත.",
   "requests.preview.full": "වයස {age}ක, {occupation} කෙනෙක් {date} දින ඉල්ලීමක් එවා ඇත.",
   "requests.preview.age": "වයස {age}ක කෙනෙක් {date} දින ඉල්ලීමක් එවා ඇත.",
   "requests.preview.occupation": "කෙනෙක් ({occupation}) {date} දින ඉල්ලීමක් එවා ඇත.",

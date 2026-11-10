@@ -164,7 +164,7 @@ function ReceivedTab({ profile }: { profile: ProfileView }) {
             ))}
           </div>
         ) : (
-          <p>{t('requests.none')}</p>
+          <Empty title="relations.empty.received.title" body="relations.empty.received.body" />
         )}
       </section>
     );

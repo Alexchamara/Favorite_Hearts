@@ -1,6 +1,8 @@
 {
   "common.somethingWrong": "Something went wrong. Please try again.",
   "common.loading": "Loading…",
+  "appLoading.title": "Your next chapter.",
+  "appLoading.body": "Opening your matrimony space…",
   "common.cancel": "Cancel",
   "common.close": "Close",
   "layout.skip": "Skip to content",
@@ -678,7 +680,6 @@
   "requests.received": "Received",
   "requests.planShows.title": "A plan shows who sent them",
   "requests.planShows.body": "With a plan you see who is interested and can accept. Plans and prices are in the Plan section of your profile.",
-  "requests.none": "No requests yet.",
   "requests.preview.full": "Someone aged {age}, {occupation}, sent a request on {date}.",
   "requests.preview.age": "Someone aged {age} sent a request on {date}.",
   "requests.preview.occupation": "Someone ({occupation}) sent a request on {date}.",
