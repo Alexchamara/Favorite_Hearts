@@ -89,6 +89,12 @@
   align-items: center;
   min-height: 44px;
 }
+/* The brand stays inline (a 28 px line inside the demo's 8 px padding: 44 px, instead of flex), or its heart's span
+   drops the trailing space and it reads "♥Favorite Hearts"; the demo shows "♥ Favorite Hearts". */
+#favorite-hearts-product .ma-entry .ma-header a.ma-brand {
+  display: inline-block;
+  line-height: 28px;
+}
 
 /* The round theme button is 42 px in the demo; 44 px here, the minimum for every control. */
 #favorite-hearts-product .m-app .ma-theme {
@@ -220,4 +226,68 @@
   display: inline-flex;
   align-items: center;
   min-height: 44px;
+}
+
+/* Trust steps (ui-11): the demo's step title is a numbered bold line (".m-trust-steps > li > strong", Inter 16 px 700,
+   "1 · Phone check ✓") over a 16 px status line. This app's phone and document panels (shared with the setup wizard)
+   title with an h2, which takes that look here, numbered as the demo's. The demo's `.m-trust-steps strong` block rule
+   is for that title: bold words inside a sentence (the phone number) stay inline. */
+#favorite-hearts-product .m-app .m-trust-steps {
+  counter-reset: fh-trust-step;
+}
+#favorite-hearts-product:not(#fh-parity) .m-app .m-trust-steps > li > .m-surface > h2 {
+  counter-increment: fh-trust-step;
+  margin: 0 0 12px;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.6;
+  letter-spacing: normal;
+  color: var(--ui-text);
+}
+#favorite-hearts-product:not(#fh-parity) .m-app .m-trust-steps > li > .m-surface > h2::before {
+  content: counter(fh-trust-step) ' · ';
+  /* The list already gives screen readers the number. */
+  content: counter(fh-trust-step) ' · ' / '';
+}
+#favorite-hearts-product:not(#fh-parity) .m-app .m-trust-steps > li > .m-surface :is(p, li) {
+  font-size: 1rem;
+}
+#favorite-hearts-product:not(#fh-parity) .m-app .m-trust-steps > li > .m-surface > h2 + * {
+  margin-top: 0;
+}
+#favorite-hearts-product:not(#fh-parity) .m-app .m-trust-steps > li > .m-surface > :last-child {
+  margin-bottom: 0;
+}
+#favorite-hearts-product:not(#fh-parity) .m-app .m-trust-steps > li > .m-surface > ul > li:first-child {
+  padding-top: 0;
+}
+#favorite-hearts-product:not(#fh-parity) .m-app .m-trust-steps p strong {
+  display: inline;
+  margin: 0;
+  color: inherit;
+}
+
+/* Privacy & safety, "Close your profile or account" (ui-11): the demo's sections title in Inter 17.28 px 650 and have
+   no panel level below. This app's "Found a match?", "Delete this profile" and "Your account" panels (shared with the
+   profile page) title with a large serif h2; here they take the demo's sans, one step below the section title. */
+#favorite-hearts-product:not(#fh-parity) .m-app .m-close-panels .m-surface > h2 {
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1.5;
+  letter-spacing: normal;
+  color: var(--ui-text);
+}
+
+/* Profile page side column (ui-11): the demo's side cards (.m-context-card) title in Inter 17.28 px 650. This app's
+   added side panels (publishing, plan, "found a match", delete) title with a large serif h2; they take the same title
+   style, so the column reads as one set. */
+#favorite-hearts-product:not(#fh-parity) .m-app .m-stack > div > .m-surface > h2 {
+  font-family: inherit;
+  font-size: 1.08rem;
+  font-weight: 650;
+  line-height: 1.4;
+  letter-spacing: normal;
+  color: var(--ui-text);
 }

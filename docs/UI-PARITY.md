@@ -93,7 +93,7 @@ keys get an English value and a blank Sinhala value.
 | Member: Discover shelves | No "Featured profiles" or "Boosted profiles" shelves (no decision on paid visibility, RULE-AUDIT N01/N02); every profile is in one list | Decision list, ui-1 plan |
 | Member: Discover sorts | Newest published, age (both ways), name, district; no "Your priorities" or "Shared values" (they need a matching score: Q-030, Q-032) | Decision B4 |
 | Member: Discover cards | No "Send interest" on the card: requests are sent from the profile, where the sharing confirmation is; no online status, compatibility button, values chips or "Compare profile" (not in the card data, or undecided); the line under the badges is "Private until mutual acceptance" | OWNER-DECISIONS §4; B4 |
-| Member: Discover rail | The acting-profile card shows the profile's status instead of the demo's "Profile readiness" percentage (the demo's figure is invented); its rows are Membership and Trust & access (Privacy & safety arrives with ui-8) | Real data |
+| Member: Discover rail | The acting-profile card shows the profile's status instead of the demo's "Profile readiness" percentage (the demo's figure is invented); its rows are Membership and Privacy & safety, as in the demo | Real data |
 | Member: Discover count | The result count counts the profiles loaded so far ("20+ profiles" while more pages wait); the API returns no total | API paging |
 | Member: preferences dialog | The app's filters (age, height, religion, marital status, caste with consent, culture and lifestyle) in the demo's dialog and folding sections; location lives in the toolbar's location filter; no "selfie-verified only", horoscope or "what matters most" choices | OWNER-DECISIONS §1, §6 |
 | Member: profile sheet | No Horoscope tab or selfie tag (decided out); the request is "Send a request" with the decided confirmation of what will be shared, not "Send interest"; Block and Report sit under the actions; the acting-profile choice (managers) shows in the sheet; opened from its own address the same content is a page, with "← Discover" | OWNER-DECISIONS §1, §4 |
@@ -114,6 +114,8 @@ keys get an English value and a blank Sinhala value.
 | Staff: payment review | The demo's "Review the proof." dialog holds the full payment: details, residence check, receipts (each look logged), approve with the statement line, hold or reject, refund, settlement correction, owner note, profile plan and history | Section 9 |
 | Tables | Row lines in the text colour, as in the demo (its Tailwind base leaves borders at currentColor) | Demo CSS |
 | Text contrast, both themes | Text the demo leaves below WCAG AA takes the demo's own theme tokens: in both themes the side card's link ("Connected", cream on a cream card in the demo) and its italic line, the profile age, "Profile readiness", the safety list, table headings, the review counts' labels and the setup wizard's step labels, step count and "Save and finish later"; in dark mode the empty states, the trust steps, the review counts and value chips get the dark surface instead of staying light, and the sort button, the right rail's links, banner buttons, "Private until mutual acceptance", the sort summary and the footer get the dark text colours | WCAG 2.2 AA (1.4.3); measured in both apps (ui-10) |
+| Member: Shortlist | Its own page heading ("Saved for later", "Your shortlist.") and the saved count, without Discover's search, location and sort toolbar (the shortlist is the saved list, not a filtered Discover); the demo's empty state with its heart, "Keep someone in mind." and "Discover profiles", and a line that says how to save (the demo's "visible only to you" is not true here: anyone who manages the profile sees it) | Real data (managers); ui-11 |
+| Member: side panels | The profile page's added side panels (publishing, plan, "found a match", delete) and the Privacy page's closing panels title in the demo's sans (17.28 px 650 beside its side cards, 16 px 650 inside its closing section) instead of the large serif card title they use elsewhere; the Trust page's two checks are the demo's numbered steps ("1 · Phone"), with the bold phone number inside its sentence | Demo layout; ui-11 |
 | Toasts | Inside the page's `.m-app`, as in the demo, through one Toaster that stays mounted, so a toast shown just before a page change stays on screen | Demo layout; ui-10 |
 | First-load and error pages | The demo's first-load page (`.m-loading`: brand, heart, "Your next chapter.") while the account loads; a screen that fails to render shows the same frame with its message, Reload and a link home, instead of a bare notice outside `.m-app`; moving between pages keeps the frame with "Loading…" | Demo layout; ui-10 |
 
@@ -525,3 +527,67 @@ SCREEN-049, 050, 052, 065 (051, candidate consent, is not built).
 - **Checks:** typecheck clean; tests pass (API 168, website 5, text tools 9); `build:site` passes; signed in as a member,
   as the owner and signed out at 390, 1024 and 1440 px in dark mode: no sideways scroll, no console errors (the signed-out
   account check answers 401, as designed), one toast holder on every page.
+
+### ui-11 side-by-side verification (10 Nov 2026)
+
+Every public route and member screen against the demo at 320, 390, 768, 1024 and 1440 px, same language (English),
+theme (light, and dark for the member app) and reduced motion. Reference shots: the ui-1 set (light) and the ui-10
+dark set, widened here to all five widths. Repo shots: `website-dev` for the public site; the sandbox member app signed
+in as Bina (Premium 3 months, published: the closest to the demo's paid sample) and the owner for the staff workspace.
+Each pair was read side by side; every difference is either in the table "Intended differences from the demo" or was
+fixed below.
+
+**Public site** (21 routes × 5 widths): 103 of 105 shots are within 0.5 points of the ui-2 result, every difference
+already traced there to decided content. Labs moves by up to 4 points between runs (its lazy article images) and
+differs only where the decided hero line and the removed research section are. No change needed.
+
+**Fixed in ui-11** (styling the demo shows differently; no business rule touched):
+
+- **Trust & access:** the demo's rule `.m-trust-steps strong { display: block }` also hit the bold phone number inside
+  "+947… is verified." and split the sentence; the steps' titles were 27 px serif where the demo's are a numbered 16 px
+  bold line. Now "1 · Phone", "2 · Identity document" (the number is hidden from screen readers, which read the list's),
+  16 px status lines, no stray gaps. Trust drops 3–4 points at every width.
+- **Privacy & safety:** "Found a match?", "Delete this profile" and "Your account" were 32 px serif titles inside a
+  section the demo titles in sans; now 16 px 650.
+- **Profile page side column:** the publishing, plan, "found a match" and delete panels' 32 px serif titles now match
+  the demo's side cards (Inter 17.28 px 650).
+- **Sign-in header:** the brand read "♥Favorite Hearts" (ui-4's flex rule dropped the space after the heart); it is
+  inline again, 45 px tall.
+- **Interests / Connected tabs:** "Mutual (0)" carries its count, as the demo's does (the Mutual list, now loaded only
+  when there is a profile).
+- **Shortlist empty state:** the demo's heart, title and button (2 texts changed, on the T-1 list as `englishChanged`).
+- **Discover rail:** its second row is Privacy & safety ("You choose what to share"), as in the demo; it was Trust &
+  access until the Privacy page existed (1 new text, T-1 list).
+
+**Member app, light** (changed pixels after ui-11; 320 / 390 / 768 / 1024 / 1440 px) and what remains:
+
+| Screen | Changed | What remains (all intended, see the table above) |
+| --- | --- | --- |
+| Membership | 36.0 / 35.9 / 28.7 / 26.0 / 20.0% | Decided plans and prices, "Your plan" card, no free tier or boost card |
+| Discover | 33.7 / 32.4 / 21.1 / 15.6 / 10.4% | No Featured / Boosted shelves (the demo's list starts lower), decided sorts and card contents |
+| Trust & access | 22.1 / 21.3 / 14.8 / 13.3 / 11.3% | No demo notice, selfie step or badge grid; decided wording |
+| Profile | 22.0 / 19.1 / 16.1 / 14.3 / 10.6% | "← Your profiles", the added side panels, photo manager, sample member's data |
+| Sign-in (demo "login") | 17.7 / 18.9 / 9.4 / 10.6 / 8.2% | Email or phone code instead of a password, Turnstile, the support footer |
+| Privacy & safety | 18.8 / 16.8 / 12.3 / 10.2 / 8.8% | No horoscope switch or "Your reports"; the closing panels |
+| Staff workspace | 16.5 / 14.9 / 9.2 / 7.6 / 5.4% | See ui-9 |
+| Contact us | 14.3 / 13.8 / 7.6 / 6.8 / 4.9% | Real channels only |
+| Shortlist | 13.0 / 13.2 / 8.1 / 7.1 / 5.3% | Own heading, no toolbar (above) |
+| Code step | 12.1 / 12.4 / 6.3 / 7.8 / 5.6% | Decided sign-in copy and footer |
+| Connected | 8.8 / 8.0 / 6.0 / 4.7 / 1.8% | Decided request wording |
+| Language step | 8.8 / 7.0 / 3.3 / 3.5 / 2.4% | The website language row and footer |
+| Interests | 7.2 / 7.2 / 3.9 / 3.4 / 1.1% | Decided request wording |
+
+Not compared, because the app has no such screen: the demo's separate sign-up step and its "back" state (one email or
+phone step here, ui-4) and its free-member Discover (its sample account's state; the gate here is the verification
+gate, ui-6a).
+
+**Member app, dark** (320 / 390 / 768 / 1024 / 1440 px): Membership 46.0 / 48.7 / 45.4 / 43.2 / 37.1%, Discover 39.6 /
+37.9 / 22.2 / 24.2 / 18.5%, Shortlist 37.0 / 33.8 / 34.1 / 26.7 / 27.2%, Trust 34.4 / 32.2 / 36.2 / 37.3 / 33.5%,
+Connected 31.2 / 33.2 / 33.5 / 32.9 / 21.7%, Interests 26.6 / 31.7 / 27.4 / 30.3 / 22.8%, staff 28.0 / 29.9 / 17.4 /
+16.3 / 13.9%, Profile 21.3 / 18.5 / 15.6 / 13.9 / 10.3%, Privacy 14.1 / 12.9 / 8.1 / 7.0 / 5.2%, Contact 9.7 / 8.9 /
+13.0 / 11.8 / 9.2%. Higher than light because the demo leaves its empty states, trust steps, counts and chips light in
+dark mode, which fails contrast and is dark here (ui-10); otherwise the same causes as in light.
+
+**Checks:** text contrast scan with no failures in either theme at 390, 768 and 1440 px; no sideways scroll at any
+captured width; no console errors signed in as a member, as the owner and signed out (the signed-out account check
+answers 401, as designed); typecheck clean; tests pass (API 168, website 5, text tools 9); `build:site` passes.

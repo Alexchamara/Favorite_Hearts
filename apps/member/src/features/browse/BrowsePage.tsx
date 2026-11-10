@@ -224,11 +224,11 @@ export default function BrowsePage() {
                   </span>
                   <ChevronRight size={16} aria-hidden="true" />
                 </button>
-                <button type="button" onClick={() => navigate('/verify')}>
+                <button type="button" onClick={() => navigate('/privacy')}>
                   <ShieldCheck size={18} aria-hidden="true" />
                   <span>
-                    {t('layout.menu.verification')}
-                    <small>{t('profile.trust.title')}</small>
+                    {t('layout.menu.privacy')}
+                    <small>{t('browse.rail.privacyHint')}</small>
                   </span>
                   <ChevronRight size={16} aria-hidden="true" />
                 </button>

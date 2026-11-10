@@ -4,7 +4,7 @@
  * (paused, hidden, blocked or deleted) stay listed without details so they can be removed.
  */
 import { useMutation } from '@tanstack/react-query';
-import { Bookmark, EyeOff } from 'lucide-react';
+import { EyeOff, Heart } from 'lucide-react';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
 import { AppShell, Loading, Notice, PageTitle } from '@/components/layout';
@@ -64,9 +64,9 @@ export default function ShortlistPage() {
           </div>
           {limit !== null && items.length >= limit && <Notice tone="warning">{t('shortlist.full')}</Notice>}
           {items.length === 0 ? (
-            // The demo's empty state (.m-empty).
+            // The demo's empty state (.m-empty), with its heart.
             <div className="m-empty">
-              <Bookmark size={28} aria-hidden="true" />
+              <Heart size={28} aria-hidden="true" />
               <h3>{t('shortlist.empty.title')}</h3>
               <p>{t('shortlist.empty.body')}</p>
               <Link className="m-btn m-secondary" to={withAs('/browse', acting)}>

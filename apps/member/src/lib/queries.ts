@@ -200,6 +200,7 @@ export function useConnections(profileId: string) {
   return useQuery({
     queryKey: keys.connections(profileId),
     queryFn: async () => (await api<{ connections: ConnectionView[] }>(`/profiles/${profileId}/connections`)).connections,
+    enabled: Boolean(profileId),
   });
 }
 

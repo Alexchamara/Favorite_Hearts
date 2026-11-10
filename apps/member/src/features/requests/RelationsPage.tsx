@@ -43,6 +43,9 @@ export default function RelationsPage({ kind }: { kind: 'requests' | 'connection
   const tab: Tab = asked && TABS.includes(asked) && PAGE_OF[asked] === kind ? asked : kind === 'requests' ? 'received' : 'mutual';
   const received = useReceived(acting?.id ?? '');
   const waiting = received.data ? (received.data.identified ? received.data.interests.length : received.data.previews.length) : 0;
+  // The demo counts the Mutual tab too ("Mutual (0)"): the connections the tab lists.
+  const connections = useConnections(acting?.id ?? '');
+  const mutual = connections.data?.length ?? 0;
   const choose_ = (next: string) => {
     const nextTab = next as Tab;
     const search = new URLSearchParams();
@@ -86,7 +89,9 @@ export default function RelationsPage({ kind }: { kind: 'requests' | 'connection
               {t('requests.received')} ({waiting})
             </TabsTrigger>
             <TabsTrigger value="sent">{t('requests.sent')}</TabsTrigger>
-            <TabsTrigger value="mutual">{t('relations.tab.mutual')}</TabsTrigger>
+            <TabsTrigger value="mutual">
+              {t('relations.tab.mutual')} ({mutual})
+            </TabsTrigger>
             <TabsTrigger value="shared">{t('relations.tab.shared')}</TabsTrigger>
             <TabsTrigger value="history">{t('relations.tab.history')}</TabsTrigger>
           </TabsList>
