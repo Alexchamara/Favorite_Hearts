@@ -90,6 +90,12 @@ keys get an English value and a blank Sinhala value.
 | Member: delete dialog | Tick to confirm and a recent sign-in, instead of typing DELETE; the demo's "Keep profile" and primary-button confirm | RULE-AUDIT; OWNER-DECISIONS |
 | Member: removal buttons | "Delete this profile" and similar are the demo's red text button (`.m-text.m-danger`); the final confirm in a dialog is the demo's primary button | Demo markup |
 | Member: 44 px targets | The own-photo camera button (demo 34 px) and text actions in pages, steps and dialogs are at least 44 px | Stage 5e |
+| Member: Discover shelves | No "Featured profiles" or "Boosted profiles" shelves (no decision on paid visibility, RULE-AUDIT N01/N02); every profile is in one list | Decision list, ui-1 plan |
+| Member: Discover sorts | Newest published, age (both ways), name, district; no "Your priorities" or "Shared values" (they need a matching score: Q-030, Q-032) | Decision B4 |
+| Member: Discover cards | No "Send interest" on the card: requests are sent from the profile, where the sharing confirmation is; no online status, compatibility button, values chips or "Compare profile" (not in the card data, or undecided); the line under the badges is "Private until mutual acceptance" | OWNER-DECISIONS §4; B4 |
+| Member: Discover rail | The acting-profile card shows the profile's status instead of the demo's "Profile readiness" percentage (the demo's figure is invented); its rows are Membership and Trust & access (Privacy & safety arrives with ui-8) | Real data |
+| Member: Discover count | The result count counts the profiles loaded so far ("20+ profiles" while more pages wait); the API returns no total | API paging |
+| Member: preferences dialog | The app's filters (age, height, religion, marital status, caste with consent, culture and lifestyle) in the demo's dialog and folding sections; location lives in the toolbar's location filter; no "selfie-verified only", horoscope or "what matters most" choices | OWNER-DECISIONS §1, §6 |
 
 More rows are added as each phase finds them.
 
@@ -316,4 +322,34 @@ SCREEN-042, 059, 062, 069.
   at 390 or 1440 px; keyboard order: brand, More, dock, back, Edit profile, camera, the section buttons, all visible
   and at least 44 px; the photo dialog returns focus to the camera button; Edit profile → wizard → Review → profile
   page.
+
+### ui-6a Discover, filters and shortlist (10 Nov 2026)
+
+SCREEN-033, 034, 035, 057, 058. SCREEN-055/056 (profile sheet) and 066 (report) follow in ui-6b.
+
+- **API (decision B4, read-only, no schema change):** `GET /api/v1/discover` takes `q` (first name, city or
+  occupation; `%` and `_` literal), `sort` (`newest`, `age_asc`, `age_desc`, `name`, `district`), `location`
+  (`everywhere`, `sri_lanka` with optional `regions`, `abroad` with optional `countries`), and the culture filters
+  `diet`, `smoking`, `drinking`, `childrenPlan`, `familyInvolvement`, `communityOpenness`, `motherTongue`. Paging is
+  keyset per sort (the cursor carries its sort; a cursor from another sort is refused). Shared schema in
+  `packages/shared/src/requests.ts`; test "decision B4 …" in `apps/api/test/requests.test.ts`.
+- **Discover page** (`features/browse/BrowsePage.tsx`): the demo's markup: `.m-page-heading` with "Your
+  preferences", `.m-discover-layout` with the toolbar (`.m-discover-toolbar`: `.m-search`, the location filter
+  `.m-location-trigger` and popover, the sort `.m-choice`), `.m-discovery-summary`, `.m-result-head`, the
+  `.m-profile-grid` of cards, `.m-empty`, `.m-discovery-end`, and `.m-right-rail` (`.m-context-card` with
+  `.m-rail-head`, `.m-intention-card`, `.m-rail-links`, `.m-rail-caption`). Every filter stays in the address. The
+  verification gate (SCREEN-033) is the demo's `.m-access-gate`.
+- **Cards** (`DiscoverCard`): `.m-card` with `.m-card-identity` (portrait, name and age, place, work, bookmark
+  `.m-bookmark`), `.m-card-body` (who manages the profile, badges, `.m-common`, "View profile").
+- **Preferences dialog** (SCREEN-057): the demo's dialog with `.m-form-grid` and folding `.m-filter-section`s.
+- **Shortlist** (SCREEN-035): the same cards and grid, the demo's empty state.
+- **Texts:** 42 new and 1 changed (the dialog's line now reads as the demo's).
+- **Pixel diff against the demo's Discover** (before → after): 1440 px 12.1 → 10.5%; 390 px 34.6 → 34.7%. The
+  structure now follows the demo, but the demo page starts with its Featured and Boosted shelves (not built), so the
+  shared list sits lower there and the phone-width comparison stays high.
+- **Checks:** typecheck clean; tests pass (API 167 with the B4 test, website 5, text tools 9); `build:site`
+  passes; in the sandbox: search "chat" → Chathu only, age sort 29/33/36, location "Kandy" → none, clear → all;
+  no sideways scroll at 390 or 1440 px.
+- **Sandbox note:** `scripts/ui-parity/sandbox-login.py` now sets the visitor preference first, since the entry page
+  asks for language and country on a first visit (ui-4).
 

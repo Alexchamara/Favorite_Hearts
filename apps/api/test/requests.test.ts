@@ -150,6 +150,30 @@ describe('discovery (owner decision 29 Oct 2026: verified members only; sections
     rejected(await amal.client.get('/api/v1/discover?cursor=not-a-cursor'), 400, 'VALIDATION');
   });
 
+  test('decision B4: search, sort, location and culture filters run on the server, read-only', async () => {
+    // Search matches the first name, city or occupation; % and _ are taken literally.
+    assert.deepEqual(await discoverIds(amal, '?q=bin'), [bina.profileId]);
+    assert.equal((await discoverIds(amal, '?q=colombo')).length, 4);
+    assert.deepEqual(await discoverIds(amal, '?q=%25'), []);
+    // Sorts: youngest or oldest first, by name; the default stays newest first.
+    const youngest = [esha, fara, bina, chathu].map((m) => m.profileId);
+    assert.deepEqual(await discoverIds(amal, '?sort=age_asc'), youngest);
+    assert.deepEqual(await discoverIds(amal, '?sort=age_desc'), [...youngest].reverse());
+    assert.deepEqual(await discoverIds(amal, '?sort=name'), [bina, chathu, esha, fara].map((m) => m.profileId));
+    // Location modes: everyone here lives in Sri Lanka, in Colombo district only if it was given.
+    assert.equal((await discoverIds(amal, '?location=sri_lanka')).length, 4);
+    assert.deepEqual(await discoverIds(amal, '?location=abroad'), []);
+    assert.deepEqual(await discoverIds(amal, '?location=sri_lanka&regions=Kandy,Galle'), []);
+    // Culture filters match only what a profile chose to share.
+    assert.deepEqual(await discoverIds(amal, '?diet=vegan'), []);
+    rejected(await amal.client.get('/api/v1/discover?sort=shared_values'), 400, 'VALIDATION');
+    rejected(await amal.client.get('/api/v1/discover?countries=sri'), 400, 'VALIDATION');
+    // A page cursor belongs to its sort.
+    const nameCursor = Buffer.from(JSON.stringify({ s: 'name', k: 'bina', id: bina.profileId })).toString('base64url');
+    assert.deepEqual(await discoverIds(amal, `?sort=name&cursor=${nameCursor}`), [chathu, esha, fara].map((m) => m.profileId));
+    rejected(await amal.client.get(`/api/v1/discover?sort=newest&cursor=${nameCursor}`), 400, 'VALIDATION');
+  });
+
   test('cards and profiles carry only the member allowlist; parents’ names wait for a connection', async () => {
     const [card] = ok(await amal.client.get('/api/v1/discover?caste=govigama')).profiles;
     assert.equal(card.age, 36);

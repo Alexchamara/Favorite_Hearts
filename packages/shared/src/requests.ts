@@ -3,7 +3,7 @@
  * The database enforces every rule again; these schemas give members readable answers first.
  */
 import { z } from 'zod';
-import { GENDERS, MARITAL_STATUSES, RELIGIONS, REPORT_CATEGORIES } from './domain.ts';
+import { CHILDREN_PLANS, COMMUNITY_OPENNESS, DIETS, FAMILY_INVOLVEMENT, GENDERS, HABIT_FREQUENCIES, MARITAL_STATUSES, RELIGIONS, REPORT_CATEGORIES } from './domain.ts';
 import { MAX_AGE, MAX_HEIGHT_CM, MIN_AGE, MIN_HEIGHT_CM } from './profile.ts';
 
 /** §4: after a decline or a withdrawal, a new request between the same two profiles waits this long. */
@@ -22,6 +22,23 @@ const uuid = (message: string) => z.uuid({ error: message });
 const decimal = (min: number, max: number, message: string) => z.coerce.number({ error: message }).min(min, message).max(max, message);
 const whole = (min: number, max: number, message: string) => z.coerce.number({ error: message }).int(message).min(min, message).max(max, message);
 
+/**
+ * How discovery can be sorted (decision B4, 9 Nov 2026: the demo's sorts the app can honour; "your priorities" and
+ * "shared values" need a matching score, which has no owner decision, Q-030/Q-032).
+ */
+export const DISCOVER_SORTS = ['newest', 'age_asc', 'age_desc', 'name', 'district'] as const;
+export type DiscoverSort = (typeof DISCOVER_SORTS)[number];
+/** Where to look (the demo's location filter): anywhere, in Sri Lanka (optionally some districts), or abroad. */
+export const DISCOVER_LOCATIONS = ['everywhere', 'sri_lanka', 'abroad'] as const;
+
+/** A comma-separated list in the query string ("Kandy,Galle"), each item checked by `item`. */
+const list = <T extends z.ZodType<string, string>>(item: T, max: number) =>
+  z
+    .string()
+    .max(2000)
+    .transform((value) => value.split(',').map((part) => part.trim()).filter(Boolean))
+    .pipe(z.array(item).max(max, 'validation.tooMany'));
+
 /** Discovery filters, read from the query string. All optional. */
 export const discoverQuerySchema = z
   .object({
@@ -34,7 +51,20 @@ export const discoverQuerySchema = z
     heightMin: decimal(MIN_HEIGHT_CM, MAX_HEIGHT_CM, 'validation.heightRange').optional(),
     heightMax: decimal(MIN_HEIGHT_CM, MAX_HEIGHT_CM, 'validation.heightRange').optional(),
     caste: z.string().trim().min(1).max(80).optional(),
-    cursor: z.string().max(200).optional(),
+    // Decision B4 (9 Nov 2026): search, sort, location modes and the demo's culture filters, all read-only.
+    q: z.string().trim().min(1).max(60).optional(),
+    sort: z.enum(DISCOVER_SORTS, { error: 'validation.chooseOption' }).optional(),
+    location: z.enum(DISCOVER_LOCATIONS, { error: 'validation.chooseOption' }).optional(),
+    regions: list(z.string().min(1).max(80), 25).optional(),
+    countries: list(z.string().regex(/^[A-Z]{2}$/, 'validation.country'), 50).optional(),
+    diet: z.enum(DIETS, { error: 'validation.chooseOption' }).optional(),
+    smoking: z.enum(HABIT_FREQUENCIES, { error: 'validation.chooseOption' }).optional(),
+    drinking: z.enum(HABIT_FREQUENCIES, { error: 'validation.chooseOption' }).optional(),
+    childrenPlan: z.enum(CHILDREN_PLANS, { error: 'validation.chooseOption' }).optional(),
+    familyInvolvement: z.enum(FAMILY_INVOLVEMENT, { error: 'validation.chooseOption' }).optional(),
+    communityOpenness: z.enum(COMMUNITY_OPENNESS, { error: 'validation.chooseOption' }).optional(),
+    motherTongue: z.string().trim().min(1).max(80).optional(),
+    cursor: z.string().max(400).optional(),
   })
   .refine((q) => q.ageMin === undefined || q.ageMax === undefined || q.ageMin <= q.ageMax, {
     path: ['ageMax'],

@@ -1,7 +1,7 @@
 /** A member as other members see them in lists: cover (blurred unless allowed), name, age, work and place. */
 import type { ReactNode } from 'react';
-import { BriefcaseBusiness, MapPin } from 'lucide-react';
-import { Link } from 'react-router';
+import { BriefcaseBusiness, LockKeyhole, MapPin, Users } from 'lucide-react';
+import { Link, useNavigate } from 'react-router';
 import type { MemberCard, PhotoView, SharedContact } from '@fh/shared';
 import { TrustBadges } from '@/components/badges';
 import { cn } from '@/lib/utils';
@@ -91,6 +91,76 @@ export function MemberCardLink({ card, href, action }: { card: MemberCard; href:
       {link}
       <div className="absolute right-4 bottom-4 sm:right-5 sm:bottom-5">{action}</div>
     </div>
+  );
+}
+
+/**
+ * A member in Discover and the shortlist as the demo draws it (.m-card, SCREEN-034/035): the portrait and the name lead
+ * into the profile, then place, work, who manages the profile, the earned badges, and "View profile". The bookmark sits
+ * beside the name. Requests are sent from the profile itself, where the sharing confirmation is.
+ */
+export function DiscoverCard({ card, href, action }: { card: MemberCard; href: string; action?: ReactNode }) {
+  const { t } = useI18n();
+  const labels = useLabels();
+  const placeOf = usePlaceOf();
+  const name = card.displayName ?? t('member.member');
+  const place = placeOf(card);
+  const photo = card.cover;
+  const navigate = useNavigate();
+  return (
+    <article className="m-card" aria-labelledby={`card-${card.id}`}>
+      <div className="m-card-identity">
+        <Link className="m-card-photo" to={href} tabIndex={-1} aria-hidden="true">
+          {photo ? (
+            <div className="m-portrait" style={{ backgroundImage: `url(${photo.url})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+          ) : (
+            <div className="m-portrait m-photo-private">
+              <LockKeyhole size={20} />
+            </div>
+          )}
+        </Link>
+        <div className="m-card-identity-copy">
+          <div className="m-card-title">
+            {/* A button, as in the demo (its styles are for buttons); "View profile" below is the link. */}
+            <button type="button" id={`card-${card.id}`} onClick={() => navigate(href)}>
+              {name}
+              {card.age !== null && <span>, {card.age}</span>}
+            </button>
+          </div>
+          {place && (
+            <p className="m-location">
+              <MapPin size={14} aria-hidden="true" />
+              {place}
+            </p>
+          )}
+          {card.occupation && (
+            <p className="m-profession">
+              <BriefcaseBusiness size={15} aria-hidden="true" />
+              {card.occupation}
+            </p>
+          )}
+        </div>
+        {action}
+      </div>
+      <div className="m-card-body">
+        <div className="m-role">
+          <Users size={14} aria-hidden="true" />
+          {card.management === 'manager' && card.managerRelationship
+            ? t('memberPage.managedBy', { relationship: labels.relationshipLabels[card.managerRelationship].toLowerCase() })
+            : t('memberPage.selfManaged')}
+        </div>
+        <TrustBadges badges={card.badges} />
+        <div className="m-common">
+          <LockKeyhole size={13} aria-hidden="true" />
+          {t('card.privateUntilAccepted')}
+        </div>
+        <div className="m-card-actions">
+          <Link className="m-btn m-secondary" to={href} aria-describedby={`card-${card.id}`}>
+            {t('browse.view')}
+          </Link>
+        </div>
+      </div>
+    </article>
   );
 }
 

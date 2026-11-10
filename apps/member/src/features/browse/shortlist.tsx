@@ -40,7 +40,7 @@ export function SaveIcon({ actingId, profileId, name, className }: { actingId: s
       onClick={() => toggle.mutate()}
       className={cn(
         'grid size-11 place-items-center rounded-full border bg-[var(--ui-surface)] transition-colors hover:border-[var(--ui-purple)] disabled:opacity-60',
-        saved ? 'text-[var(--ui-copper)]' : 'text-muted-foreground hover:text-foreground',
+        saved ? 'is-saved text-[var(--ui-copper)]' : 'text-muted-foreground hover:text-foreground',
         className,
       )}
     >

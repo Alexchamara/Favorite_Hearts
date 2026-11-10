@@ -26,6 +26,8 @@ def main():
     with sync_playwright() as pw:
         browser = pw.chromium.launch(headless=True)
         context = browser.new_context(locale='en-US')
+        # A returning visitor: language and country already chosen, so the sign-in form shows (not the first step).
+        context.add_init_script("localStorage.setItem('fh-visitor-preferences', JSON.stringify({language: 'en', country: 'LK'}))")
         page = context.new_page()
         page.goto(a.base)
         page.get_by_label(re.compile('^Email address')).fill(a.email)

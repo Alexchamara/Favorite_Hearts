@@ -15,7 +15,7 @@ import { say, useI18n } from '@/lib/i18n';
 import { keys, useShortlist } from '@/lib/queries';
 import { queryClient } from '@/lib/query-client';
 import { ActingPicker, useActingProfile, withAs } from './acting';
-import { MemberCardLink } from './MemberCard';
+import { DiscoverCard } from './MemberCard';
 import { SaveIcon } from './shortlist';
 
 export default function ShortlistPage() {
@@ -64,28 +64,30 @@ export default function ShortlistPage() {
           </div>
           {limit !== null && items.length >= limit && <Notice tone="warning">{t('shortlist.full')}</Notice>}
           {items.length === 0 ? (
-            <section className="flex flex-col items-center gap-3 rounded-[10px] border border-dashed bg-[var(--ui-surface)] px-5 py-14 text-center">
-              <Bookmark className="size-7 text-[var(--ui-copper)]" aria-hidden="true" />
-              <h2 className="font-serif text-2xl">{t('shortlist.empty.title')}</h2>
-              <p className="max-w-[46ch] text-muted-foreground">{t('shortlist.empty.body')}</p>
-              <Button asChild className="mt-2 h-11">
-                <Link to={withAs('/browse', acting)}>{t('shortlist.empty.action')}</Link>
-              </Button>
-            </section>
+            // The demo's empty state (.m-empty).
+            <div className="m-empty">
+              <Bookmark size={28} aria-hidden="true" />
+              <h3>{t('shortlist.empty.title')}</h3>
+              <p>{t('shortlist.empty.body')}</p>
+              <Link className="m-btn m-secondary" to={withAs('/browse', acting)}>
+                {t('shortlist.empty.action')}
+              </Link>
+            </div>
           ) : (
             <>
               {shown.length > 0 && (
-                <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label={t('shortlist.list')}>
+                // The demo's shortlist (SCREEN-035) is its Discover grid of cards.
+                <div className="m-profile-grid" role="list" aria-label={t('shortlist.list')}>
                   {shown.map(({ profile: card }) => (
-                    <li key={card!.id} className="min-w-0">
-                      <MemberCardLink
+                    <div key={card!.id} role="listitem" className="min-w-0">
+                      <DiscoverCard
                         card={card!}
                         href={withAs(`/members/${card!.id}`, acting)}
-                        action={<SaveIcon actingId={acting.id} profileId={card!.id} name={card!.displayName ?? t('member.member')} />}
+                        action={<SaveIcon className="m-bookmark" actingId={acting.id} profileId={card!.id} name={card!.displayName ?? t('member.member')} />}
                       />
-                    </li>
+                    </div>
                   ))}
-                </ul>
+                </div>
               )}
               {gone.length > 0 && (
                 <ul className="divide-y rounded-[var(--ui-panel-radius)] border bg-card px-5" aria-label={t('shortlist.goneList')}>

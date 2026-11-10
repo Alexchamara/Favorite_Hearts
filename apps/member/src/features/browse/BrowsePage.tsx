@@ -1,279 +1,470 @@
 /**
- * Discover: published profiles (owner decision 29 Oct 2026: verified members only), in the demo's layout (owner,
- * 6 Nov 2026): the list beside a column for the profile being acted for and how connecting works. Filters live in a
- * "Your preferences" drawer and show as removable chips; the server applies them and they stay in the address, so a
- * search can be shared or reloaded. Photos arrive blurred unless the member chose to show their cover.
+ * Discover (SCREEN-033/034, 057, 058), on the demo's markup: the page heading with "Your preferences", the toolbar
+ * (.m-discover-toolbar: search, the location filter, the sort), the summary line, the result heading, the cards
+ * (.m-profile-grid of .m-card) and the right rail (.m-right-rail: the profile being acted for, how connecting works,
+ * membership). Owner decision 29 Oct 2026: verified members only. The server applies every filter (decision B4 added
+ * search, sort, location modes and the culture filters), and they stay in the address, so a search can be shared or
+ * reloaded. Photos arrive blurred unless the member chose to show their cover.
  */
-import { useState, type FormEvent } from 'react';
-import { ArrowUpRight, Heart, ShieldCheck, SlidersHorizontal, X } from 'lucide-react';
-import { Link, useSearchParams } from 'react-router';
-import type { ProfileView } from '@fh/shared';
+import { useEffect, useState } from 'react';
+import { ArrowRight, ArrowUpRight, ChevronDown, ChevronRight, Crown, Heart, MapPin, Search, ShieldCheck, SlidersHorizontal } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router';
+import { DISCOVER_SORTS, type DiscoverSort, type ProfileView } from '@fh/shared';
 import { SelectField, TextField } from '@/components/form/fields';
-import { AppShell, kickerClass, Loading, Notice, PageTitle } from '@/components/layout';
-import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { AppShell, Loading, Notice } from '@/components/layout';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ApiError, errorMessage } from '@/lib/api';
 import { useDiscover } from '@/lib/queries';
-import { options, useCountries, useLabels } from '@/features/profile/options';
+import { options, SRI_LANKA_DISTRICTS, suggestionLabel, useCountries, useLabels } from '@/features/profile/options';
 import { useI18n } from '@/lib/i18n';
 import { ActingPicker, useActingProfile, withAs } from './acting';
-import { MemberCardLink } from './MemberCard';
+import { DiscoverCard } from './MemberCard';
 import { SaveIcon } from './shortlist';
 
-const FILTERS = ['gender', 'ageMin', 'ageMax', 'countryCode', 'religion', 'maritalStatus', 'heightMin', 'heightMax', 'caste'] as const;
+/** Filters set in "Your preferences"; the toolbar's search, location and sort are kept beside them in the address. */
+const FILTERS = [
+  'gender',
+  'ageMin',
+  'ageMax',
+  'religion',
+  'maritalStatus',
+  'heightMin',
+  'heightMax',
+  'caste',
+  'motherTongue',
+  'communityOpenness',
+  'familyInvolvement',
+  'childrenPlan',
+  'diet',
+  'smoking',
+  'drinking',
+] as const;
+const TOOLBAR = ['q', 'sort', 'location', 'regions', 'countries', 'countryCode'] as const;
 type FilterKey = (typeof FILTERS)[number];
 type Filters = Record<FilterKey, string>;
 
-const readFilters = (params: URLSearchParams): Filters =>
-  Object.fromEntries(FILTERS.map((key) => [key, params.get(key) ?? ''])) as Filters;
+const readFilters = (params: URLSearchParams): Filters => Object.fromEntries(FILTERS.map((key) => [key, params.get(key) ?? ''])) as Filters;
 
 export default function BrowsePage() {
   const { acting, profiles, choose, ready } = useActingProfile();
   const [params, setParams] = useSearchParams();
   const applied = readFilters(params);
-  const query = new URLSearchParams(Object.entries(applied).filter(([, value]) => value)).toString();
-  const [draft, setDraft] = useState<Filters>(applied);
-  const [open, setOpen] = useState(false);
+  const query = new URLSearchParams(
+    [...FILTERS, ...TOOLBAR].flatMap((key) => (params.get(key) ? [[key, params.get(key)!] as [string, string]] : [])),
+  ).toString();
   const discover = useDiscover(query);
-  const set = (key: FilterKey) => (value: string) => setDraft((current) => ({ ...current, [key]: value }));
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState(params.get('q') ?? '');
+  const navigate = useNavigate();
   const { t } = useI18n();
-  const { genderLabels, maritalLabels, religionLabels } = useLabels();
-  const countries = useCountries();
-  const any = t('browse.any');
 
-  const show = (next: Filters) => {
-    const search = new URLSearchParams(Object.entries(next).filter(([, value]) => value.trim()));
-    if (acting) search.set('as', acting.id);
-    setParams(search);
+  /** Changes some of the address's filters, keeping the rest and the profile being acted for. */
+  const update = (changes: Record<string, string | null>) => {
+    const next = new URLSearchParams(params);
+    for (const [key, value] of Object.entries(changes)) {
+      if (value && value.trim()) next.set(key, value.trim());
+      else next.delete(key);
+    }
+    if (acting) next.set('as', acting.id);
+    setParams(next, { replace: true });
   };
-  function apply(event: FormEvent) {
-    event.preventDefault();
-    show(draft);
-    setOpen(false);
-  }
-  function clear() {
-    const empty = readFilters(new URLSearchParams());
-    setDraft(empty);
-    show(empty);
-  }
-  const remove = (keys: FilterKey[]) => {
-    const next = { ...applied };
-    keys.forEach((key) => (next[key] = ''));
-    setDraft(next);
-    show(next);
-  };
+  // Search as the member types, a moment after they stop.
+  useEffect(() => {
+    if ((params.get('q') ?? '') === search.trim()) return;
+    const timer = setTimeout(() => update({ q: search }), 400);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
 
-  // What is applied, in words: "Woman", "Age 25–32", "Sri Lanka".
-  const range = (min: string, max: string, unit = '') => (min && max ? `${min}–${max}${unit}` : min ? `${min}+${unit}` : `≤ ${max}${unit}`);
-  const chips: { keys: FilterKey[]; text: string }[] = [];
-  if (applied.gender) chips.push({ keys: ['gender'], text: genderLabels[applied.gender as keyof typeof genderLabels] ?? applied.gender });
-  if (applied.countryCode) chips.push({ keys: ['countryCode'], text: countries.find((c) => c.code === applied.countryCode)?.name ?? applied.countryCode });
-  if (applied.ageMin || applied.ageMax) chips.push({ keys: ['ageMin', 'ageMax'], text: t('browse.chip.age', { range: range(applied.ageMin, applied.ageMax) }) });
-  if (applied.heightMin || applied.heightMax) chips.push({ keys: ['heightMin', 'heightMax'], text: t('browse.chip.height', { range: range(applied.heightMin, applied.heightMax, ' cm') }) });
-  if (applied.religion) chips.push({ keys: ['religion'], text: religionLabels[applied.religion as keyof typeof religionLabels] ?? applied.religion });
-  if (applied.maritalStatus) chips.push({ keys: ['maritalStatus'], text: maritalLabels[applied.maritalStatus as keyof typeof maritalLabels] ?? applied.maritalStatus });
-  if (applied.caste) chips.push({ keys: ['caste'], text: applied.caste });
+  const sort = (params.get('sort') as DiscoverSort | null) ?? 'newest';
+  const clearAll = () => {
+    setSearch('');
+    update(Object.fromEntries([...FILTERS, ...TOOLBAR].map((key) => [key, null])));
+  };
 
   const error = discover.error instanceof ApiError ? discover.error : null;
   const notVerified = error?.code === 'VERIFICATION_REQUIRED';
   const cards = discover.data?.pages.flatMap((page) => page.profiles) ?? [];
+  const active = FILTERS.filter((key) => applied[key]).length + (params.get('q') ? 1 : 0) + (params.get('location') ? 1 : 0);
 
   return (
     <AppShell width="wide">
-      <PageTitle
-        kicker={t('browse.kicker')}
-        title={t('browse.title')}
-        action={
-          <Button variant="outline" className="h-11" onClick={() => setOpen(true)} disabled={notVerified}>
-            <SlidersHorizontal aria-hidden="true" />
-            {t('browse.filters.open')}
-            {chips.length > 0 && <span className="rounded-full bg-[var(--ui-purple)] px-1.5 text-xs text-[var(--ui-on-purple)] tabular-nums">{chips.length}</span>}
-          </Button>
-        }
-      >
-        {t('browse.intro')}
-      </PageTitle>
-
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-8">
-        <div className="flex min-w-0 flex-col gap-5">
-          {!notVerified && (
-          <div className="flex flex-wrap items-center gap-2 border-b pb-4 text-sm">
-            {chips.length === 0 ? (
-              <span className="text-muted-foreground">{t('browse.allProfiles')}</span>
-            ) : (
-              <>
-                <span className="sr-only">{t('browse.filters.applied')}</span>
-                <ul className="flex flex-wrap gap-2">
-                  {chips.map((chip) => (
-                    <li key={chip.keys.join()}>
-                      <button
-                        type="button"
-                        onClick={() => remove(chip.keys)}
-                        className="inline-flex min-h-9 items-center gap-1.5 rounded-full border bg-card py-1 pr-2 pl-3 font-medium hover:border-[var(--ui-purple)]"
-                        aria-label={t('browse.filters.remove', { filter: chip.text })}
-                      >
-                        {chip.text}
-                        <X className="size-3.5 text-muted-foreground" aria-hidden="true" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-                <button type="button" onClick={clear} className="ml-auto min-h-9 font-semibold underline-offset-4 hover:underline">
-                  {t('browse.clear')}
-                </button>
-              </>
-            )}
-          </div>
-          )}
-
-          {discover.isPending ? (
-            <Loading />
-          ) : notVerified ? (
-            // Browsing needs the member's own checks first (owner decision 29 Oct 2026): say so, and where to do them.
-            <section className="flex flex-col items-center gap-3 rounded-[10px] border border-dashed bg-[var(--ui-surface)] px-5 py-14 text-center">
-              <ShieldCheck className="size-7 text-[var(--ui-copper)]" aria-hidden="true" />
-              <h2 className="font-serif text-2xl">{t('browse.notVerified.title')}</h2>
-              <p className="max-w-[46ch] text-muted-foreground">{t('browse.notVerified.body')}</p>
-              <Button asChild className="mt-2 h-11">
-                <Link to="/verify">{t('browse.goVerify')}</Link>
-              </Button>
-            </section>
-          ) : discover.isError ? (
-            <Notice tone="error">{errorMessage(discover.error)}</Notice>
-          ) : cards.length === 0 ? (
-            <section className="flex flex-col items-center gap-3 rounded-[10px] border border-dashed bg-[var(--ui-surface)] px-5 py-14 text-center">
-              <Heart className="size-7 text-[var(--ui-copper)]" aria-hidden="true" />
-              <h2 className="font-serif text-2xl">{t('browse.none')}</h2>
-              {chips.length > 0 && (
-                <Button variant="outline" className="mt-2 h-11" onClick={clear}>
-                  {t('browse.clear')}
-                </Button>
-              )}
-            </section>
-          ) : (
-            <>
-              <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label={t('browse.list')}>
-                {cards.map((card) => (
-                  <li key={card.id} className="min-w-0">
-                    <MemberCardLink
-                      card={card}
-                      href={withAs(`/members/${card.id}`, acting)}
-                      action={<SaveIcon actingId={acting?.id ?? null} profileId={card.id} name={card.displayName ?? t('member.member')} />}
-                    />
-                  </li>
-                ))}
-              </ul>
-              {discover.hasNextPage && (
-                <Button variant="outline" className="h-11 self-center" disabled={discover.isFetchingNextPage} onClick={() => discover.fetchNextPage()}>
-                  {discover.isFetchingNextPage ? t('common.loading') : t('browse.more')}
-                </Button>
-              )}
-            </>
-          )}
+      <div className="m-page-heading">
+        <div>
+          <span className="m-kicker uppercase">{t('browse.kicker')}</span>
+          <h1>{t('browse.title')}</h1>
+          <p>{t('browse.intro')}</p>
         </div>
-
-        <aside className="order-first flex flex-col gap-5 lg:order-none lg:sticky lg:top-6">
-          {ready && acting && <ActingCard acting={acting} profiles={profiles} onChoose={choose} />}
-          <HowItWorks />
-        </aside>
+        <div className="m-discover-heading-actions">
+          <button type="button" className="m-btn m-secondary" onClick={() => setOpen(true)} disabled={notVerified}>
+            <SlidersHorizontal size={17} aria-hidden="true" />
+            {t('browse.filters.open')}
+            {active > 0 && <span className="sr-only">{t('browse.filters.count', { count: active })}</span>}
+          </button>
+        </div>
       </div>
 
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="right" className="w-full gap-0 overflow-y-auto bg-card p-6 sm:max-w-[440px]">
-          <SheetHeader className="p-0 pr-10">
-            <SheetTitle className="font-serif text-[1.75rem] leading-tight font-normal tracking-[-0.03em]">{t('browse.filters.open')}</SheetTitle>
-            <SheetDescription>{t('browse.filters.body')}</SheetDescription>
-          </SheetHeader>
-          <form onSubmit={apply} className="mt-6 grid gap-4" aria-label={t('browse.filters')}>
-            <SelectField label={t('details.gender')} value={draft.gender} onChange={set('gender')} options={options(genderLabels)} placeholder={any} />
-            <SelectField
-              label={t('details.country')}
-              value={draft.countryCode}
-              onChange={set('countryCode')}
-              options={countries.map((c) => ({ value: c.code, label: c.name }))}
-              placeholder={any}
-            />
-            <div className="grid grid-cols-2 gap-3">
-              <TextField label={t('browse.ageFrom')} type="number" inputMode="numeric" min={18} max={100} value={draft.ageMin} onChange={set('ageMin')} error={error?.fields.ageMin} />
-              <TextField label={t('browse.ageTo')} type="number" inputMode="numeric" min={18} max={100} value={draft.ageMax} onChange={set('ageMax')} error={error?.fields.ageMax} />
+      {notVerified ? (
+        // SCREEN-033: browsing needs the member's own checks first (owner decision 29 Oct 2026).
+        <section className="m-surface m-access-gate">
+          <span className="m-kicker uppercase">{t('browse.kicker')}</span>
+          <h2>{t('browse.notVerified.title')}</h2>
+          <p>{t('browse.notVerified.body')}</p>
+          <Link className="m-btn" to="/verify">
+            {t('browse.goVerify')}
+          </Link>
+        </section>
+      ) : (
+        <div className="m-discover-layout">
+          <section aria-label={t('browse.list')}>
+            <div className="m-discover-toolbar">
+              <div className="m-search">
+                <Search size={18} aria-hidden="true" />
+                <input aria-label={t('browse.search')} placeholder={t('browse.search.placeholder')} value={search} maxLength={60} onChange={(event) => setSearch(event.target.value)} />
+              </div>
+              <LocationFilter
+                location={params.get('location') ?? 'everywhere'}
+                regions={params.get('regions')?.split(',').filter(Boolean) ?? []}
+                countries={params.get('countries')?.split(',').filter(Boolean) ?? []}
+                apply={(location, chosen) =>
+                  update({
+                    location: location === 'everywhere' ? null : location,
+                    regions: location === 'sri_lanka' ? chosen.join(',') : null,
+                    countries: location === 'abroad' ? chosen.join(',') : null,
+                    countryCode: null,
+                  })
+                }
+              />
+              <Select value={sort} onValueChange={(value) => update({ sort: value === 'newest' ? null : value })}>
+                <SelectTrigger aria-label={t('browse.sort')} className="m-choice">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="m-options">
+                  {DISCOVER_SORTS.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {t(`browse.sort.${option}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <TextField label={t('browse.heightFrom')} type="number" inputMode="decimal" step="0.1" min={100} max={230} value={draft.heightMin} onChange={set('heightMin')} error={error?.fields.heightMin} />
-              <TextField label={t('browse.heightTo')} type="number" inputMode="decimal" step="0.1" min={100} max={230} value={draft.heightMax} onChange={set('heightMax')} error={error?.fields.heightMax} />
+            <div className="m-discovery-summary">
+              <span>{t('browse.sortedBy', { sort: t(`browse.sort.${sort}`).toLowerCase() })}</span>
+              {active > 0 && (
+                <button type="button" className="m-text" onClick={clearAll}>
+                  {t('browse.clear')}
+                </button>
+              )}
             </div>
-            <SelectField label={t('details.religion')} value={draft.religion} onChange={set('religion')} options={options(religionLabels)} placeholder={any} />
-            <SelectField label={t('details.marital')} value={draft.maritalStatus} onChange={set('maritalStatus')} options={options(maritalLabels)} placeholder={any} />
-            <TextField label={t('details.caste')} hint={t('browse.caste.hint')} maxLength={80} value={draft.caste} onChange={set('caste')} />
-            <div className="sticky bottom-0 -mx-6 mt-2 flex flex-wrap gap-3 border-t bg-card px-6 pt-4 pb-2">
-              <Button type="submit" className="h-11 flex-1">
-                {t('browse.show')}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-11"
-                onClick={() => {
-                  clear();
-                  setOpen(false);
-                }}
-              >
-                {t('browse.clear')}
-              </Button>
+            <div className="m-result-head">
+              <span>{t(applied.gender === 'woman' ? 'browse.results.woman' : applied.gender === 'man' ? 'browse.results.man' : 'browse.results.people')}</span>
+              {!discover.isPending && !discover.isError && (
+                <small>{discover.hasNextPage ? t('browse.results.countMore', { count: cards.length }) : t('browse.results.count', { count: cards.length })}</small>
+              )}
             </div>
-          </form>
-        </SheetContent>
-      </Sheet>
+            {discover.isPending ? (
+              <Loading />
+            ) : discover.isError ? (
+              <Notice tone="error">{errorMessage(discover.error)}</Notice>
+            ) : cards.length === 0 ? (
+              <div className="m-empty">
+                <Heart size={28} aria-hidden="true" />
+                <h3>{t('browse.empty.title')}</h3>
+                <p>{t('browse.empty.body')}</p>
+                {active > 0 && (
+                  <button type="button" className="m-btn m-secondary" onClick={clearAll}>
+                    {t('browse.empty.reset')}
+                  </button>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="m-profile-grid">
+                  {cards.map((card) => (
+                    <DiscoverCard
+                      key={card.id}
+                      card={card}
+                      href={withAs(`/members/${card.id}`, acting)}
+                      action={<SaveIcon className="m-bookmark" actingId={acting?.id ?? null} profileId={card.id} name={card.displayName ?? t('member.member')} />}
+                    />
+                  ))}
+                </div>
+                {discover.hasNextPage && (
+                  <button type="button" className="m-btn m-secondary mx-auto mt-6 flex" disabled={discover.isFetchingNextPage} onClick={() => discover.fetchNextPage()}>
+                    {discover.isFetchingNextPage ? t('common.loading') : t('browse.more')}
+                  </button>
+                )}
+              </>
+            )}
+            <p className="m-discovery-end">{t('browse.end')}</p>
+          </section>
+          <aside className="m-right-rail">
+            {ready && acting && <ActingCard acting={acting} profiles={profiles} onChoose={choose} />}
+            <div className="m-intention-card">
+              <span className="m-kicker uppercase">{t('browse.how.kicker')}</span>
+              <h3>
+                {t('browse.how.title1')}
+                <br />
+                <em>{t('browse.how.title2')}</em>
+              </h3>
+              <p>{t('browse.how.body')}</p>
+              <button type="button" onClick={() => navigate(withAs('/connections', acting))}>
+                {t('layout.dock.connections')} <ArrowUpRight size={16} aria-hidden="true" />
+              </button>
+            </div>
+            {acting && (
+              <div className="m-rail-links">
+                <button type="button" onClick={() => navigate(`/profiles/${acting.id}/plan`)}>
+                  <Crown size={18} aria-hidden="true" />
+                  <span>
+                    {t('browse.rail.membership')}
+                    <small>{t('browse.rail.membershipHint')}</small>
+                  </span>
+                  <ChevronRight size={16} aria-hidden="true" />
+                </button>
+                <button type="button" onClick={() => navigate('/verify')}>
+                  <ShieldCheck size={18} aria-hidden="true" />
+                  <span>
+                    {t('layout.menu.verification')}
+                    <small>{t('profile.trust.title')}</small>
+                  </span>
+                  <ChevronRight size={16} aria-hidden="true" />
+                </button>
+              </div>
+            )}
+            <p className="m-rail-caption">
+              {t('browse.rail.caption1')}
+              <br />
+              {t('browse.rail.caption2')}
+            </p>
+          </aside>
+        </div>
+      )}
+
+      <PreferencesDialog
+        open={open}
+        onOpenChange={setOpen}
+        applied={applied}
+        sort={sort}
+        error={error}
+        onSave={(next, nextSort) => {
+          update({ ...next, sort: nextSort === 'newest' ? null : nextSort });
+          setOpen(false);
+        }}
+      />
     </AppShell>
   );
 }
 
-/** The profile requests are sent from: who it is, how far along, and (for managers) which one. */
-function ActingCard({ acting, profiles, onChoose }: { acting: ProfileView; profiles: ProfileView[]; onChoose: (id: string) => void }) {
+/** SCREEN-058, the demo's location filter: everywhere, some districts of Sri Lanka, or some countries abroad. */
+function LocationFilter({ location, regions, countries, apply }: { location: string; regions: string[]; countries: string[]; apply: (location: string, chosen: string[]) => void }) {
   const { t } = useI18n();
-  const { statusLabels } = useLabels();
-  const name = acting.fields.displayName ?? t('card.untitled');
-  const several = profiles.length > 1;
+  const allCountries = useCountries().filter((country) => country.code !== 'LK');
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState(location);
+  const [selected, setSelected] = useState<string[]>([]);
+  const chosen = location === 'sri_lanka' ? regions : location === 'abroad' ? countries : [];
+  const nameOf = (value: string) => (location === 'abroad' ? (allCountries.find((country) => country.code === value)?.name ?? value) : suggestionLabel(t, 'district', value));
+  const place = t(location === 'sri_lanka' ? 'browse.location.sriLanka' : location === 'abroad' ? 'browse.location.abroad' : 'browse.location.everywhere');
+  const label = chosen.length === 1 ? nameOf(chosen[0]!) : chosen.length ? t('browse.location.count', { place, count: chosen.length }) : place;
+  const optionsFor = mode === 'sri_lanka' ? SRI_LANKA_DISTRICTS.map((district) => ({ value: district, label: suggestionLabel(t, 'district', district) })) : allCountries.map((country) => ({ value: country.code, label: country.name }));
   return (
-    // With one profile there is nothing to choose, so on a phone the list comes first and this card is left out.
-    <section className={several ? 'rounded-[var(--ui-panel-radius)] border bg-card p-5' : 'hidden rounded-[var(--ui-panel-radius)] border bg-card p-5 lg:block'}>
-      <div className="flex items-center gap-3">
-        <span className="grid size-12 shrink-0 place-items-center rounded-full bg-[var(--ui-soft)] font-serif text-xl text-[var(--ui-purple)]" aria-hidden="true">
-          {name.slice(0, 1).toUpperCase()}
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-lg font-semibold">{name}</p>
-          <p className="text-sm text-muted-foreground">
-            {statusLabels[acting.status]}
-            {acting.status === 'draft' && acting.missing.length > 0 && ` · ${t('card.toComplete', { count: acting.missing.length })}`}
-          </p>
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        if (next) {
+          setMode(location);
+          setSelected(chosen);
+        }
+        setOpen(next);
+      }}
+    >
+      <PopoverTrigger asChild>
+        <button type="button" className="m-location-trigger" aria-label={t('browse.location.label', { label })}>
+          <MapPin size={16} aria-hidden="true" />
+          <span>{label}</span>
+          <ChevronDown size={15} aria-hidden="true" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="m-location-popover" align="start" collisionPadding={12} aria-label={t('browse.location.title')}>
+        <h3>{t('browse.location.title')}</h3>
+        <div className="m-location-modes" role="group" aria-label={t('browse.location.title')}>
+          {(['everywhere', 'sri_lanka', 'abroad'] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={mode === value}
+              onClick={() => {
+                setMode(value);
+                setSelected([]);
+              }}
+            >
+              {t(value === 'sri_lanka' ? 'browse.location.sriLanka' : value === 'abroad' ? 'browse.location.abroad' : 'browse.location.everywhere')}
+            </button>
+          ))}
         </div>
-      </div>
-      <p className="mt-3 text-sm text-muted-foreground">{t('acting.hint')}</p>
-      {several && (
-        <div className="mt-3">
-          <ActingPicker profiles={profiles} acting={acting} onChoose={onChoose} />
+        {mode !== 'everywhere' && (
+          <>
+            <p>{t(mode === 'sri_lanka' ? 'browse.location.districtsHint' : 'browse.location.countriesHint')}</p>
+            <div className="m-location-options">
+              {optionsFor.map((option) => (
+                <label key={option.value} data-selected={selected.includes(option.value)}>
+                  <input
+                    type="checkbox"
+                    checked={selected.includes(option.value)}
+                    onChange={(event) => setSelected(event.target.checked ? [...selected, option.value] : selected.filter((value) => value !== option.value))}
+                  />
+                  <span>{option.label}</span>
+                </label>
+              ))}
+            </div>
+          </>
+        )}
+        <div className="m-location-actions">
+          <button type="button" onClick={() => setSelected([])} disabled={!selected.length}>
+            {t('browse.location.clear')}
+          </button>
+          <button
+            type="button"
+            className="m-btn"
+            onClick={() => {
+              apply(mode, selected);
+              setOpen(false);
+            }}
+          >
+            {t('browse.location.apply')}
+          </button>
         </div>
-      )}
-      <Link to={`/profiles/${acting.id}`} className="mt-4 inline-flex min-h-11 items-center gap-1.5 font-semibold text-[var(--ui-purple)] underline-offset-4 hover:underline">
-        {t('browse.side.open')}
-        <ArrowUpRight className="size-4" aria-hidden="true" />
-      </Link>
-    </section>
+      </PopoverContent>
+    </Popover>
   );
 }
 
-/** The demo's "Less noise. More intention." card, saying how connecting really works here. */
-function HowItWorks() {
+/** SCREEN-057, the demo's preferences dialog: the main filters, then culture and lifestyle in folding sections, then the sort. */
+function PreferencesDialog({
+  open,
+  onOpenChange,
+  applied,
+  sort,
+  error,
+  onSave,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  applied: Filters;
+  sort: DiscoverSort;
+  error: ApiError | null;
+  onSave: (filters: Filters, sort: DiscoverSort) => void;
+}) {
   const { t } = useI18n();
+  const labels = useLabels();
+  const [draft, setDraft] = useState<Filters>(applied);
+  const [draftSort, setDraftSort] = useState<DiscoverSort>(sort);
+  useEffect(() => {
+    if (open) {
+      setDraft(applied);
+      setDraftSort(sort);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+  const set = (key: FilterKey) => (value: string) => setDraft((current) => ({ ...current, [key]: value }));
+  const none = t('browse.noPreference');
   return (
-    <section className="hidden rounded-[var(--ui-panel-radius)] border bg-card p-6 lg:block">
-      <p className={kickerClass}>{t('browse.how.kicker')}</p>
-      <h2 className="mt-3 font-serif text-[2rem] leading-[1.1]">
-        {t('browse.how.title1')}
-        <br />
-        <em className="text-[var(--ui-copper)]">{t('browse.how.title2')}</em>
-      </h2>
-      <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{t('browse.how.body')}</p>
-    </section>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <span className="m-kicker uppercase">{t('browse.filters.kicker')}</span>
+          <DialogTitle>{t('browse.filters.open')}</DialogTitle>
+          <DialogDescription>{t('browse.filters.body')}</DialogDescription>
+        </DialogHeader>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSave(draft, draftSort);
+          }}
+        >
+          <div className="m-form-grid">
+            <SelectField label={t('browse.filters.lookingFor')} value={draft.gender} onChange={set('gender')} options={options(labels.genderLabels)} placeholder={none} />
+            <SelectField label={t('details.religion')} value={draft.religion} onChange={set('religion')} options={options(labels.religionLabels)} placeholder={none} />
+            <TextField label={t('browse.ageFrom')} type="number" inputMode="numeric" min={18} max={100} value={draft.ageMin} onChange={set('ageMin')} error={error?.fields.ageMin} />
+            <TextField label={t('browse.ageTo')} type="number" inputMode="numeric" min={18} max={100} value={draft.ageMax} onChange={set('ageMax')} error={error?.fields.ageMax} />
+            <TextField label={t('browse.heightFrom')} type="number" inputMode="decimal" step="0.1" min={100} max={230} value={draft.heightMin} onChange={set('heightMin')} error={error?.fields.heightMin} />
+            <TextField label={t('browse.heightTo')} type="number" inputMode="decimal" step="0.1" min={100} max={230} value={draft.heightMax} onChange={set('heightMax')} error={error?.fields.heightMax} />
+          </div>
+          <details className="m-filter-section">
+            <summary>{t('browse.filters.culture')}</summary>
+            <p className="m-small-print">{t('browse.filters.cultureHint')}</p>
+            <div className="m-form-grid">
+              <TextField label={t('details.motherTongue')} maxLength={80} value={draft.motherTongue} onChange={set('motherTongue')} />
+              <SelectField label={t('details.community')} value={draft.communityOpenness} onChange={set('communityOpenness')} options={options(labels.communityLabels)} placeholder={none} />
+              <SelectField label={t('details.involvement')} value={draft.familyInvolvement} onChange={set('familyInvolvement')} options={options(labels.involvementLabels)} placeholder={none} />
+              <SelectField label={t('details.children')} value={draft.childrenPlan} onChange={set('childrenPlan')} options={options(labels.childrenLabels)} placeholder={none} />
+              <TextField label={t('details.caste')} hint={t('browse.caste.hint')} maxLength={80} value={draft.caste} onChange={set('caste')} />
+              <SelectField label={t('details.marital')} value={draft.maritalStatus} onChange={set('maritalStatus')} options={options(labels.maritalLabels)} placeholder={none} />
+            </div>
+          </details>
+          <details className="m-filter-section">
+            <summary>{t('browse.filters.lifestyle')}</summary>
+            <div className="m-form-grid">
+              <SelectField label={t('details.diet')} value={draft.diet} onChange={set('diet')} options={options(labels.dietLabels)} placeholder={none} />
+              <SelectField label={t('details.smoking')} value={draft.smoking} onChange={set('smoking')} options={options(labels.habitLabels)} placeholder={none} />
+              <SelectField label={t('details.drinking')} value={draft.drinking} onChange={set('drinking')} options={options(labels.habitLabels)} placeholder={none} />
+            </div>
+          </details>
+          <div className="m-form-grid">
+            <SelectField
+              label={t('browse.sort')}
+              value={draftSort}
+              onChange={(value) => setDraftSort((value || 'newest') as DiscoverSort)}
+              options={DISCOVER_SORTS.map((option) => ({ value: option, label: t(`browse.sort.${option}`) }))}
+            />
+          </div>
+          <div className="m-actions">
+            <button
+              type="button"
+              className="m-text"
+              onClick={() => {
+                setDraft(readFilters(new URLSearchParams()));
+                setDraftSort('newest');
+              }}
+            >
+              {t('browse.filters.reset')}
+            </button>
+            <button type="submit" className="m-btn">
+              {t('browse.filters.save')}
+              <ArrowRight size={16} aria-hidden="true" />
+            </button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** The demo's rail card for the profile being acted for: its letter, name and state, and (for managers) which one. */
+function ActingCard({ acting, profiles, onChoose }: { acting: ProfileView; profiles: ProfileView[]; onChoose: (id: string) => void }) {
+  const { t } = useI18n();
+  const navigate = useNavigate();
+  const { statusLabels } = useLabels();
+  const name = acting.fields.displayName ?? t('card.untitled');
+  return (
+    <div className="m-context-card">
+      <div className="m-rail-head">
+        <span className="m-letter-avatar" aria-hidden="true">
+          {name.slice(0, 1).toUpperCase()}
+        </span>
+        <div>
+          <strong>{name}</strong>
+          <small>{statusLabels[acting.status]}</small>
+        </div>
+        <button type="button" aria-label={t('browse.side.open')} onClick={() => navigate(`/profiles/${acting.id}`)}>
+          <ArrowUpRight size={18} aria-hidden="true" />
+        </button>
+      </div>
+      <p>{t('acting.hint')}</p>
+      {profiles.length > 1 && <ActingPicker profiles={profiles} acting={acting} onChoose={onChoose} />}
+    </div>
   );
 }

@@ -3,10 +3,10 @@
  * Filtering happens here, on the server; members never receive a profile they may not see, nor a field
  * outside the member allowlist. Parents' names and contact details appear only after both accept.
  */
-import { and, desc, eq, gte, isNull, lte, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNull, lte, sql, type SQL } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { actingProfileSchema, DISCOVER_PAGE_SIZE, discoverQuerySchema, type DiscoverPage, type MemberProfileView, type RelationView } from '@fh/shared';
+import { actingProfileSchema, DISCOVER_PAGE_SIZE, DISCOVER_SORTS, discoverQuerySchema, type DiscoverPage, type DiscoverSort, type MemberProfileView, type RelationView } from '@fh/shared';
 import { connection, interest } from '../db/schema/connections.ts';
 import { profile } from '../db/schema/members.ts';
 import { fail, isoDate, parse, withActor, type AppEnv, type Tx } from '../http.ts';
@@ -23,15 +23,34 @@ export async function requireVerifiedMember(tx: Tx): Promise<void> {
   }
 }
 
-const cursorSchema = z.object({ t: z.iso.datetime(), id: z.uuid() });
-const encodeCursor = (t: Date, id: string) => Buffer.from(JSON.stringify({ t: t.toISOString(), id })).toString('base64url');
-function decodeCursor(value: string) {
+/**
+ * Each sort's key and direction (decision B4). The id breaks ties, so paging never repeats or skips a profile; the
+ * cursor carries the sort it belongs to and the last row's key.
+ */
+const SORT_KEYS: Record<DiscoverSort, { key: SQL; cast: string; dir: 'asc' | 'desc' }> = {
+  newest: { key: sql`${profile.firstPublishedAt}`, cast: 'timestamptz', dir: 'desc' },
+  // Youngest first: the latest birth date first.
+  age_asc: { key: sql`${profile.birthDate}`, cast: 'date', dir: 'desc' },
+  age_desc: { key: sql`${profile.birthDate}`, cast: 'date', dir: 'asc' },
+  name: { key: sql`lower(${profile.displayName})`, cast: 'text', dir: 'asc' },
+  // Profiles abroad have no district; they come after the districts.
+  district: { key: sql`coalesce(lower(${profile.region}), '~')`, cast: 'text', dir: 'asc' },
+};
+
+const cursorSchema = z.object({ s: z.enum(DISCOVER_SORTS), k: z.string().max(200), id: z.uuid() });
+const encodeCursor = (s: DiscoverSort, k: string, id: string) => Buffer.from(JSON.stringify({ s, k, id })).toString('base64url');
+function decodeCursor(value: string, sort: DiscoverSort) {
   try {
-    return cursorSchema.parse(JSON.parse(Buffer.from(value, 'base64url').toString('utf8')));
+    const cursor = cursorSchema.parse(JSON.parse(Buffer.from(value, 'base64url').toString('utf8')));
+    if (cursor.s !== sort) throw new Error('another sort');
+    return cursor;
   } catch {
     return fail(400, 'VALIDATION', 'api.discover.pageExpired', { cursor: 'validation.invalid' });
   }
 }
+
+/** A search term inside LIKE, with % and _ taken literally. */
+const likeTerm = (text: string) => `%${text.replace(/[\\%_]/g, (match) => `\\${match}`)}%`;
 
 discover.get('/', async (c) => {
   const q = parse(discoverQuerySchema, c.req.query());
@@ -51,23 +70,44 @@ discover.get('/', async (c) => {
       q.heightMax !== undefined ? lte(profile.heightCm, q.heightMax) : undefined,
       // Section 6: caste filters only match profiles that consented to show it.
       q.caste ? sql`lower(${profile.caste}) = lower(${q.caste}) and ${profile.casteConsentedAt} is not null` : undefined,
+      // Decision B4: text search over what cards show (first name, city, occupation), location modes, culture.
+      q.q
+        ? sql`(${profile.displayName} ilike ${likeTerm(q.q)} or ${profile.city} ilike ${likeTerm(q.q)} or ${profile.occupation} ilike ${likeTerm(q.q)})`
+        : undefined,
+      q.location === 'sri_lanka' ? eq(profile.countryCode, 'LK') : undefined,
+      q.location === 'sri_lanka' && q.regions?.length ? inArray(sql`lower(${profile.region})`, q.regions.map((region) => region.toLowerCase())) : undefined,
+      q.location === 'abroad' ? sql`${profile.countryCode} <> 'LK'` : undefined,
+      q.location === 'abroad' && q.countries?.length ? inArray(profile.countryCode, q.countries) : undefined,
+      q.diet ? eq(profile.diet, q.diet) : undefined,
+      q.smoking ? eq(profile.smoking, q.smoking) : undefined,
+      q.drinking ? eq(profile.drinking, q.drinking) : undefined,
+      q.childrenPlan ? eq(profile.childrenPlan, q.childrenPlan) : undefined,
+      q.familyInvolvement ? eq(profile.familyInvolvement, q.familyInvolvement) : undefined,
+      q.communityOpenness ? eq(profile.communityOpenness, q.communityOpenness) : undefined,
+      q.motherTongue ? sql`lower(${profile.motherTongue}) = lower(${q.motherTongue})` : undefined,
     ];
+    const sort: DiscoverSort = q.sort ?? 'newest';
+    const { key, cast, dir } = SORT_KEYS[sort];
     if (q.cursor) {
-      const after = decodeCursor(q.cursor);
-      where.push(sql`(${profile.firstPublishedAt}, ${profile.id}) < (${after.t}::timestamptz, ${after.id}::uuid)`);
+      const after = decodeCursor(q.cursor, sort);
+      where.push(
+        dir === 'desc'
+          ? sql`(${key}, ${profile.id}) < (${after.k}::${sql.raw(cast)}, ${after.id}::uuid)`
+          : sql`(${key}, ${profile.id}) > (${after.k}::${sql.raw(cast)}, ${after.id}::uuid)`,
+      );
     }
     const found = await tx
-      .select({ ...cardColumns, firstPublishedAt: profile.firstPublishedAt })
+      .select({ ...cardColumns, sortKey: sql<string | null>`(${key})::text` })
       .from(profile)
       .where(and(...where))
-      .orderBy(desc(profile.firstPublishedAt), desc(profile.id))
+      .orderBy(dir === 'desc' ? sql`${key} desc nulls last` : sql`${key} asc nulls last`, dir === 'desc' ? desc(profile.id) : asc(profile.id))
       .limit(DISCOVER_PAGE_SIZE + 1);
     const more = found.length > DISCOVER_PAGE_SIZE;
     const shown = found.slice(0, DISCOVER_PAGE_SIZE);
     const last = shown.at(-1);
     return {
       profiles: await memberCards(c, tx, shown),
-      nextCursor: more && last?.firstPublishedAt ? encodeCursor(last.firstPublishedAt, last.id) : null,
+      nextCursor: more && last?.sortKey ? encodeCursor(sort, last.sortKey, last.id) : null,
     };
   });
   return c.json(page);
