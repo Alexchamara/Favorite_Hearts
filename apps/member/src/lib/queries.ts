@@ -9,6 +9,7 @@ import type {
   BillingOverview,
   BlockView,
   ConnectionView,
+  HistoryItem,
   DiscoverPage,
   MemberProfileView,
   MeView,
@@ -46,6 +47,7 @@ export const keys = {
   sent: (profileId: string) => ['requests', profileId, 'sent'] as const,
   connections: (profileId: string) => ['connections', profileId] as const,
   blocks: (profileId: string) => ['blocks', profileId] as const,
+  history: (profileId: string) => ['history', profileId] as const,
   shortlist: (profileId: string) => ['shortlist', profileId] as const,
   plan: (profileId: string) => ['plan', profileId] as const,
   photos: (profileId: string) => ['photos', profileId] as const,
@@ -63,7 +65,7 @@ export const keys = {
 /** After a request, connection or block changes: everything that shows relations is refreshed. */
 export function refreshRelations() {
   return Promise.all(
-    ['requests', 'connections', 'blocks', 'member', 'discover', 'plan', 'shortlist'].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
+    ['requests', 'connections', 'blocks', 'history', 'member', 'discover', 'plan', 'shortlist'].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
   );
 }
 
@@ -179,7 +181,12 @@ export function useMember(id: string, as: string | null, enabled = true) {
 }
 
 export function useReceived(profileId: string) {
-  return useQuery({ queryKey: keys.received(profileId), queryFn: () => api<ReceivedInterests>(`/profiles/${profileId}/interests?box=received`) });
+  return useQuery({
+    queryKey: keys.received(profileId),
+    queryFn: () => api<ReceivedInterests>(`/profiles/${profileId}/interests?box=received`),
+    // A page may ask before it knows which profile it acts for.
+    enabled: Boolean(profileId),
+  });
 }
 
 export function useSent(profileId: string) {
@@ -193,6 +200,14 @@ export function useConnections(profileId: string) {
   return useQuery({
     queryKey: keys.connections(profileId),
     queryFn: async () => (await api<{ connections: ConnectionView[] }>(`/profiles/${profileId}/connections`)).connections,
+  });
+}
+
+/** Closed introductions for the History tab (decision B5). */
+export function useHistory(profileId: string) {
+  return useQuery({
+    queryKey: keys.history(profileId),
+    queryFn: async () => (await api<{ items: HistoryItem[] }>(`/profiles/${profileId}/history`)).items,
   });
 }
 

@@ -11,6 +11,7 @@ import type {
   DocumentSide,
   ENTITLEMENT_KINDS,
   INTEREST_STATUSES,
+  CONNECTION_END_REASONS,
   INVITATION_CHANNELS,
   LOCALES,
   MANAGER_RELATIONSHIPS,
@@ -267,6 +268,21 @@ export type ConnectionView = {
   profile: MemberCard | null;
   contacts: SharedContact[] | null;
   contactsHidden: ContactsHidden | null;
+};
+
+/**
+ * One closed introduction in the History tab (decision B5, 9 Nov 2026): a request declined or withdrawn (sent or
+ * received), or a connection that ended, newest first. `profile` is null when that member is no longer shown, and for
+ * a received request while the acting profile has no plan (its sender stays anonymous, as in the Received tab).
+ */
+export type HistoryItem = {
+  kind: 'interest' | 'connection';
+  id: string;
+  direction: 'sent' | 'received' | null;
+  status: (typeof INTEREST_STATUSES)[number] | 'ended';
+  endReason: (typeof CONNECTION_END_REASONS)[number] | null;
+  at: ApiDate;
+  profile: MemberCard | null;
 };
 
 export type BlockView = { id: string; profileId: string | null; displayName: string | null; blockedAt: ApiDate };

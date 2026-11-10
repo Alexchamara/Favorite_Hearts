@@ -98,6 +98,8 @@ keys get an English value and a blank Sinhala value.
 | Member: preferences dialog | The app's filters (age, height, religion, marital status, caste with consent, culture and lifestyle) in the demo's dialog and folding sections; location lives in the toolbar's location filter; no "selfie-verified only", horoscope or "what matters most" choices | OWNER-DECISIONS §1, §6 |
 | Member: profile sheet | No Horoscope tab or selfie tag (decided out); the request is "Send a request" with the decided confirmation of what will be shared, not "Send interest"; Block and Report sit under the actions; the acting-profile choice (managers) shows in the sheet; opened from its own address the same content is a page, with "← Discover" | OWNER-DECISIONS §1, §4 |
 | Member: report dialog | The app's report categories and details limit, Cancel beside Send report; the demo's kicker and safety note are added; no "Block this member instead" button (Block is beside Report on the profile) | Reports (section 7) |
+| Member: Interests and Connected | One tabbed page as in the demo, with a sixth tab, Blocked, until the Privacy & safety page (ui-8); the dock keeps Interests (Received, Sent, History) and Connected (Mutual, Shared details, Blocked) as two places, and choosing a tab of the other goes there; "Accept" / "Decline" are the decided request actions; Shared details also lists each connection's shared contacts (the demo shows them only in the profile) | Owner, 6 Nov 2026 (two dock places); sections 3, 4 |
+| Member: History | Declined and withdrawn requests both ways and ended connections, with the decided wording; no "Allow a fresh introduction" (the 7-day wait after a decline or withdrawal is the rule here) | Decision B5; section 4 |
 
 More rows are added as each phase finds them.
 
@@ -375,4 +377,26 @@ SCREEN-055, 056, 066.
   profile opens as a sheet over Discover (the list stays behind it), focus moves into the sheet, Escape returns to
   `/browse?sort=name`, the address alone opens the page, tabs and the report dialog work; no sideways scroll at 390
   or 1440 px.
+
+### ui-7 Interests, Connected and History (10 Nov 2026)
+
+SCREEN-036 to 041.
+
+- **API (decision B5, read-only, no schema change):** `GET /api/v1/profiles/:id/history` lists requests declined or
+  withdrawn (sent or received) and connections that ended, newest first, for a profile its viewer operates; blocked
+  members are left out, and without an active plan nothing names a received request's sender (the database does not
+  return those requests then). Type `HistoryItem` in `packages/shared`; test "decision B5 …" in
+  `apps/api/test/requests.test.ts`.
+- **Page** (`features/requests/RelationsPage.tsx`, replacing RequestsPanel and ConnectionsPanel): the demo's heading
+  ("A thoughtful first hello", the new-interests tag) and tabs (`.m-tabs`): Received (anonymous previews as the demo's
+  `.m-anonymous-grid` without a plan; people with Decline / Accept with one), Sent (where each stands, Withdraw),
+  Mutual ("View photos & contact", the no-chat note), Shared details (what is shared, End connection), History, and
+  Blocked. Rows are the demo's `.m-person-row` (`PersonRow` in `features/browse/MemberCard.tsx`); a name opens the
+  profile sheet over the list. The tab is in the address (`?tab=`).
+- **Texts:** 32 new.
+- **Checks:** typecheck clean; tests pass (API 168 with the B5 test, website 5, text tools 9); `build:site` passes;
+  in the sandbox with real requests (Bina → Amal pending, Bina → Dinesh withdrawn): Sent shows both with their state
+  and the 7-day wait, History shows "You withdrew", the empty states show on Received, Mutual and Shared details,
+  choosing Mutual from Interests moves to Connected (and the dock with it); no console errors; no sideways scroll at
+  390 or 1440 px.
 

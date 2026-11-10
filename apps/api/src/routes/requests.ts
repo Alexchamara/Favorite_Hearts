@@ -16,6 +16,7 @@ import {
   shortlistSchema,
   type BlockView,
   type ConnectionView,
+  type HistoryItem,
   type PlanUsage,
   type ReceivedInterests,
   type SentInterestView,
@@ -142,6 +143,68 @@ profileRequests.get('/:id/connections', async (c) => {
     );
   });
   return c.json({ connections: list });
+});
+
+/**
+ * The History tab (decision B5, 9 Nov 2026; read-only, no schema change): requests declined or withdrawn, either
+ * way, and connections that ended, newest first. Blocked members are left out. A received request's sender is shown
+ * only while the acting profile has an active plan, as in the Received tab (sections 1, 4).
+ */
+profileRequests.get('/:id/history', async (c) => {
+  const id = idParam(c.req.param('id'));
+  const items = await withActor(c, async (tx): Promise<HistoryItem[]> => {
+    await operatedProfile(tx, id);
+    const hasPlan = await scalar<boolean>(tx, sql`app.has_active_entitlement(${id})`);
+    const closed = await tx
+      .select()
+      .from(interest)
+      .where(
+        and(
+          inArray(interest.status, ['declined', 'withdrawn']),
+          sql`(${interest.senderProfileId} = ${id} or ${interest.receiverProfileId} = ${id})`,
+          sql`not app.is_blocked(${interest.senderProfileId}, ${interest.receiverProfileId})`,
+        ),
+      )
+      .orderBy(desc(sql`coalesce(${interest.respondedAt}, ${interest.createdAt})`))
+      .limit(100);
+    const ended = await tx
+      .select()
+      .from(connection)
+      .where(
+        and(
+          sql`${connection.endedAt} is not null`,
+          sql`(${connection.profileLow} = ${id} or ${connection.profileHigh} = ${id})`,
+          sql`not app.is_blocked(${connection.profileLow}, ${connection.profileHigh})`,
+        ),
+      )
+      .orderBy(desc(connection.endedAt))
+      .limit(100);
+    const otherOf = (i: { senderProfileId: string; receiverProfileId: string }) => (i.senderProfileId === id ? i.receiverProfileId : i.senderProfileId);
+    const cards = await cardsById(c, tx, [...closed.map(otherOf), ...ended.map((conn) => other(conn, id))]);
+    const fromInterests: HistoryItem[] = closed.map((i) => {
+      const direction = i.senderProfileId === id ? 'sent' : 'received';
+      return {
+        kind: 'interest',
+        id: i.id,
+        direction,
+        status: i.status,
+        endReason: null,
+        at: i.respondedAt ?? i.createdAt,
+        profile: direction === 'received' && !hasPlan ? null : (cards.get(otherOf(i)) ?? null),
+      };
+    });
+    const fromConnections: HistoryItem[] = ended.map((conn) => ({
+      kind: 'connection',
+      id: conn.id,
+      direction: null,
+      status: 'ended',
+      endReason: conn.endReason,
+      at: conn.endedAt!,
+      profile: cards.get(other(conn, id)) ?? null,
+    }));
+    return [...fromInterests, ...fromConnections].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime()).slice(0, 100);
+  });
+  return c.json({ items });
 });
 
 profileRequests.get('/:id/blocks', async (c) => {

@@ -337,6 +337,28 @@ describe('the sender blur and connections (sections 1, 3, 4)', () => {
     rejected(await send(amal, bina), 409, 'REQUEST_COOLDOWN');
     rejected(await send(bina, amal), 409, 'REQUEST_COOLDOWN');
   });
+
+  test('decision B5: History lists closed requests and ended connections, read-only, newest first', async () => {
+    type Item = { kind: string; id: string; direction: string | null; status: string; endReason: string | null; at: string; profile: { id: string } | null };
+    const items = ok(await amal.client.get(`/api/v1/profiles/${amal.profileId}/history`)).items as Item[];
+    const ended = items.find((item) => item.kind === 'connection')!;
+    assert.deepEqual([ended.status, ended.endReason, ended.profile?.id], ['ended', 'withdrawn', bina.profileId]);
+    const declined = items.find((item) => item.kind === 'interest' && item.status === 'declined')!;
+    assert.deepEqual([declined.direction, declined.profile?.id], ['sent', chathu.profileId]);
+    assert.ok(items.some((item) => item.status === 'withdrawn' && item.direction === 'sent'));
+    assert.deepEqual(items.map((item) => item.at), [...items.map((item) => item.at)].sort().reverse(), 'newest first');
+    // The receiver sees it as received; without a plan nothing in the history names the sender (the database does not
+    // even return received requests then), as in the Received tab.
+    const chathuHistory = async () => ok(await chathu.client.get(`/api/v1/profiles/${chathu.profileId}/history`)).items as Item[];
+    const declinedByChathu = (await chathuHistory()).find((item) => item.status === 'declined')!;
+    assert.deepEqual([declinedByChathu.direction, declinedByChathu.profile?.id], ['received', amal.profileId]);
+    await t.db.insert(entitlementEvent).values({ profileId: chathu.profileId, kind: 'forfeit', reason: 'test: plan ended' });
+    assert.equal(JSON.stringify(await chathuHistory()).includes(amal.profileId), false);
+    await grant(chathu.profileId);
+    // Only the people who operate a profile may read its history.
+    const denied = await chathu.client.get(`/api/v1/profiles/${amal.profileId}/history`);
+    assert.ok([403, 404].includes(denied.status), String(denied.status));
+  });
 });
 
 describe('blocks (sections 4, 7)', () => {

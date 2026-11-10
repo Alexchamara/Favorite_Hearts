@@ -166,35 +166,77 @@ export function DiscoverCard({ card, href, action }: { card: MemberCard; href: s
   );
 }
 
-/** A compact row for request and connection lists. */
-export function MemberRow({ card, href, children }: { card: MemberCard | null; href?: string; children?: ReactNode }) {
+/**
+ * A person in the Interests and Connected lists, as the demo's row (.m-person-row): small portrait, name and age (into
+ * their profile, which opens as the side sheet over the list), work and place, who manages the profile, and the row's
+ * actions. `card` is null when that member is no longer shown (or not to be named), and the row says so.
+ */
+export function PersonRow({ card, href, actions, children }: { card: MemberCard | null; href?: string; actions?: ReactNode; children?: ReactNode }) {
   const { t } = useI18n();
-  const background = useLocation();
+  const labels = useLabels();
   const placeOf = usePlaceOf();
-  return (
-    <div className="flex flex-wrap items-center gap-4 py-3">
-      <PhotoFrame photo={card?.cover ?? null} name={card?.displayName ?? null} className="w-16 shrink-0 rounded-[10px]" compact />
-      <div className="min-w-0 flex-1">
-        {card ? (
-          <>
-            <p className="font-semibold">
-              {href ? (
-                <Link to={href} state={{ background }} className="underline-offset-4 hover:underline">
-                  {card.displayName ?? t('member.member')}
-                </Link>
-              ) : (
-                (card.displayName ?? t('member.member'))
-              )}
-              {card.age !== null && <span className="font-normal text-muted-foreground">, {card.age}</span>}
-            </p>
-            <p className="text-sm text-muted-foreground">{[card.occupation, placeOf(card)].filter(Boolean).join(' · ')}</p>
-          </>
-        ) : (
-          <p className="text-sm text-muted-foreground">{t('member.unavailable')}</p>
-        )}
-      </div>
-      {children && <div className="flex flex-wrap gap-2">{children}</div>}
+  const navigate = useNavigate();
+  const background = useLocation();
+  const open = href ? () => navigate(href, { state: { background } }) : undefined;
+  const portrait = card?.cover ? (
+    <div className="m-portrait m-small" style={{ backgroundImage: `url(${card.cover.url})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+  ) : (
+    <div className="m-portrait m-photo-private m-small">
+      <LockKeyhole size={20} aria-hidden="true" />
     </div>
+  );
+  return (
+    <article className="m-person-row">
+      {open ? (
+        <button type="button" className="m-avatar-button" tabIndex={-1} aria-hidden="true" onClick={open}>
+          {portrait}
+        </button>
+      ) : (
+        portrait
+      )}
+      <div className="m-row-copy">
+        {card ? (
+          open ? (
+            <button type="button" className="m-name-link" onClick={open}>
+              {card.displayName ?? t('member.member')}
+              {card.age !== null && `, ${card.age}`}
+            </button>
+          ) : (
+            <strong>
+              {card.displayName ?? t('member.member')}
+              {card.age !== null && `, ${card.age}`}
+            </strong>
+          )
+        ) : (
+          <strong>{t('member.unavailable')}</strong>
+        )}
+        {card && (
+          <p className="m-row-facts">
+            {card.occupation && (
+              <span>
+                <BriefcaseBusiness size={14} aria-hidden="true" />
+                {card.occupation}
+              </span>
+            )}
+            {placeOf(card) && (
+              <span>
+                <MapPin size={14} aria-hidden="true" />
+                {placeOf(card)}
+              </span>
+            )}
+          </p>
+        )}
+        {card && (
+          <small>
+            {card.management === 'manager' && card.managerRelationship
+              ? t('memberPage.managedBy', { relationship: labels.relationshipLabels[card.managerRelationship].toLowerCase() })
+              : t('memberPage.selfManaged')}
+          </small>
+        )}
+        {children && <div className="m-row-extra">{children}</div>}
+      </div>
+      {actions && <div className="m-row-actions">{actions}</div>}
+    </article>
   );
 }
 
