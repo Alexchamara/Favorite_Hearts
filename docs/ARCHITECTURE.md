@@ -91,8 +91,16 @@ Reset   ─ POST /api/auth/request-password-reset {email} ─▶ link /app/reset
 - **Reset.** Email accounts only. Staff reset with the developer (`scripts/staff.ts`); phone-only accounts through
   support until an SMS provider is set up.
 - **Bot check and limits.** Turnstile on sign-up, both log-ins and reset requests; per-IP and per-address limits below.
-- **Email-code sign-in** (`/sign-in/email-otp`, `/phone-number/verify` for signing in) stays until the member app and
-  the invitation page stop using it (auth-2, auth-3), then it is removed.
+- **No sign-in by code** (auth-3). The email-code plugin is gone; `/phone-number/send-otp` and `/phone-number/verify`
+  answer `401 SIGN_IN_REQUIRED` without a session (they only add a phone number while signed in, on the Trust page);
+  Better-Auth's SMS password reset endpoints are disabled (`disabledPaths`).
+- **Invited candidates** (`POST /api/auth/member/sign-up/invitation`): the invitation's own code was sent to the invited
+  address, so it proves that address. One request takes the token, code, name, password and consent, makes the account
+  at that address, accepts the invitation (`app.invitation_accept`, as the new account) and signs in. Accepting runs
+  in its own transaction, so a wrong code is counted against the invitation; only an accepted invitation keeps the new
+  account. An address that already has an account answers `409 ACCOUNT_EXISTS`: the page offers Log in, then accepts.
+- **Recent log-in before deleting.** Deleting a profile or the account needs a log-in within the last 15 minutes: the
+  notice asks for the password on the page (a fresh session) instead of signing out.
 
 ### Codes and SMS
 
@@ -171,7 +179,7 @@ staff area is `/app/staff`.
 | `/browse` | Discovery with filters, for verified members |
 | `/members/:id` | Another member's profile: photos (blurred unless allowed), where the acting profile stands, sending a request after seeing what will be shared, blocking and reporting |
 | `/verify` | Phone check by SMS code and the identity-document upload |
-| `/invite#…` | The candidate's invitation: code, then accept (signing in on the spot) or decline (no account) |
+| `/invite#…` | The candidate's invitation: the invitation code, then accept (signed in already, or creating an account with a password, or logging in) or decline (no account) |
 | `/staff` | Staff sign-in with password and two-step login, enrolment, the document review queue and the report queue; for the owner only, the payment queue with its decisions, plans and prices, payment details, and the service switches |
 
 - **Acting profile.** A manager may run several profiles, so `/browse` and `/members/:id` act for the profile in

@@ -45,6 +45,7 @@ import { user } from '../src/db/schema/auth.ts';
 import { memberAccount } from '../src/db/schema/members.ts';
 import { notificationOutbox } from '../src/db/schema/operations.ts';
 import { sendNotifications } from '../src/jobs/notifications.ts';
+import { text } from '../src/text.ts';
 import { createTestApp, type Res } from './harness.ts';
 
 const AREAS = ['app', 'shared', 'api', 'validation', 'email', 'website'] as const;
@@ -222,14 +223,15 @@ describe('the API in Sinhala', () => {
     assert.equal(ok(await english.get('/api/v1/me')).memberAccount.locale, 'en');
   });
 
-  test('sign-in codes are emailed in the language of the screen that asked', async () => {
+  test('sign-up codes are emailed in the language of the screen that asked (English where Sinhala is still waiting)', async () => {
     await sinhala().signIn('dilini@example.test');
     const si = t.outbox.emails.filter((m) => m.to === 'dilini@example.test').at(-1)!;
-    assert.equal(si.subject, 'ඔබේ Favorite Hearts පිවිසුම් කේතය');
+    assert.equal(si.subject, text('si', 'email.signUp.subject'));
     assert.match(si.html, /<html lang="si">/);
-    assert.match(si.text, /^ඔබේ කේතය \d{6}\n\nඑය මිනිත්තු 10කින් කල් ඉකුත් වේ\./);
+    assert.ok(si.text.includes(text('si', 'email.code.expires')), 'translated lines are in Sinhala');
+    assert.match(si.text, /එය මිනිත්තු 10කින් කල් ඉකුත් වේ\./);
     await t.client().signIn('amal@example.test');
-    assert.equal(t.outbox.emails.filter((m) => m.to === 'amal@example.test').at(-1)!.subject, 'Your Favorite Hearts sign-in code');
+    assert.equal(t.outbox.emails.filter((m) => m.to === 'amal@example.test').at(-1)!.subject, 'Confirm your Favorite Hearts account');
   });
 
   test('queued emails use the language the member saved; plan names stay as the owner wrote them', async () => {

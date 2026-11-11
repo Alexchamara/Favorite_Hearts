@@ -1,5 +1,5 @@
 import { createAuthClient } from 'better-auth/react';
-import { emailOTPClient, phoneNumberClient, twoFactorClient } from 'better-auth/client/plugins';
+import { phoneNumberClient, twoFactorClient } from 'better-auth/client/plugins';
 import { env } from './env';
 import { currentLanguage } from './i18n';
 
@@ -16,5 +16,5 @@ export const authClient = createAuthClient({
       return context;
     },
   },
-  plugins: [emailOTPClient(), phoneNumberClient(), twoFactorClient()],
+  plugins: [phoneNumberClient(), twoFactorClient()],
 });

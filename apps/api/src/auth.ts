@@ -3,14 +3,15 @@
  *  - Members (owner decision, 11 Nov 2026): sign up with an email address or phone number and a password, confirmed
  *    once with a code (lib/member-access.ts); log in with the address and password, no code. A forgotten password is
  *    reset by an email link; phone-only accounts go through support. Five wrong passwords for one address in 15
- *    minutes lock it until those minutes pass. The email-code sign-in stays until the invitation page stops using it.
+ *    minutes lock it until those minutes pass. There is no sign-in by code: a code only confirms a sign-up, an
+ *    invitation (routes/invitations.ts) or a phone number added while signed in (the Trust page).
  *  - Staff (owner + backup reviewer): email + password (12 characters or more) + TOTP two-step login.
  *    Staff accounts are provisioned by the owner (scripts/staff.ts); Better-Auth's own sign-up stays disabled.
  * Users and sessions live in our own Postgres (auth_* tables).
  */
 import { betterAuth } from 'better-auth';
 import { APIError, createAuthMiddleware, getSessionFromCtx, isAPIError } from 'better-auth/api';
-import { emailOTP, phoneNumber, twoFactor } from 'better-auth/plugins';
+import { phoneNumber, twoFactor } from 'better-auth/plugins';
 import { drizzleAdapter } from '@better-auth/drizzle-adapter';
 import { eq } from 'drizzle-orm';
 import {
@@ -34,12 +35,11 @@ import { hasherFor, isBannedAddress } from './lib/identity-hash.ts';
 import { memberAccess } from './lib/member-access.ts';
 import { authRateLimitStorage, clearCounter, consume, overLimit } from './lib/rate-limit.ts';
 import { PHONE_ONLY_EMAIL_DOMAIN, type Messenger } from './messaging/messenger.ts';
-import { codeEmail, codeSms, resetEmail } from './messaging/templates.ts';
+import { codeSms, resetEmail } from './messaging/templates.ts';
 import { headersLanguage, render, text } from './text.ts';
 
 /** The endpoints that send a code or a link, and where the address is in their body. */
 const CODE_SENDS: Record<string, readonly ('email' | 'phoneNumber')[]> = {
-  '/email-otp/send-verification-otp': ['email'],
   '/phone-number/send-otp': ['phoneNumber'],
   '/member/sign-up': ['email', 'phoneNumber'],
   '/request-password-reset': ['email'],
@@ -50,6 +50,8 @@ const PASSWORD_LOGINS: Record<string, 'email' | 'phoneNumber'> = {
   '/sign-in/phone-number': 'phoneNumber',
 };
 const LOGIN_FAILURES = { window: LOGIN_LOCK_MINUTES * 60, max: LOGIN_FAILURE_LIMIT };
+/** Phone codes are only for adding a number while signed in: without a session they would sign someone in by code. */
+const SIGNED_IN_ONLY = new Set(['/phone-number/send-otp', '/phone-number/verify']);
 /** Staff passwords are longer than members' (lib/staff-accounts.ts). */
 const STAFF_MIN_PASSWORD_LENGTH = 12;
 
@@ -101,6 +103,9 @@ export function createAuth({ db, config, messenger }: { db: Db; config: Config; 
       schema: { user, session, account, verification, twoFactor: twoFactorTable },
     }),
 
+    // Endpoints the decided sign-in does not offer: password resets by SMS code (phone-only accounts reset through support).
+    disabledPaths: ['/phone-number/request-password-reset', '/phone-number/reset-password'],
+
     // Better-Auth's own sign-up stays off: members sign up through member-access (a code first), staff are provisioned.
     emailAndPassword: {
       enabled: true,
@@ -136,16 +141,15 @@ export function createAuth({ db, config, messenger }: { db: Db; config: Config; 
       max: 60,
       customStorage: authRateLimitStorage(db),
       customRules: {
-        '/email-otp/send-verification-otp': { window: 60, max: 3 },
         '/phone-number/send-otp': { window: 60, max: 3 },
         '/sign-in/email': { window: 60, max: 5 },
         '/sign-in/phone-number': { window: 60, max: 5 },
         '/member/sign-up': { window: 60, max: 3 },
         '/member/sign-up/verify': { window: 60, max: 10 },
+        '/member/sign-up/invitation': { window: 60, max: 10 },
         '/request-password-reset': { window: 60, max: 3 },
         '/reset-password': { window: 60, max: 5 },
         '/change-password': { window: 60, max: 5 },
-        '/sign-in/email-otp': { window: 60, max: 10 },
         '/phone-number/verify': { window: 60, max: 10 },
         '/two-factor/verify-totp': { window: 60, max: 5 },
       },
@@ -164,6 +168,9 @@ export function createAuth({ db, config, messenger }: { db: Db; config: Config; 
         const body = (ctx.body ?? {}) as Record<string, unknown>;
         // Messages here are in the language the request asks for (text.ts), like the API's own answers.
         const language = headersLanguage(ctx.headers);
+        if (SIGNED_IN_ONLY.has(ctx.path) && !(await getSessionFromCtx(ctx))) {
+          throw new APIError('UNAUTHORIZED', { code: 'SIGN_IN_REQUIRED', message: text(language, 'api.signIn') });
+        }
         await passwordRules(ctx.path, body, language, ctx);
         const loginField = PASSWORD_LOGINS[ctx.path];
         const login = loginField ? body[loginField] : undefined;
@@ -226,15 +233,6 @@ export function createAuth({ db, config, messenger }: { db: Db; config: Config; 
     },
 
     plugins: [
-      emailOTP({
-        otpLength: CODE_LENGTH,
-        expiresIn: CODE_TTL_SECONDS,
-        allowedAttempts: 5,
-        // The code goes out in the language of the screen that asked for it (no account may exist yet).
-        async sendVerificationOTP({ email, otp, type }, ctx) {
-          await messenger.sendEmail({ to: email, ...codeEmail(headersLanguage(ctx?.headers), type, otp) });
-        },
-      }),
       phoneNumber({
         otpLength: CODE_LENGTH,
         expiresIn: CODE_TTL_SECONDS,
@@ -244,11 +242,6 @@ export function createAuth({ db, config, messenger }: { db: Db; config: Config; 
         requireVerification: true,
         async sendOTP({ phoneNumber: to, code }, ctx) {
           await messenger.sendSms({ to, body: codeSms(headersLanguage(ctx?.headers), code, undefined, config.memberAppUrl) });
-        },
-        signUpOnVerification: {
-          // Phone-only members get an undeliverable placeholder email (.invalid TLD) that is never emailed.
-          getTempEmail: (value) => `${value.replace(/\D/g, '')}@${PHONE_ONLY_EMAIL_DOMAIN}`,
-          getTempName: () => '',
         },
       }),
       twoFactor({ issuer: 'Favorite Hearts' }),

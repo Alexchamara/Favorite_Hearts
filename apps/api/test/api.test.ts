@@ -12,7 +12,7 @@ import { auditEvent } from '../src/db/schema/operations.ts';
 import { entitlementEvent } from '../src/db/schema/billing.ts';
 import { purgeDocuments } from '../src/jobs/purge-documents.ts';
 import { addStaff, revokeStaff } from '../src/lib/staff-accounts.ts';
-import { Client, createTestApp, latestCode, latestInvitationToken, photoForm, totp, type Res } from './harness.ts';
+import { Client, createTestApp, latestCode, latestInvitationToken, photoForm, TEST_PASSWORD, totp, type Res } from './harness.ts';
 
 let t: Awaited<ReturnType<typeof createTestApp>>;
 let owner: Client;
@@ -79,21 +79,32 @@ before(async () => {
 });
 
 describe('accounts (A01, A02, S06)', () => {
-  test('sign up and sign in with an email code; wrong and reused codes fail', async () => {
+  test('sign up with a password, confirmed by an emailed code; wrong and reused codes fail; log in with no code', async () => {
     const browser = t.client();
     const email = 'asha@example.test';
-    ok(await browser.post('/api/auth/email-otp/send-verification-otp', { email, type: 'sign-in' }));
+    ok(await browser.post('/api/auth/member/sign-up', { name: 'Asha', email, password: TEST_PASSWORD, consent: true }));
     const code = latestCode(t.outbox, email);
-    const wrong = await browser.post('/api/auth/sign-in/email-otp', { email, otp: code === '000000' ? '111111' : '000000' });
+    const wrong = await browser.post('/api/auth/member/sign-up/verify', { email, code: code === '000000' ? '111111' : '000000' });
     assert.notEqual(wrong.status, 200);
-    ok(await browser.post('/api/auth/sign-in/email-otp', { email, otp: code }));
+    ok(await browser.post('/api/auth/member/sign-up/verify', { email, code }));
     const me = ok(await browser.get('/api/v1/me'));
     assert.equal(me.email, email);
     assert.equal(me.memberAccount, null, 'the member account is created on first use');
     assert.deepEqual(ok(await browser.get('/api/v1/profiles')).profiles, []);
     assert.equal(ok(await browser.get('/api/v1/me')).memberAccount.status, 'active');
-    const reused = await t.client().post('/api/auth/sign-in/email-otp', { email, otp: code });
+    const reused = await t.client().post('/api/auth/member/sign-up/verify', { email, code });
     assert.notEqual(reused.status, 200, 'a used code cannot sign in again');
+    ok(await t.client().post('/api/auth/sign-in/email', { email, password: TEST_PASSWORD }));
+  });
+
+  test('there is no sign-in by code: the email-code endpoints are gone and phone codes need a session', async () => {
+    const visitor = t.client();
+    assert.equal((await visitor.post('/api/auth/email-otp/send-verification-otp', { email: 'asha@example.test', type: 'sign-in' })).status, 404);
+    assert.equal((await visitor.post('/api/auth/sign-in/email-otp', { email: 'asha@example.test', otp: '123456' })).status, 404);
+    rejected(await visitor.post('/api/auth/phone-number/send-otp', { phoneNumber: '+94771234567' }), 401, 'SIGN_IN_REQUIRED');
+    rejected(await visitor.post('/api/auth/phone-number/verify', { phoneNumber: '+94771234567', code: '123456' }), 401, 'SIGN_IN_REQUIRED');
+    assert.equal((await visitor.post('/api/auth/phone-number/request-password-reset', { phoneNumber: '+94771234567' })).status, 404);
+    assert.equal(t.outbox.sms.length, 0);
   });
 
   test('anonymous visitors get nothing', async () => {
@@ -109,9 +120,9 @@ describe('accounts (A01, A02, S06)', () => {
     await t.db.update(operationsFlag).set({ enabled: true }).where(eq(operationsFlag.key, 'signups_paused'));
     try {
       const newcomer = t.client();
-      ok(await newcomer.post('/api/auth/email-otp/send-verification-otp', { email: 'late@example.test', type: 'sign-in' }));
-      const blocked = await newcomer.post('/api/auth/sign-in/email-otp', { email: 'late@example.test', otp: latestCode(t.outbox, 'late@example.test') });
+      const blocked = await newcomer.post('/api/auth/member/sign-up', { name: 'Late', email: 'late@example.test', password: TEST_PASSWORD, consent: true });
       assert.equal(blocked.status, 403);
+      assert.equal(blocked.body.code, 'SIGNUPS_PAUSED');
       ok(await existing.get('/api/v1/profiles'));
     } finally {
       await t.db.update(operationsFlag).set({ enabled: false }).where(eq(operationsFlag.key, 'signups_paused'));

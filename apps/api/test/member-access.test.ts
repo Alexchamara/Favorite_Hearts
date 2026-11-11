@@ -12,7 +12,7 @@ import { user } from '../src/db/schema/auth.ts';
 import { operationsFlag } from '../src/db/schema/operations.ts';
 import { SIGN_UP_CODE_TRIES } from '../src/lib/member-access.ts';
 import { addStaff } from '../src/lib/staff-accounts.ts';
-import { createTestApp, latestCode, type Outbox, type Res } from './harness.ts';
+import { createTestApp, latestCode, latestInvitationToken, type Outbox, type Res } from './harness.ts';
 
 const PASSWORD = 'tea in kandy at seven';
 const ok = (res: Res, status = 200) => {
@@ -222,5 +222,53 @@ describe('log-in lockout and password reset', () => {
     ok(await staff.post('/api/auth/sign-in/email', { email: 'staff@example.test', password: 'correct horse battery staple' }));
     const short = rejected(await staff.post('/api/auth/change-password', { currentPassword: 'correct horse battery staple', newPassword: 'nine char' }), 400, 'VALIDATION');
     assert.match(short.fields.newPassword, /12 characters/);
+  });
+});
+
+describe('the invited candidate signs up with a password (no second code)', () => {
+  async function invitation(t: Awaited<ReturnType<typeof createTestApp>>, candidateEmail: string) {
+    const manager = await t.client().signIn(`manager-of-${candidateEmail}`, 'Sunil');
+    const profile = ok(await manager.post('/api/v1/profiles', { management: 'manager', relationship: 'mother', authorityDeclared: true }), 201);
+    ok(await manager.post(`/api/v1/profiles/${profile.id}/invitations`, { channel: 'email', contact: candidateEmail }), 201);
+    const token = latestInvitationToken(t.outbox, candidateEmail);
+    ok(await t.client().post('/api/v1/invitations/code', { token }));
+    return { manager, profileId: profile.id as string, token, code: latestCode(t.outbox, candidateEmail) };
+  }
+  const account = (extra: Record<string, unknown> = {}) => ({ name: 'Nimali Perera', password: 'mangoes after the rain', consent: true, ...extra });
+
+  test('the invitation code proves the address: one request makes the account, accepts and signs in', async () => {
+    const t = await createTestApp();
+    const { token, code, profileId } = await invitation(t, 'nimali@example.test');
+    const before = t.outbox.emails.length;
+    const candidate = t.client();
+    const joined = ok(await candidate.post('/api/auth/member/sign-up/invitation', { token, code, ...account() }));
+    assert.equal(joined.profileId, profileId);
+    assert.equal(t.outbox.emails.length, before, 'no second code');
+    const me = ok(await candidate.get('/api/v1/me'));
+    assert.equal(me.email, 'nimali@example.test');
+    assert.equal(me.emailVerified, true);
+    assert.equal(me.memberAccount.status, 'active');
+    assert.ok(ok(await candidate.get('/api/v1/profiles')).profiles.some((p: { id: string; me: { role: string } }) => p.id === profileId && p.me.role === 'candidate'));
+    ok(await t.client().post('/api/auth/sign-in/email', { email: 'nimali@example.test', password: 'mangoes after the rain' }));
+    rejected(await t.client().post('/api/auth/member/sign-up/invitation', { token, code, ...account() }), 404, 'INVITATION_INVALID');
+  });
+
+  test('a wrong code is counted against the invitation and leaves no account behind', async () => {
+    const t = await createTestApp();
+    const { token, code } = await invitation(t, 'wrong@example.test');
+    const wrong = code === '000000' ? '111111' : '000000';
+    rejected(await t.client().post('/api/auth/member/sign-up/invitation', { token, code: wrong, ...account() }), 400, 'WRONG_CODE');
+    assert.equal((await t.db.select().from(user).where(eq(user.email, 'wrong@example.test'))).length, 0);
+    ok(await t.client().post('/api/auth/member/sign-up/invitation', { token, code, ...account() }));
+  });
+
+  test('an invited address that already has an account logs in and accepts; weak passwords are refused first', async () => {
+    const t = await createTestApp();
+    const { token, code, profileId } = await invitation(t, 'existing@example.test');
+    rejected(await t.client().post('/api/auth/member/sign-up/invitation', { token, code, ...account({ password: 'nimali1234' }) }), 400, 'VALIDATION');
+    rejected(await t.client().post('/api/auth/member/sign-up/invitation', { token, code, ...account({ consent: false }) }), 400, 'VALIDATION');
+    const existing = await t.client().signIn('existing@example.test', 'Nimali');
+    rejected(await t.client().post('/api/auth/member/sign-up/invitation', { token, code, ...account() }), 409, 'ACCOUNT_EXISTS');
+    assert.equal(ok(await existing.post('/api/v1/invitations/accept', { token, code })).profileId, profileId);
   });
 });

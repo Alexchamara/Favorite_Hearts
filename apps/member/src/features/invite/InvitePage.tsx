@@ -1,7 +1,8 @@
 /**
  * The candidate's invitation (OWNER-DECISIONS section 5). The link carries a one-time token in its
  * fragment (#…), so it never reaches a server log. The candidate asks for a code at the address the
- * manager entered, then accepts (with an account) or declines (no account needed).
+ * manager entered, then accepts (with an account: signed in already, or made here with a password, InviteAccount) or
+ * declines (no account needed).
  */
 import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -26,7 +27,7 @@ import { Button } from '@/components/ui/button';
 import { errorMessage, post } from '@/lib/api';
 import { keys, useMe } from '@/lib/queries';
 import { queryClient } from '@/lib/query-client';
-import { SignIn } from '@/features/auth/SignIn';
+import { InviteAccount } from './InviteAccount';
 import { useLabels } from '@/features/profile/options';
 import { formatWhen } from '@/lib/format';
 import { say, useI18n } from '@/lib/i18n';
@@ -175,13 +176,17 @@ function Invitation({ token, preview }: { token: string; preview: InvitationPrev
       </Card>
       {wantsToAccept && !me.data && (
         <Card className="mt-6">
-          <h2 className="font-serif text-2xl">{t('invite.signInTitle')}</h2>
-          <div className="mt-4">
-            <SignIn
-              intro={t('invite.signInIntro')}
-              onSignedIn={() => accept.mutate()}
-            />
-          </div>
+          <InviteAccount
+            token={token}
+            code={code}
+            contactHint={codeSentTo ?? preview.contactHint}
+            onJoined={async (profileId) => {
+              toast.success(say('invite.confirmed'));
+              await queryClient.invalidateQueries({ queryKey: keys.profiles });
+              navigate(`/profiles/${profileId}`);
+            }}
+            onLoggedIn={() => accept.mutate()}
+          />
         </Card>
       )}
     </>

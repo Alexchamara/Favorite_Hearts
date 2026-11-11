@@ -19,7 +19,7 @@ import { sweepRetention } from '../src/jobs/retention.ts';
 import { addStaff } from '../src/lib/staff-accounts.ts';
 import { drainStorageDeletions } from '../src/lib/storage-cleanup.ts';
 import { zip } from '../src/lib/zip.ts';
-import { Client, createTestApp, latestCode, latestInvitationToken, totp, type Res } from './harness.ts';
+import { Client, createTestApp, latestCode, latestInvitationToken, TEST_PASSWORD, totp, type Res } from './harness.ts';
 
 type App = Awaited<ReturnType<typeof createTestApp>>;
 let t: App;
@@ -140,7 +140,7 @@ const deleteAccount = (client: Client) => client.post('/api/v1/account/delete', 
 const sendCode = (email: string, ip?: string) => {
   const visitor = t.client();
   if (ip) visitor.headers['x-forwarded-for'] = ip;
-  return visitor.post('/api/auth/email-otp/send-verification-otp', { email, type: 'sign-in' });
+  return visitor.post('/api/auth/member/sign-up', { name: 'Visitor', email: email, password: TEST_PASSWORD, consent: true });
 };
 const outboxRow = async (eventKey: string) => (await t.db.select().from(notificationOutbox).where(eq(notificationOutbox.eventKey, eventKey)))[0];
 const photoKeys = async (profileId: string) =>
@@ -233,22 +233,22 @@ describe('rate limits (Part 2: sign-in, codes, requests, invitations, reports, u
     assert.ok(Number(sixth.headers.get('retry-after')) > 23 * 3600);
   });
 
-  test('codes: 3 a minute per IP address (Better-Auth), counted in the same Postgres table', async () => {
+  test('sign-up codes: 3 a minute per IP address (Better-Auth), counted in the same Postgres table', async () => {
     const visitor = visitorOf('198.51.100.7');
     for (let i = 0; i < 3; i += 1) {
-      ok(await visitor.post('/api/auth/email-otp/send-verification-otp', { email: `ip-limit-${i}@example.test`, type: 'sign-in' }));
+      ok(await visitor.post('/api/auth/member/sign-up', { name: 'Visitor', email: `ip-limit-${i}@example.test`, password: TEST_PASSWORD, consent: true }));
     }
-    const fourth = await visitor.post('/api/auth/email-otp/send-verification-otp', { email: 'ip-limit-3@example.test', type: 'sign-in' });
+    const fourth = await visitor.post('/api/auth/member/sign-up', { name: 'Visitor', email: 'ip-limit-3@example.test', password: TEST_PASSWORD, consent: true });
     assert.equal(fourth.status, 429, JSON.stringify(fourth.body));
     assert.ok((await codeKeys()).some((key) => key.startsWith('auth:')));
   });
 
-  test('codes: at most 5 an hour to one address, whatever IP addresses ask; no address is stored', async () => {
+  test('sign-up codes: at most 5 an hour to one address, whatever IP addresses ask; no address is stored', async () => {
     const email = 'inbox-flood@example.test';
     for (let i = 0; i < 5; i += 1) {
-      ok(await visitorOf(`192.0.2.${i + 1}`).post('/api/auth/email-otp/send-verification-otp', { email, type: 'sign-in' }));
+      ok(await visitorOf(`192.0.2.${i + 1}`).post('/api/auth/member/sign-up', { name: 'Visitor', email: email, password: TEST_PASSWORD, consent: true }));
     }
-    const sixth = await visitorOf('192.0.2.99').post('/api/auth/email-otp/send-verification-otp', { email, type: 'sign-in' });
+    const sixth = await visitorOf('192.0.2.99').post('/api/auth/member/sign-up', { name: 'Visitor', email: email, password: TEST_PASSWORD, consent: true });
     assert.equal(sixth.status, 429, JSON.stringify(sixth.body));
     assert.match(sixth.body.message, /this address/);
     const keys = await codeKeys();
@@ -296,11 +296,7 @@ describe('the owner pauses sign-ups and document submissions (section 10)', () =
   test('while sign-ups are paused, members already signed up sign in, but no new account is made', async () => {
     await t.client().signIn('switch-member@example.test');
     const newcomer = t.client();
-    ok(await newcomer.post('/api/auth/email-otp/send-verification-otp', { email: 'newcomer@example.test', type: 'sign-in' }));
-    const attempt = await newcomer.post('/api/auth/sign-in/email-otp', {
-      email: 'newcomer@example.test',
-      otp: latestCode(t.outbox, 'newcomer@example.test'),
-    });
+    const attempt = await newcomer.post('/api/auth/member/sign-up', { name: 'Visitor', email: 'newcomer@example.test', password: TEST_PASSWORD, consent: true });
     assert.equal(attempt.status, 403, JSON.stringify(attempt.body));
     assert.match(attempt.body.message, /paused/);
     assert.equal((await t.db.select().from(user).where(eq(user.email, 'newcomer@example.test'))).length, 0);
@@ -519,7 +515,7 @@ describe('banned addresses cannot sign up again (section 8)', () => {
     const byEmail = await sendCode('fake@example.test');
     assert.equal(byEmail.status, 403, JSON.stringify(byEmail.body));
     assert.match(byEmail.body.message, /cannot be used for a new account/);
-    const byPhone = await t.client().post('/api/auth/phone-number/send-otp', { phoneNumber: scammerPhone });
+    const byPhone = await t.client().post('/api/auth/member/sign-up', { name: 'Visitor', phoneNumber: scammerPhone, password: TEST_PASSWORD, consent: true });
     assert.equal(byPhone.status, 403, JSON.stringify(byPhone.body));
 
     await t.db.update(retainedIdentity).set({ purgeAfter: new Date(Date.now() - 60_000) }).where(eq(retainedIdentity.userId, scammer.userId));

@@ -676,6 +676,33 @@ The member side of the owner decision of 11 Nov 2026 (API: auth-1 in BUILD-PROGR
   Known: the brand's ♥ renders lighter than the demo's (our self-hosted Inter has no ♥, so the system font draws it).
 - **Text:** 51 new texts and 1 changed (`home.aside.step.1`, now the demo's "Verify your account"), waiting for Sinhala.
 - **Still on the email code until auth-3:** the candidate's invitation page and the recent sign-in check before
-  deleting a profile or account.
+  deleting a profile or account (both moved in auth-3).
 - **Checks:** typecheck clean; tests pass (API 180, website 5, text tools 9); `build:site` passes; text contrast passes
   on every entry step in both themes at 390 and 1440 px; no sideways scroll at any width.
+
+### auth-3 invitations, the password re-check, and no sign-in by code (11 Nov 2026)
+
+- **Invitations** (`features/invite/InviteAccount.tsx`; API `POST /api/auth/member/sign-up/invitation`): the invited
+  candidate still asks for the invitation's code (OWNER-DECISIONS §5) and types it. Then, if not signed in, the
+  demo's Sign up / Log in: Sign up asks only for the name, a password and the consent tick, because the invitation
+  code already proves the invited address; one request makes the account there, accepts and signs in (no second
+  code). An address that already has an account switches to Log in, then the page accepts.
+- **Before deleting** (`features/account/retention.tsx`): "Please confirm your password first" asks for the password
+  in the dialog (a fresh log-in) instead of signing out and back in.
+- **Removed:** member sign-in by email or SMS code (the API's email-code plugin; phone codes now need a session, for
+  adding a number on the Trust page; SMS password resets disabled), the old sign-in component and its helpers, and
+  9 texts it used.
+- **parity.css:** an empty error box takes no room (it showed as an empty pink bar under forms outside the entry).
+- **Tests:** the API harness signs members up with a password; the code sign-in tests now cover the password sign-up
+  (limits per IP and per address, banned addresses, paused sign-ups, the bot check); new tests: no sign-in by code,
+  and the invited candidate's sign-up (one request, a wrong code counted with no account left, an existing account
+  logs in, weak passwords refused). API 184 tests.
+- **Tried in the sandbox:** Bina invites "kumari@sandbox.test" for a new profile → the link → the invitation code →
+  Accept and confirm → Sign up: "kumari123" refused (it holds her name) → a good password → the profile opens, no
+  second code. A phone code needs a session (401 "Please sign in." without one). Chathu, logged in over 15 minutes
+  before, opens Delete my account → the password notice → a wrong password is refused → the right one → the notice
+  goes, deleting is possible (not done).
+- **Texts:** 6 new (the invitation's account step, the re-check's wrong password), 5 changed (the password re-check and the SMS message), all waiting
+  for Sinhala.
+- **Checks:** typecheck clean; tests pass (API 184, website 5, text tools 9); `build:site` passes; 81 browser checks
+  pass.

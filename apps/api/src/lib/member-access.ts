@@ -4,6 +4,9 @@
  *
  *  POST /api/auth/member/sign-up         name, email or phoneNumber, password, consent → a code to that address
  *  POST /api/auth/member/sign-up/verify  email or phoneNumber, code → the account and a session
+ *  POST /api/auth/member/sign-up/invitation  token, code, name, password, consent → the candidate's account at the
+ *       invited address, accepted as the profile's candidate, and a session (the invitation's own code, sent to that
+ *       address, proves it is theirs, so no second code is needed)
  *
  * Nothing is created until the code comes back, so nobody can hold an account on someone else's address. Until then
  * the sign-up waits in Better-Auth's verification table (name, password hash, a keyed hash of the code) for as long
@@ -19,11 +22,12 @@ import { createHmac, randomInt, timingSafeEqual } from 'node:crypto';
 import type { BetterAuthPlugin } from 'better-auth';
 import { APIError, createAuthEndpoint } from 'better-auth/api';
 import { setSessionCookie } from 'better-auth/cookies';
-import { eq, or } from 'drizzle-orm';
+import { eq, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import {
   CODE_LENGTH,
   CODE_TTL_SECONDS,
+  invitationCodeSchema,
   issueText,
   memberSignUpCodeSchema,
   memberSignUpSchema,
@@ -32,7 +36,9 @@ import {
   type TextRef,
 } from '@fh/shared';
 import type { Config } from '../config.ts';
+import { runAsActor } from '../db/actor.ts';
 import { user } from '../db/schema/auth.ts';
+import { memberAccount } from '../db/schema/members.ts';
 import { operationsFlag } from '../db/schema/operations.ts';
 import type { Db } from '../db/types.ts';
 import { PHONE_ONLY_EMAIL_DOMAIN, type Messenger } from '../messaging/messenger.ts';
@@ -40,9 +46,23 @@ import { codeSms, registeredEmail, registeredSms, signUpEmail } from '../messagi
 import { headersLanguage, render, text, type ApiTextKey } from '../text.ts';
 import type { IdentityHasher } from './identity-hash.ts';
 import { isBannedAddress } from './identity-hash.ts';
+import { codeDigest, tokenDigest } from './invitation-tokens.ts';
+import { rows } from './profile-view.ts';
 import { clearCounter, consume } from './rate-limit.ts';
 
 const PENDING = 'member-sign-up:';
+
+/** The invited candidate's sign-up: the invitation link and its code, plus the account holder's name and password. */
+const invitationSignUpSchema = invitationCodeSchema.extend({
+  name: z.string().trim().min(1).max(80),
+  password: z.string().min(1),
+  consent: z.literal(true, { error: 'validation.signUpConsent' }),
+});
+/** What app.invitation_accept answers (drizzle/0005), in the words routes/invitations.ts uses. */
+const INVITATION_PROBLEMS: Record<string, [status: 'BAD_REQUEST' | 'NOT_FOUND', code: string, key: ApiTextKey]> = {
+  wrong_code: ['BAD_REQUEST', 'WRONG_CODE', 'api.invitation.wrongCode'],
+  code_expired: ['BAD_REQUEST', 'CODE_EXPIRED', 'api.invitation.codeExpired'],
+};
 /** Wrong codes for one address while its code lasts; then a new code is needed. */
 export const SIGN_UP_CODE_TRIES = 5;
 
@@ -71,7 +91,7 @@ function check<S extends z.ZodType>(schema: S, value: unknown, language: Offered
   );
 }
 
-const refuse = (status: 'BAD_REQUEST' | 'FORBIDDEN' | 'CONFLICT' | 'TOO_MANY_REQUESTS' | 'SERVICE_UNAVAILABLE', code: string, language: OfferedLanguage, key: ApiTextKey) => {
+const refuse = (status: 'BAD_REQUEST' | 'FORBIDDEN' | 'NOT_FOUND' | 'CONFLICT' | 'TOO_MANY_REQUESTS' | 'SERVICE_UNAVAILABLE', code: string, language: OfferedLanguage, key: ApiTextKey) => {
   throw new APIError(status, { code, message: text(language, key) });
 };
 
@@ -171,6 +191,59 @@ export function memberAccess({ db, config, messenger, hash }: { db: Db; config: 
         const session = await ctx.context.internalAdapter.createSession(created.id);
         await setSessionCookie(ctx, { session, user: created });
         return ctx.json({ user: { id: created.id, name: created.name } });
+      }),
+
+      memberSignUpInvitation: createAuthEndpoint('/member/sign-up/invitation', { method: 'POST', body: z.record(z.string(), z.unknown()) }, async (ctx) => {
+        const language = headersLanguage(ctx.headers);
+        const input = check(invitationSignUpSchema, ctx.body, language);
+        const tokenHash = tokenDigest(input.token);
+        // The invited address, read by the reviewed function the preview uses (no one chooses it here).
+        const [found] = rows<{ preview: { channel: 'email' | 'phone'; contact: string } | null }>(
+          await runAsActor(db, null, (tx) => tx.execute(sql`select app.invitation_preview(${tokenHash}) as preview`)),
+        );
+        const invited = found?.preview;
+        if (!invited) refuse('NOT_FOUND', 'INVITATION_INVALID', language, 'api.invitation.invalid');
+        const address = invited!.channel === 'email' ? { email: invited!.contact } : { phoneNumber: invited!.contact };
+        const problem = passwordProblem(input.password, { name: input.name, email: address.email, phone: address.phoneNumber });
+        if (problem) invalid(language, { password: { key: `validation.password.${problem}` } });
+        if (await isBannedAddress(db, hash, invited!.contact)) refuse('FORBIDDEN', 'ADDRESS_BANNED', language, 'api.addressBanned');
+        if (await signupsPaused()) refuse('FORBIDDEN', 'SIGNUPS_PAUSED', language, 'api.signupsPaused');
+        // The invited person already has an account: they log in and accept (the page offers Log in).
+        if (await existingUser(address)) refuse('CONFLICT', 'ACCOUNT_EXISTS', language, 'api.accountExists');
+
+        const created = await ctx.context.internalAdapter.createUser(
+          {
+            email: address.email ?? phoneOnlyEmail(address.phoneNumber!),
+            name: input.name,
+            emailVerified: Boolean(address.email),
+            ...(address.phoneNumber ? { phoneNumber: address.phoneNumber, phoneNumberVerified: true } : {}),
+          },
+          { method: 'invitation' },
+        );
+        // Accepting checks the code. Its own transaction commits whatever the answer, so a wrong code is counted
+        // against the invitation; only an accepted invitation keeps the new account.
+        const actor = { userId: created.id, role: 'member' as const };
+        const [answer] = rows<{ result: { status: string; profileId?: string } }>(
+          await runAsActor(db, actor, (tx) =>
+            tx.execute(sql`select app.invitation_accept(${tokenHash}, ${codeDigest(config.authSecret, tokenHash, input.code)}) as result`),
+          ),
+        );
+        const result = answer!.result;
+        if (result.status !== 'accepted') {
+          await ctx.context.internalAdapter.deleteUser(created.id);
+          const [status, code, key] = INVITATION_PROBLEMS[result.status] ?? ['NOT_FOUND', 'INVITATION_INVALID', 'api.invitation.invalid'];
+          refuse(status, code, language, key);
+        }
+        await ctx.context.internalAdapter.linkAccount({
+          userId: created.id,
+          providerId: 'credential',
+          accountId: created.id,
+          password: await ctx.context.password.hash(input.password),
+        });
+        await runAsActor(db, actor, (tx) => tx.insert(memberAccount).values({ userId: created.id, locale: language }).onConflictDoNothing());
+        const session = await ctx.context.internalAdapter.createSession(created.id);
+        await setSessionCookie(ctx, { session, user: created });
+        return ctx.json({ profileId: result.profileId });
       }),
     },
   } satisfies BetterAuthPlugin;

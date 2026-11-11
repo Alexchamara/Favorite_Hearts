@@ -379,3 +379,9 @@
   min-width: 44px;
   min-height: 44px;
 }
+
+/* An error box with nothing in it yet (.m-error, role="alert") takes no room: the demo's box keeps its background
+   and padding when empty, which shows an empty pink bar under forms outside the entry panel. */
+#favorite-hearts-product .m-app .m-error:empty {
+  display: none;
+}

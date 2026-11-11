@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { authClient } from '@/lib/auth-client';
 import { useHealth, useMe, useMyCases, useProfile } from '@/lib/queries';
 import { queryClient } from '@/lib/query-client';
-import { authErrorMessage } from '@/features/auth/login-code';
+import { authErrorMessage } from '@/features/auth/password-auth';
 import { useLabels } from '@/features/profile/options';
 import { formatDay } from '@/lib/format';
 import { DocumentUpload } from './DocumentUpload';

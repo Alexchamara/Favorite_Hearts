@@ -14,7 +14,7 @@ import { useMe, useMyCases, useProfiles } from '@/lib/queries';
 import { AccountCard } from '@/features/account/AccountCard';
 import { AccountPanel } from '@/features/auth/Account';
 import { EntryShell, fromJoin, LocaleStep, readPreferences, useLocaleChosen } from '@/features/auth/Entry';
-import { NameStep } from '@/features/auth/SignIn';
+import { NameStep } from '@/features/auth/NameStep';
 import { useLabels } from '@/features/profile/options';
 import { useI18n } from '@/lib/i18n';
 

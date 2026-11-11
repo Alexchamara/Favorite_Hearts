@@ -146,6 +146,11 @@
     "history.empty.body",
     "history.empty.title",
     "history.lead",
+    "invite.account.join",
+    "invite.account.loginAccept",
+    "invite.account.loginIntro",
+    "invite.account.signupIntro",
+    "invite.account.title",
     "layout.menu.attention",
     "layout.menu.privacy",
     "layout.menu.upToDate",
@@ -246,6 +251,7 @@
     "profile.dash.uploadPhoto",
     "profile.dash.words.empty",
     "profile.dash.words.title",
+    "recentSignIn.wrong",
     "relations.anon.age",
     "relations.anon.photo",
     "relations.anon.title",
@@ -294,6 +300,8 @@
     "verify.free"
   ],
   "englishChanged": {
+    "api.recentSignIn": "For your safety, please sign in again first. Then you have {recentSignInMinutes} minutes to delete.",
+    "api.smsSignInUnavailable": "SMS sign-in is not available yet. Please use email.",
     "browse.filters.body": "Only profiles that match are shown. You can change these at any time.",
     "home.aside.step.1": "Sign in with a code sent to your email or phone",
     "layout.darkTheme": "Use the dark theme",
@@ -308,11 +316,13 @@
     "layout.menu.title": "Your account",
     "layout.menu.verification": "Verification",
     "layout.signOut": "Sign out",
+    "recentSignIn.body": "For your safety, deleting is possible for {recentSignInMinutes} minutes after you sign in.",
+    "recentSignIn.button": "Sign out and sign in again",
+    "recentSignIn.title": "Please sign in again first",
     "shortlist.empty.action": "Go to Discover",
     "shortlist.empty.title": "Nothing saved yet",
     "signIn.code": "Code",
     "signIn.otherEmail": "Use a different email",
-    "signIn.otherNumber": "Use a different number",
     "signIn.resend": "Send a new code"
   }
 }

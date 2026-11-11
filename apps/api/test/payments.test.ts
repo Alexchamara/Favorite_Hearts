@@ -17,7 +17,7 @@ import { sendNotifications } from '../src/jobs/notifications.ts';
 import { queueExpiryWarnings } from '../src/jobs/plan-expiry.ts';
 import { addStaff } from '../src/lib/staff-accounts.ts';
 import type { EmailMessage, Messenger } from '../src/messaging/messenger.ts';
-import { Client, createTestApp, latestCode, latestInvitationToken, totp, type Res } from './harness.ts';
+import { Client, createTestApp, latestCode, latestInvitationToken, TEST_PASSWORD, totp, type Res } from './harness.ts';
 
 let t: Awaited<ReturnType<typeof createTestApp>>;
 let owner: Client;
@@ -745,11 +745,11 @@ describe('expiry warnings and email (section 3, spec 12.3)', () => {
 });
 
 describe('Turnstile bot check on the server (D7)', () => {
-  test('once a secret is set, code and password endpoints need a valid token', async () => {
+  test('once a secret is set, sign-up, log-in and code endpoints need a valid token', async () => {
     const checked: string[] = [];
     const guarded = await createTestApp({ turnstile: { verify: async (token) => (checked.push(token), token === 'valid-token') } });
     const client = guarded.client();
-    const sendCode = () => client.post('/api/auth/email-otp/send-verification-otp', { email: 'tina@example.test', type: 'sign-in' });
+    const sendCode = () => client.post('/api/auth/member/sign-up', { name: 'Tina', email: 'tina@example.test', password: TEST_PASSWORD, consent: true });
     rejected(await sendCode(), 403, 'CAPTCHA_REQUIRED');
     client.headers['x-captcha-response'] = 'forged';
     rejected(await sendCode(), 403, 'CAPTCHA_FAILED');

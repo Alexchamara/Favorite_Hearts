@@ -23,6 +23,10 @@ export class AuthProblem extends Error {
 
 /** Better-Auth's own refusals, in words people understand. Our API's own come translated already. */
 const MESSAGES: Record<string, AppTextKey> = {
+  // Codes for a phone number added while signed in (the Trust page), and our sign-up codes.
+  INVALID_OTP: 'signIn.error.invalidCode',
+  OTP_EXPIRED: 'signIn.error.expired',
+  TOO_MANY_ATTEMPTS: 'signIn.error.tooManyAttempts',
   INVALID_EMAIL_OR_PASSWORD: 'signIn.error.wrongPassword',
   INVALID_PHONE_NUMBER_OR_PASSWORD: 'signIn.error.wrongPassword',
   PHONE_NUMBER_NOT_VERIFIED: 'signIn.error.phoneNotVerified',
@@ -35,7 +39,6 @@ const OWN = new Set([
   'VALIDATION',
   'CODE_EXPIRED',
   'INVALID_CODE',
-  'TOO_MANY_ATTEMPTS',
   'ACCOUNT_EXISTS',
   'LOGIN_LOCKED',
   'SIGNUPS_PAUSED',
@@ -53,6 +56,9 @@ function problem(error: FetchError): AuthProblem {
   if (error?.status === 429) return new AuthProblem(say('signIn.error.tooManyRequests'), code);
   return new AuthProblem(say('common.somethingWrong'), code);
 }
+
+/** Any refusal from /api/auth, as words for the screen. */
+export const authErrorMessage = (error: FetchError) => problem(error).message;
 
 function unwrap<T>(result: { data: T | null; error: FetchError }): T {
   if (result.error) throw problem(result.error);
@@ -102,4 +108,9 @@ export async function requestReset(email: string, headers: Headers) {
 
 export async function resetPassword(token: string, newPassword: string) {
   return unwrap(await authClient.resetPassword({ token, newPassword }));
+}
+
+/** The invited candidate's account at the invited address, accepted in the same request (the invitation's code proves the address). */
+export async function joinByInvitation(input: { token: string; code: string; name: string; password: string; consent: boolean }, headers: Headers) {
+  return unwrap<{ profileId: string }>(await authClient.$fetch('/member/sign-up/invitation', { method: 'POST', body: input, headers }));
 }

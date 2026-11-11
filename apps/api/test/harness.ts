@@ -23,7 +23,10 @@ import type { Storage } from '../src/storage/storage.ts';
 export const ORIGIN = 'http://localhost:5173';
 const API = 'http://localhost:8787';
 
-export type Outbox = { emails: EmailMessage[]; sms: SmsMessage[] };
+/** `accounts`: addresses that signed up through Client.signIn, so the next signIn logs in with the password instead. */
+export type Outbox = { emails: EmailMessage[]; sms: SmsMessage[]; accounts?: Set<string> };
+/** Every member the tests sign up gets this password (member-access.test.ts tries others). */
+export const TEST_PASSWORD = 'a quiet evening by the lake';
 /** The API answers with JSON shaped per route; tests read it loosely. */
 export type Res = { status: number; body: any };
 type FetchApp = { request: (input: string, init?: RequestInit) => Response | Promise<Response> };
@@ -36,7 +39,7 @@ export async function createTestApp(options: { turnstile?: Turnstile; rateLimit?
   const db = drizzle({ client: new PGlite(), schema });
   await migrate(db, { migrationsFolder: fileURLToPath(new URL('../drizzle', import.meta.url)) });
 
-  const outbox: Outbox = { emails: [], sms: [] };
+  const outbox: Outbox = { emails: [], sms: [], accounts: new Set() };
   const messenger: Messenger = {
     smsEnabled: true,
     sendEmail: async (message) => void outbox.emails.push(message),
@@ -177,13 +180,29 @@ export class Client {
     return this.post('/api/v1/verification', { documentType });
   }
 
-  /** Passwordless sign-in (creates the account on first use), optionally setting the display name. */
+  /**
+   * Signs a member in as the screens do (owner decision, 11 Nov 2026): the first time, sign up with TEST_PASSWORD and
+   * confirm with the emailed code; afterwards, log in with the password. `name` is the account holder's name; without
+   * one the account has none yet (as an account whose holder has not named it).
+   */
   async signIn(email: string, name?: string): Promise<this> {
-    const sent = await this.post('/api/auth/email-otp/send-verification-otp', { email, type: 'sign-in' });
+    const accounts = (this.outbox.accounts ??= new Set());
+    if (accounts.has(email)) {
+      const loggedIn = await this.post('/api/auth/sign-in/email', { email, password: TEST_PASSWORD });
+      if (loggedIn.status === 200) {
+        if (name) assert.equal((await this.post('/api/auth/update-user', { name })).status, 200);
+        return this;
+      }
+      // The account was deleted since: this person signs up again.
+      assert.equal(loggedIn.status, 401, JSON.stringify(loggedIn.body));
+      accounts.delete(email);
+    }
+    const sent = await this.post('/api/auth/member/sign-up', { name: name ?? 'Unnamed', email, password: TEST_PASSWORD, consent: true });
     assert.equal(sent.status, 200, JSON.stringify(sent.body));
-    const signedIn = await this.post('/api/auth/sign-in/email-otp', { email, otp: latestCode(this.outbox, email) });
-    assert.equal(signedIn.status, 200, JSON.stringify(signedIn.body));
-    if (name) assert.equal((await this.post('/api/auth/update-user', { name })).status, 200);
+    const created = await this.post('/api/auth/member/sign-up/verify', { email, code: latestCode(this.outbox, email) });
+    assert.equal(created.status, 200, JSON.stringify(created.body));
+    accounts.add(email);
+    if (!name) assert.equal((await this.post('/api/auth/update-user', { name: '' })).status, 200);
     return this;
   }
 

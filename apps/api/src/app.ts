@@ -28,15 +28,11 @@ type Answer = [status: 400 | 403 | 404 | 409 | 429, code: string, message: Say];
 
 /** Endpoints that send a code or check a password: a Turnstile token is required once a secret is configured. */
 const TURNSTILE_PATHS = [
-  '/api/auth/email-otp/send-verification-otp',
-  '/api/auth/email-otp/request-password-reset',
-  '/api/auth/email-otp/request-email-change',
-  '/api/auth/forget-password/email-otp',
   '/api/auth/phone-number/send-otp',
-  '/api/auth/phone-number/request-password-reset',
   '/api/auth/sign-in/email',
   '/api/auth/sign-in/phone-number',
   '/api/auth/member/sign-up',
+  '/api/auth/member/sign-up/invitation',
   '/api/auth/request-password-reset',
   '/api/v1/invitations/code',
 ];
