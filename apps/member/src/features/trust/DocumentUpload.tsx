@@ -12,7 +12,7 @@ import type { DocumentSide, DocumentType, PhoneLinkView, VerificationCaseView, V
 import { SelectField } from '@/components/form/fields';
 import { Notice } from '@/components/layout';
 import { Button } from '@/components/ui/button';
-import { del, errorMessage, post } from '@/lib/api';
+import { ApiError, del, errorMessage, post } from '@/lib/api';
 import { dateNow, say, useI18n } from '@/lib/i18n';
 import { keys, useDrafts, useServiceStatus } from '@/lib/queries';
 import { queryClient } from '@/lib/query-client';
@@ -64,6 +64,10 @@ export function DocumentUpload() {
         refreshDrafts(),
         queryClient.invalidateQueries({ queryKey: keys.profiles }),
       ]);
+    },
+    // A document already waiting (sent from another tab, or this page was behind): show that state instead of an error.
+    onError: (error) => {
+      if (error instanceof ApiError && error.code === 'VERIFICATION_PENDING') void queryClient.invalidateQueries({ queryKey: keys.cases });
     },
   });
   const touch = isTouchDevice();

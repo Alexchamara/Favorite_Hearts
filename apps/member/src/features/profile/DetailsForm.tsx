@@ -24,7 +24,18 @@ type FormValue = string | string[];
  * (`register`), the parts have no buttons of their own: each registers its save, and the wizard's Continue runs them.
  */
 export type Save = (after: () => void) => void;
-type Flow = { id: string; onContinue?: () => void; last?: boolean; register?: (save: Save) => void; heading?: boolean; intro?: boolean; bare?: boolean };
+/**
+ * A wizard part: `collect` checks its fields and returns what changed (null when something is wrong, marked on its
+ * fields); `fail` shows the server's field messages that belong to it. The step sends all parts in one request.
+ */
+type Part = { collect: () => Record<string, unknown> | null; fail: (fields: Record<string, string>) => void };
+type Flow = { id: string; onContinue?: () => void; last?: boolean; register?: (part: Part) => void; heading?: boolean; intro?: boolean; bare?: boolean };
+
+/** Saves changed fields with the newest version known (spec A05: a stale version is refused, 409). */
+const saveFields = (profile: ProfileView, payload: Record<string, unknown>) =>
+  patch<ProfileView>(`/profiles/${profile.id}`, { version: queryClient.getQueryData<ProfileView>(keys.profile(profile.id))?.version ?? profile.version, ...payload });
+const focusFirstProblem = () =>
+  requestAnimationFrame(() => document.querySelector<HTMLElement>('.m-form-block [aria-invalid="true"], form [aria-invalid="true"]')?.focus());
 
 const REQUIRED = new Set<Key>(['displayName', 'gender', 'birthDate', 'countryCode', 'city', 'occupation', 'education', 'heightCm', 'maritalStatus', 'bio']);
 
@@ -42,9 +53,7 @@ function useStep(profile: ProfileView, fields: Key[]) {
   const [values, setValues] = useState(initial);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const save = useMutation({
-    // The newest version: in the wizard one part saves right after another, before this one has re-rendered.
-    mutationFn: (payload: Record<string, unknown>) =>
-      patch<ProfileView>(`/profiles/${profile.id}`, { version: queryClient.getQueryData<ProfileView>(keys.profile(profile.id))?.version ?? profile.version, ...payload }),
+    mutationFn: (payload: Record<string, unknown>) => saveFields(profile, payload),
     onSuccess: async (updated) => {
       toast.success(say('common.saved'));
       await storeProfile(updated);
@@ -65,7 +74,7 @@ function useStep(profile: ProfileView, fields: Key[]) {
    * `complete` (the wizard's Continue): every required field of the part must be filled, changed or not, since the next
    * step opens only once they are; empty ones are marked and the first gets focus.
    */
-  function submit(extra: Record<string, unknown> = {}, after?: () => void, complete = false) {
+  function collect(extra: Record<string, unknown> = {}, complete = false): Record<string, unknown> | null {
     const payload: Record<string, unknown> = { ...extra };
     const found: Record<string, string> = {};
     for (const key of fields) {
@@ -84,13 +93,23 @@ function useStep(profile: ProfileView, fields: Key[]) {
     setErrors(found);
     if (Object.keys(found).length) {
       // Bring the first problem into view (it may be far down the step).
-      requestAnimationFrame(() => document.querySelector<HTMLElement>('.m-form-block [aria-invalid="true"], form [aria-invalid="true"]')?.focus());
-      return;
+      focusFirstProblem();
+      return null;
     }
+    return payload;
+  }
+  function submit(extra: Record<string, unknown> = {}, after?: () => void) {
+    const payload = collect(extra);
+    if (!payload) return;
     if (!Object.keys(payload).length) return after ? after() : toast(say('details.nothingChanged'));
     save.mutate(payload, { onSuccess: () => after?.() });
   }
-  return { values, set, text, list, errors, submit, saving: save.isPending, failed: save.error };
+  /** The server's field messages that are this part's. */
+  const fail = (all: Record<string, string>) =>
+    setErrors(Object.fromEntries(Object.entries(all).filter(([key]) => (fields as string[]).includes(key) || key === 'caste')));
+  /** The wizard's view of this part (see Part). */
+  const part = (extra: Record<string, unknown> = {}): Part => ({ collect: () => collect(extra, true), fail });
+  return { values, set, text, list, errors, submit, part, saving: save.isPending, failed: save.error };
 }
 
 function Step({ title, intro, children, onSave, saving, failed, canEdit, flow }: { title: string; intro?: string; children: ReactNode; onSave: () => void; saving: boolean; failed: unknown; canEdit: boolean; flow: Flow }) {
@@ -171,7 +190,7 @@ const full = 'sm:col-span-2';
 function Essentials({ profile, flow }: { profile: ProfileView; flow: Flow }) {
   const f = useStep(profile, ['displayName', 'gender', 'birthDate', 'countryCode', 'region', 'city', 'occupation', 'education', 'heightCm', 'maritalStatus', 'religion', 'languages', 'motherTongue']);
   const inSriLanka = f.text('countryCode') === 'LK';
-  flow.register?.((after) => f.submit({}, after, true));
+  flow.register?.(f.part());
   const { t } = useI18n();
   const { genderLabels, maritalLabels, religionLabels } = useLabels();
   const countries = useCountries();
@@ -224,7 +243,7 @@ function Essentials({ profile, flow }: { profile: ProfileView; flow: Flow }) {
 
 function About({ profile, flow }: { profile: ProfileView; flow: Flow }) {
   const f = useStep(profile, ['bio', 'values', 'hobbies', 'timeline', 'relocation', 'horoscopeImportance', 'incomeRange']);
-  flow.register?.((after) => f.submit({}, after, true));
+  flow.register?.(f.part());
   const { t } = useI18n();
   const { horoscopeLabels, incomeLabels, relocationLabels, timelineLabels, valueLabels } = useLabels();
   return (
@@ -260,7 +279,7 @@ function About({ profile, flow }: { profile: ProfileView; flow: Flow }) {
 
 function Family({ profile, flow }: { profile: ProfileView; flow: Flow }) {
   const f = useStep(profile, ['familyStory', 'motherName', 'motherOccupation', 'fatherName', 'fatherOccupation', 'sisters', 'brothers', 'familyInvolvement']);
-  flow.register?.((after) => f.submit({}, after, true));
+  flow.register?.(f.part());
   const { t } = useI18n();
   const { involvementLabels } = useLabels();
   return (
@@ -286,7 +305,7 @@ function Lifestyle({ profile, flow }: { profile: ProfileView; flow: Flow }) {
   const [consent, setConsent] = useState(Boolean(savedCaste));
   const wanted = share === 'share' ? caste.trim() : '';
   const casteChanged = wanted !== savedCaste;
-  flow.register?.((after) => f.submit(casteChanged ? { caste: wanted ? { value: wanted, consent } : null } : {}, after, true));
+  flow.register?.(f.part(casteChanged ? { caste: wanted ? { value: wanted, consent } : null } : {}));
   const { t } = useI18n();
   const { childrenLabels, communityLabels, dietLabels, habitLabels } = useLabels();
   const notShared = t('details.notShared');
@@ -366,17 +385,38 @@ export type DetailsPart = 'essentials' | 'story' | 'lifestyle';
  */
 export function DetailsForm({ profile, onDone, part, saves, onSaved }: { profile: ProfileView; onDone?: () => void; part?: DetailsPart; saves?: { current: Save | null }; onSaved?: () => void }) {
   const { t } = useI18n();
-  // One save per part, by its id: a part registers again on every render of its own (each keystroke), and the newest
-  // registration replaces the older one, so Continue saves each part once, with its current values. (A plain list grew
-  // with every keystroke and replayed stale saves one after another, which could meet the version check, 409.)
-  const parts = useRef(new Map<string, Save>()).current;
-  if (saves) saves.current = (after) => [...parts.values()].reverse().reduce<() => void>((then, save) => () => save(then), after)();
+  // One entry per part, by its id: a part registers again on every render of its own (each keystroke), and the newest
+  // replaces the older one. Continue checks every part, then sends all their changes in ONE request: separate saves
+  // one after another could meet a background refresh between them and be refused as stale (409).
+  const parts = useRef(new Map<string, Part>()).current;
+  const step = useMutation({
+    mutationFn: (payload: Record<string, unknown>) => saveFields(profile, payload),
+    onSuccess: async (updated) => {
+      toast.success(say('common.saved'));
+      await storeProfile(updated);
+    },
+    onError: (error) => {
+      if (!(error instanceof ApiError)) return;
+      for (const each of parts.values()) each.fail(error.fields);
+      if (Object.keys(error.fields).length) focusFirstProblem();
+      if (error.code === 'VERSION_CONFLICT') void queryClient.invalidateQueries({ queryKey: keys.profile(profile.id) });
+    },
+  });
+  if (saves) {
+    saves.current = (after) => {
+      const collected = [...parts.values()].map((each) => each.collect());
+      if (collected.some((payload) => payload === null)) return;
+      const payload = Object.assign({}, ...collected) as Record<string, unknown>;
+      if (!Object.keys(payload).length) return after();
+      step.mutate(payload, { onSuccess: () => after() });
+    };
+  }
   const flow = (index: number): Flow =>
     part === 'lifestyle'
       ? { id: STEP_IDS[index]!, bare: true, onContinue: onSaved }
       : saves
       ? // The essentials' heading and About's intro would repeat the wizard step's own title and lead.
-        { id: STEP_IDS[index]!, register: (save) => void parts.set(STEP_IDS[index]!, save), heading: index > 0, intro: index > 1 }
+        { id: STEP_IDS[index]!, register: (each) => void parts.set(STEP_IDS[index]!, each), heading: index > 0, intro: index > 1 }
       : {
           id: STEP_IDS[index]!,
           onContinue: onDone && (index === STEP_IDS.length - 1 ? onDone : () => showStep(STEP_IDS[index + 1]!)),
@@ -386,6 +426,7 @@ export function DetailsForm({ profile, onDone, part, saves, onSaved }: { profile
   return (
     <div className="flex flex-col gap-6">
       {!profile.me.canEdit && <Notice>{t('details.viewOnly')}</Notice>}
+      {saves && step.error instanceof ApiError && step.error.code !== 'VALIDATION' && <Notice tone="error">{errorMessage(step.error)}</Notice>}
       {show('essentials') && <Essentials profile={profile} flow={flow(0)} />}
       {show('story') && <About profile={profile} flow={flow(1)} />}
       {show('story') && <Family profile={profile} flow={flow(2)} />}

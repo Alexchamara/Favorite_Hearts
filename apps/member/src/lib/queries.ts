@@ -118,7 +118,16 @@ export function useProfiles(enabled = true) {
 }
 
 export function useProfile(id: string) {
-  return useQuery({ queryKey: keys.profile(id), queryFn: () => api<ProfileView>(`/profiles/${id}`) });
+  return useQuery({
+    queryKey: keys.profile(id),
+    queryFn: async () => {
+      const fresh = await api<ProfileView>(`/profiles/${id}`);
+      // A refresh that left before a save and arrives after it carries the older version: keep the newer copy, so the
+      // next save is not refused as stale (409, "changed elsewhere").
+      const held = queryClient.getQueryData<ProfileView>(keys.profile(id));
+      return held && held.version > fresh.version ? held : fresh;
+    },
+  });
 }
 
 /** Document photos added but not sent yet; checked every 3 seconds while a phone link (QR code) is open. */
