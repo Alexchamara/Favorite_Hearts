@@ -14,7 +14,8 @@ import { AppShell, Card, Loading, Notice, PageTitle } from '@/components/layout'
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ApiError, errorMessage, post } from '@/lib/api';
-import { storeProfile, usePhotos, useProfile } from '@/lib/queries';
+import { keys, storeProfile, usePhotos, useProfile } from '@/lib/queries';
+import { queryClient } from '@/lib/query-client';
 import { PlanPanel } from '@/features/billing/PlanPanel';
 import { ContactsPanel } from './ContactsPanel';
 import { DetailsForm, type Save } from './DetailsForm';
@@ -122,7 +123,9 @@ function SetupWizard({ profile }: { profile: ProfileView }) {
     review: () => go('verify'),
   };
   const next: Partial<Record<WizardStep, () => void>> = {
-    essentials: () => save(() => go('story')),
+    // Saved: on to the next step, or (if the server still finds something missing) say so instead of staying silently.
+    essentials: () =>
+      save(() => (essentialsDone(queryClient.getQueryData<ProfileView>(keys.profile(profile.id)) ?? profile) ? go('story') : setError(t('onboard.notOpen')))),
     story: () => save(() => go('verify')),
     privacy: () => (isOpen('review') ? go('overview') : setError(t('onboard.notOpen'))),
   };

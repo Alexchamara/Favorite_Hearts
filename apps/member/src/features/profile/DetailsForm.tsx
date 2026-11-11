@@ -4,7 +4,7 @@
  * While a new profile is being set up, each step's button is "Save and continue": it saves, then takes the member to
  * the next step, and the last one on to Photos (SetupSteps.tsx).
  */
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { PROFILE_VALUES, profileFieldsSchema, type ProfileFields, type ProfileView } from '@fh/shared';
@@ -60,22 +60,33 @@ function useStep(profile: ProfileView, fields: Key[]) {
   const text = (key: Key) => values[key] as string;
   const list = (key: Key) => values[key] as string[];
 
-  /** Validates the changed fields like the server will, then saves them; `after` runs once saved (or if nothing changed). */
-  function submit(extra: Record<string, unknown> = {}, after?: () => void) {
+  /**
+   * Validates the changed fields like the server will, then saves them; `after` runs once saved (or if nothing changed).
+   * `complete` (the wizard's Continue): every required field of the part must be filled, changed or not, since the next
+   * step opens only once they are; empty ones are marked and the first gets focus.
+   */
+  function submit(extra: Record<string, unknown> = {}, after?: () => void, complete = false) {
     const payload: Record<string, unknown> = { ...extra };
     const found: Record<string, string> = {};
     for (const key of fields) {
-      if (same(values[key], initial[key])) continue;
       const value = fromForm(key, values[key]);
-      if (value === null && REQUIRED.has(key)) found[key] = say('validation.required');
-      else payload[key] = value;
+      if (value === null && REQUIRED.has(key) && (complete || !same(values[key], initial[key]))) {
+        found[key] = say('validation.required');
+        continue;
+      }
+      if (same(values[key], initial[key])) continue;
+      payload[key] = value;
     }
     const checked = profileFieldsSchema.safeParse(payload);
     if (!checked.success) {
       for (const issue of checked.error.issues) found[issue.path.join('.')] ??= issueMessage(issue as Parameters<typeof issueMessage>[0]);
     }
     setErrors(found);
-    if (Object.keys(found).length) return;
+    if (Object.keys(found).length) {
+      // Bring the first problem into view (it may be far down the step).
+      requestAnimationFrame(() => document.querySelector<HTMLElement>('.m-form-block [aria-invalid="true"], form [aria-invalid="true"]')?.focus());
+      return;
+    }
     if (!Object.keys(payload).length) return after ? after() : toast(say('details.nothingChanged'));
     save.mutate(payload, { onSuccess: () => after?.() });
   }
@@ -160,7 +171,7 @@ const full = 'sm:col-span-2';
 function Essentials({ profile, flow }: { profile: ProfileView; flow: Flow }) {
   const f = useStep(profile, ['displayName', 'gender', 'birthDate', 'countryCode', 'region', 'city', 'occupation', 'education', 'heightCm', 'maritalStatus', 'religion', 'languages', 'motherTongue']);
   const inSriLanka = f.text('countryCode') === 'LK';
-  flow.register?.((after) => f.submit({}, after));
+  flow.register?.((after) => f.submit({}, after, true));
   const { t } = useI18n();
   const { genderLabels, maritalLabels, religionLabels } = useLabels();
   const countries = useCountries();
@@ -213,7 +224,7 @@ function Essentials({ profile, flow }: { profile: ProfileView; flow: Flow }) {
 
 function About({ profile, flow }: { profile: ProfileView; flow: Flow }) {
   const f = useStep(profile, ['bio', 'values', 'hobbies', 'timeline', 'relocation', 'horoscopeImportance', 'incomeRange']);
-  flow.register?.((after) => f.submit({}, after));
+  flow.register?.((after) => f.submit({}, after, true));
   const { t } = useI18n();
   const { horoscopeLabels, incomeLabels, relocationLabels, timelineLabels, valueLabels } = useLabels();
   return (
@@ -249,7 +260,7 @@ function About({ profile, flow }: { profile: ProfileView; flow: Flow }) {
 
 function Family({ profile, flow }: { profile: ProfileView; flow: Flow }) {
   const f = useStep(profile, ['familyStory', 'motherName', 'motherOccupation', 'fatherName', 'fatherOccupation', 'sisters', 'brothers', 'familyInvolvement']);
-  flow.register?.((after) => f.submit({}, after));
+  flow.register?.((after) => f.submit({}, after, true));
   const { t } = useI18n();
   const { involvementLabels } = useLabels();
   return (
@@ -275,7 +286,7 @@ function Lifestyle({ profile, flow }: { profile: ProfileView; flow: Flow }) {
   const [consent, setConsent] = useState(Boolean(savedCaste));
   const wanted = share === 'share' ? caste.trim() : '';
   const casteChanged = wanted !== savedCaste;
-  flow.register?.((after) => f.submit(casteChanged ? { caste: wanted ? { value: wanted, consent } : null } : {}, after));
+  flow.register?.((after) => f.submit(casteChanged ? { caste: wanted ? { value: wanted, consent } : null } : {}, after, true));
   const { t } = useI18n();
   const { childrenLabels, communityLabels, dietLabels, habitLabels } = useLabels();
   const notShared = t('details.notShared');
@@ -355,14 +366,17 @@ export type DetailsPart = 'essentials' | 'story' | 'lifestyle';
  */
 export function DetailsForm({ profile, onDone, part, saves, onSaved }: { profile: ProfileView; onDone?: () => void; part?: DetailsPart; saves?: { current: Save | null }; onSaved?: () => void }) {
   const { t } = useI18n();
-  const parts: Save[] = [];
-  if (saves) saves.current = (after) => [...parts].reverse().reduce<() => void>((then, save) => () => save(then), after)();
+  // One save per part, by its id: a part registers again on every render of its own (each keystroke), and the newest
+  // registration replaces the older one, so Continue saves each part once, with its current values. (A plain list grew
+  // with every keystroke and replayed stale saves one after another, which could meet the version check, 409.)
+  const parts = useRef(new Map<string, Save>()).current;
+  if (saves) saves.current = (after) => [...parts.values()].reverse().reduce<() => void>((then, save) => () => save(then), after)();
   const flow = (index: number): Flow =>
     part === 'lifestyle'
       ? { id: STEP_IDS[index]!, bare: true, onContinue: onSaved }
       : saves
       ? // The essentials' heading and About's intro would repeat the wizard step's own title and lead.
-        { id: STEP_IDS[index]!, register: (save) => void parts.push(save), heading: index > 0, intro: index > 1 }
+        { id: STEP_IDS[index]!, register: (save) => void parts.set(STEP_IDS[index]!, save), heading: index > 0, intro: index > 1 }
       : {
           id: STEP_IDS[index]!,
           onContinue: onDone && (index === STEP_IDS.length - 1 ? onDone : () => showStep(STEP_IDS[index + 1]!)),
