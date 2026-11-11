@@ -73,9 +73,9 @@ keys get an English value and a blank Sinhala value.
 | Member: dialogs and sheets | Keep Stage 5e scrolling (`max-h`, `overflow-y-auto`) and focus return | WCAG 1.4.10, 2.4.3 |
 | Member: entry header | Beside the demo's "Matrimony" label: the other language (සිංහල / English), as on every app screen; brand and controls are 44 px tall (demo: brand 39 px, theme button 42 px) | Stage 5d language links; WCAG 2.5.8 and the 44 px rule |
 | Member: entry footer | "Need help?" with WhatsApp, call, email and the policies under the entry page (not in the demo) | Help before anyone has an account (X06) |
-| Member: language step | English and Sinhala only (Tamil hidden); no ⓘ note (it described Tamil coverage); the country list is the app's own, in the language on screen | OWNER-DECISIONS §10 |
-| Member: sign-in | One code-based form instead of the demo's Sign up / Log in tabs and passwords; the demo's tab look carries the Email / Phone (SMS) choice; "Send me a code" instead of "Create account" / "Log in"; the security check (Turnstile) on the contact and code steps | OWNER-DECISIONS §5 (passwordless), D7 |
-| Member: entry aside | The decided steps and note ("Sign in with a code…", "Browsing opens once you are verified…") instead of the demo's ("Verify your account…", "Browse free after setup…") | OWNER-DECISIONS §2, §5 |
+| Member: language step | English and Sinhala only (Tamil hidden); the ⓘ note without Tamil; the country is a searchable list (an ARIA combobox: type to filter, arrows, Enter, Escape; flags beside the names) instead of the demo's browser datalist, with the app's own country names in the language on screen; "Join now" (`?lang=`) always shows the step first, with the earlier choice filled in | OWNER-DECISIONS §10; owner request 11 Nov 2026; WCAG 4.1.2 |
+| Member: sign up and log in | The demo's Sign up / Log in panel on the real API (owner decision 11 Nov 2026): the consent tick names the Terms and Privacy Policy (links, underlined) instead of "use this prototype respectfully"; "Verify it’s you." takes the code sent by email (with a one-step link) or SMS instead of the demo code; "Forgot password?" sends an email link instead of a code; "Email or phone number" only in Sri Lanka once SMS is set up, otherwise "Email address" (as the demo does outside Sri Lanka); the security check (Turnstile); "Favorite Hearts staff will never ask you for your password or a code" instead of the simulation notice; no sample-account buttons; tabs, text buttons and ⓘ notes 44 px | OWNER-DECISIONS §10 (11 Nov 2026), D7, Stage 5e |
+| Member: entry aside | The demo's first step ("Verify your account"), then the decided steps and note ("Browsing opens once you are verified…") instead of the demo's ("Browse free after setup…") | OWNER-DECISIONS §2, §5 |
 | Member: entry brand | A link home (the demo's is a button); it takes the font the demo button ends up with | Link semantics |
 | Member: wizard, Your role | No manager-name or candidate-email fields (the account holder's name is the manager's; the candidate is invited later from the profile); the self or manager declaration is the box to tick; the role cannot be changed once the profile exists, so its step label is not a link afterwards; no "Save and finish later" (nothing is saved yet) | OWNER-DECISIONS §4, §5 |
 | Member: wizard, The essentials | Date of birth instead of the demo's age wheel (SCREEN-070 not built); the app's own field labels, lists and limits; no "Use sample details" | Decision B3; RULE-AUDIT |
@@ -133,7 +133,8 @@ Tools in `scripts/ui-parity/` (development only, Python + Playwright + Pillow, n
 - `checks.py`: browser checks against the sandbox (navigation, keyboard, dialogs, states, authorization, rejections,
   Sinhala, reduced motion, safe area); exits 1 when one fails.
 - `compare.py`: side-by-side sheets (reference | repo | amplified difference) and a `report.md` sorted worst first.
-- `sandbox-login.py`: signs a synthetic sandbox member in for signed-in member screenshots.
+- `sandbox-login.py`: logs a synthetic sandbox member in (email and the printed member password) for signed-in
+  member screenshots.
 - `capture_states.py`: public interaction states (welcome dialog, menu, newsroom and help filters).
 
 Capture one target at a time. Two captures running together slow the dev servers enough that some lazy images are
@@ -638,3 +639,43 @@ shows meanwhile). The API tests keep the rest: translations keep their placehold
 and emails come in the member's language, Tamil stays hidden.
 
 **Checks:** typecheck clean; tests pass (API 168, website 5, text tools 9); `build:site` passes.
+
+### auth-2 sign-up and log-in screens (11 Nov 2026)
+
+The member side of the owner decision of 11 Nov 2026 (API: auth-1 in BUILD-PROGRESS and ARCHITECTURE).
+
+- **Language and country** (`features/auth/Entry.tsx`, `components/form/country-combobox.tsx`): "Join now" opens
+  `/app/?lang=…`, which now always shows this step first (earlier choice filled in); finishing it drops `?lang`, so a
+  reload opens the form. The country is an ARIA combobox: typing filters (names starting with the text first, then
+  names containing it, or the ISO code), arrows move, Enter picks, Escape closes then clears, and screen readers hear
+  how many countries match.
+- **Sign up / Log in** (`features/auth/Account.tsx`, `password-auth.ts`): the demo's panel. Sign up: name, email or
+  phone, password (Show password), confirm, the consent tick with Terms and Privacy links, then "Verify it’s you." with
+  the code (resend, change details). Log in: address and password, no code; "Forgot password?" sends a reset link
+  (phone-only accounts are told to contact support). The password rules run as the member submits (same function as
+  the server). A visitor from "Join now" lands on Sign up; one who chose a country before, on Log in. Each step moves
+  focus to its heading.
+- **Link pages** (`features/auth/LinkPages.tsx`): `/app/confirm#email=…&code=…` (the email's one-step button: confirms
+  and signs in, on any device) and `/app/reset-password#token=…` ("Choose a new password."). Both read the fragment
+  once and clear it from the address bar.
+- **parity.css:** the country list's look; underlined links in a tick's words; the error box's dark-mode background
+  (1.66:1 before); 44 px for the entry tabs, text buttons and ⓘ notes (demo 42 and 32 px).
+- **Sandbox:** the test members log in with their email address and a printed password (new on every start). The
+  sandbox member app (launch `walkthrough-member`, gitignored) turns SMS on to try phone sign-up.
+- **Tools:** `capture.py` shoots the entry as the demo's own names (language step, Sign up, Log in, code step);
+  `sandbox-login.py` logs in with the password; `checks.py` checks a wrong password (refused, announced, field kept)
+  and Forgot password (focus to its heading): 81 checks pass.
+- **Tried in the sandbox:** Join now → language and country (typed "sri", Enter) → Sign up with a common password
+  (refused under the field) → good password → code by email → signed in to "Your profiles"; phone sign-up → SMS code;
+  the email link in another browser → signed in, a second time → "expired or already used"; Log in with a wrong
+  password → refused; Forgot password → link → a common new password refused → saved → logged in with it. Six quick
+  wrong passwords from one place meet the per-IP limit before the per-address lockout (both answer "wait").
+- **Pixel diff against the demo** (320 / 390 / 768 / 1024 / 1440 px, light): language step 7.8 / 7.0 / 3.3 / 3.5 /
+  2.4%; Sign up 12.1 / 12.1 / 7.7 / 7.0 / 5.9%; Log in 14.2 / 13.8 / 8.0 / 8.3 / 6.6%; code step 12.9 / 13.0 / 6.5 / 7.6 /
+  5.6% (dark within 1 point). What differs: the security check, the staff notice, the help footer and decided wording.
+  Known: the brand's ♥ renders lighter than the demo's (our self-hosted Inter has no ♥, so the system font draws it).
+- **Text:** 51 new texts and 1 changed (`home.aside.step.1`, now the demo's "Verify your account"), waiting for Sinhala.
+- **Still on the email code until auth-3:** the candidate's invitation page and the recent sign-in check before
+  deleting a profile or account.
+- **Checks:** typecheck clean; tests pass (API 180, website 5, text tools 9); `build:site` passes; text contrast passes
+  on every entry step in both themes at 390 and 1440 px; no sideways scroll at any width.

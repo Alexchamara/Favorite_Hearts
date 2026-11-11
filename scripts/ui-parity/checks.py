@@ -273,24 +273,18 @@ def rejection(browser):
     page = c.new_page()
     page.goto(APP)
     settle(page)
-    page.get_by_label(re.compile('^Email address')).fill(f'checks-{int(time.time())}@sandbox.test')
+    page.get_by_label(re.compile('^(Email or phone number|Email address)')).fill('bina@sandbox.test')
+    page.get_by_label('Password', exact=True).fill(f'not-the-password-{int(time.time())}')
     page.wait_for_function("!document.querySelector('.ma-panel form button[type=submit]').disabled", timeout=20000)
     page.click('.ma-panel form button[type=submit]')
-    page.wait_for_selector('input[autocomplete=one-time-code]', timeout=15000)
-    code = page.locator('input[autocomplete=one-time-code]')
-    code.fill('000000')
-    if page.locator('form button[type=submit]', has_text=re.compile('Verify|Check|Continue')).count():
-        try:
-            page.locator('form button[type=submit]').last.click(timeout=2000)
-        except Exception:
-            pass
-    settle(page, 2500)
-    # The boxes shake, clear and accept a new try; the server's reason stays in the status region the field points to.
-    message = page.evaluate("""() => { const i = document.querySelector('input[autocomplete=one-time-code]');
-      const s = document.getElementById(i.getAttribute('aria-describedby') || '');
-      return s && /status|alert/.test(s.getAttribute('role') || '') ? s.textContent.trim() : ''; }""")
-    check('rejection', 'a wrong sign-in code is refused; the reason stays linked to the field and is announced', message, 'no message')
-    check('rejection', 'the code field is ready for a new try', code.input_value() == '' and code.is_editable())
+    settle(page, 1500)
+    message = page.locator('.ma-panel form .m-error[role=alert]').inner_text().strip()
+    check('rejection', 'a wrong password is refused; the reason is shown and announced', message, 'no message')
+    check('rejection', 'the password field is still filled in for a corrected try', page.get_by_label('Password', exact=True).input_value() != '')
+    page.get_by_role('button', name='Forgot password?').click()
+    settle(page, 500)
+    focused = page.evaluate("document.activeElement.tagName")
+    check('rejection', 'Forgot password? opens the reset form and moves focus to its heading', focused == 'H1', focused)
     c.close()
 
 

@@ -20,6 +20,8 @@ const RelationsPage = lazy(() => import('@/features/requests/RelationsPage'));
 const ShortlistPage = lazy(() => import('@/features/browse/ShortlistPage'));
 const PrivacyPage = lazy(() => import('@/features/account/PrivacyPage'));
 const ContactPage = lazy(() => import('@/features/account/ContactPage'));
+const ConfirmLinkPage = lazy(() => import('@/features/auth/LinkPages').then((module) => ({ default: module.ConfirmLinkPage })));
+const ResetPasswordPage = lazy(() => import('@/features/auth/LinkPages').then((module) => ({ default: module.ResetPasswordPage })));
 
 /** Member-only screens: signed-out visitors go to sign-in, staff to the staff workspace. */
 function MemberOnly({ children }: { children: ReactNode }) {
@@ -66,6 +68,9 @@ export default function App() {
             <Route path="/privacy" element={<MemberOnly><PrivacyPage /></MemberOnly>} />
             <Route path="/contact" element={<MemberOnly><ContactPage /></MemberOnly>} />
             <Route path="/invite" element={<InvitePage />} />
+            {/* The sign-up email's one-step button and the reset email's link (the code or token after "#"). */}
+            <Route path="/confirm" element={<ConfirmLinkPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route
               path="/staff"
               element={

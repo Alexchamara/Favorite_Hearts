@@ -166,7 +166,7 @@ staff area is `/app/staff`.
 
 | Route | Screen |
 | --- | --- |
-| `/` | Sign-in with an email code, the account holder's name on first sign-in, then the dashboard: own and managed profiles, creating one, the verification summary, and the account itself (download my data, delete my account) |
+| `/` | The language and country step (first visit, or from "Join now"), Sign up / Log in (password; a code confirms a sign-up), then the dashboard: own and managed profiles, creating one, the verification summary, and the account itself (download my data, delete my account) |
 | `/profiles/:id` | Overview (badges, publishing, the plan with its expiry warning and remaining requests, "engaged or married", deleting the profile), Details in four steps, Photos, Contacts, Requests (received, sent), Connections (with blocked profiles), Plan (the plan in force, what each plan would do now, the payment step, receipts and past payments), and for guardian-managed profiles the candidate's or manager's panel (the manager's includes handing the profile over) |
 | `/browse` | Discovery with filters, for verified members |
 | `/members/:id` | Another member's profile: photos (blurred unless allowed), where the acting profile stands, sending a request after seeing what will be shared, blocking and reporting |
@@ -225,7 +225,8 @@ trying the screens without any service:
 - Two staff accounts (`owner@sandbox.test`, `reviewer@sandbox.test`) get a random password, printed at start and new
   on every run. Two-step login is set up on first sign-in, as anywhere else.
 - Four synthetic test members are seeded: verified, published, "Sandbox test member" in their bio, two with generated
-  placeholder photos, one on Starter and one on Premium. They sign in with the email code printed in the console.
+  placeholder photos, one on Starter and one on Premium. They log in with their email address and a random password
+  printed at start (one for all four, new on every run).
 - Payment details start empty, as everywhere: sign in as the owner and enter test details first. For a quick plan the
   sandbox alone also has `POST /sandbox/plans` on its API port. The member app's proxy does not reach it, and it is
   not part of the real API. The sandbox runs no scheduled jobs, so expiry and payment emails are not sent there.

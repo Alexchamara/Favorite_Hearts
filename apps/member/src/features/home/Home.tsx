@@ -1,9 +1,10 @@
 /**
- * Home: sign in, then the profiles this account operates (own, managed or joined as candidate),
+ * Home: the language and country step and the account panel (sign up or log in), then the profiles this account operates (own, managed or joined as candidate),
  * creating a profile, and the account's own verification status.
  */
 import { ArrowUpRight, Heart, Plus, ShieldCheck } from 'lucide-react';
-import { Link, Navigate, useNavigate } from 'react-router';
+import { useState } from 'react';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router';
 import { DEFAULT_MANAGER_CAPACITY, type ProfileView } from '@fh/shared';
 import { TrustBadges } from '@/components/badges';
 import { AppLoading, AppShell, Card, kickerClass, Loading, Notice, PageTitle } from '@/components/layout';
@@ -11,8 +12,9 @@ import { Button } from '@/components/ui/button';
 import { errorMessage } from '@/lib/api';
 import { useMe, useMyCases, useProfiles } from '@/lib/queries';
 import { AccountCard } from '@/features/account/AccountCard';
-import { EntryShell, LocaleStep, useLocaleChosen } from '@/features/auth/Entry';
-import { NameStep, SignIn } from '@/features/auth/SignIn';
+import { AccountPanel } from '@/features/auth/Account';
+import { EntryShell, fromJoin, LocaleStep, readPreferences, useLocaleChosen } from '@/features/auth/Entry';
+import { NameStep } from '@/features/auth/SignIn';
 import { useLabels } from '@/features/profile/options';
 import { useI18n } from '@/lib/i18n';
 
@@ -20,6 +22,12 @@ export default function Home() {
   const me = useMe();
   const { t } = useI18n();
   const [localeChosen, chooseLocale] = useLocaleChosen();
+  const location = useLocation();
+  // "Join now" opens Sign up; a visitor who chose a country before (and did not come from Join now) opens Log in, as does
+  // the end of a password reset.
+  const [joined] = useState(fromJoin);
+  const entryMode =
+    (location.state as { mode?: string } | null)?.mode === 'login' || (!joined && readPreferences().country) ? 'login' : 'signup';
   if (me.isPending) return <AppLoading />;
   if (me.data?.staffRole) return <Navigate to="/staff" replace />;
   // Signed out and naming the account: the demo's own entry page. Signed in: the profiles dashboard in the app frame.
@@ -32,16 +40,8 @@ export default function Home() {
   if (!me.data)
     return (
       <EntryShell>
-        <SignIn
-          heading={(codeStep) => (
-            <>
-              <span className={kickerClass}>{t('home.kicker')}</span>
-              <h1>{t(codeStep ? 'entry.code.title' : 'home.title')}</h1>
-              {!codeStep && <p>{t('home.intro')}</p>}
-              {me.isError && <Notice tone="warning">{t('home.serviceProblem')}</Notice>}
-            </>
-          )}
-        />
+        {me.isError && <Notice tone="warning">{t('home.serviceProblem')}</Notice>}
+        <AccountPanel initialMode={entryMode} />
       </EntryShell>
     );
   if (!me.data.name)

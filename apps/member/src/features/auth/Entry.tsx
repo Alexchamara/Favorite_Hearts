@@ -10,6 +10,7 @@
 import { useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Moon, Sun } from 'lucide-react';
 import { LANGUAGE_NAMES } from '@fh/shared';
+import { CountryCombobox } from '@/components/form/country-combobox';
 import { SupportFooter } from '@/components/layout';
 import { useToastRoot } from '@/components/toast-host';
 import { useCountries } from '@/features/profile/options';
@@ -20,7 +21,7 @@ const PREFERENCES = 'fh-visitor-preferences';
 
 type Preferences = { language?: string; country?: string };
 
-function readPreferences(): Preferences {
+export function readPreferences(): Preferences {
   try {
     return (JSON.parse(localStorage.getItem(PREFERENCES) ?? 'null') as Preferences | null) ?? {};
   } catch {
@@ -36,10 +37,25 @@ function savePreferences(changes: Preferences): void {
   }
 }
 
-/** Whether this browser has a country on record yet (from the website's welcome dialog or this step). */
+/** Arriving from the website's "Join now" (it opens /app/?lang=…): the language and country step comes first. */
+export const fromJoin = () => new URLSearchParams(window.location.search).has('lang');
+
+/**
+ * Whether the language and country step is done: this browser has a country on record (from the website's welcome
+ * dialog or this step), and the visitor did not just arrive from "Join now", where the step always comes first, with
+ * the earlier choice filled in. Done, the step drops ?lang from the address, so a reload opens the form.
+ */
 export function useLocaleChosen(): [boolean, () => void] {
-  const [chosen, setChosen] = useState(() => Boolean(readPreferences().country));
-  return [chosen, () => setChosen(true)];
+  const [chosen, setChosen] = useState(() => Boolean(readPreferences().country) && !fromJoin());
+  return [
+    chosen,
+    () => {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('lang');
+      history.replaceState(history.state, '', url.pathname + url.search + url.hash);
+      setChosen(true);
+    },
+  ];
 }
 
 /** The entry page: header, the panel with `children`, and (optionally) the supporting column. */
@@ -115,24 +131,22 @@ function EntryAside({ titleOnly = false }: { titleOnly?: boolean }) {
   );
 }
 
-/** SCREEN-022: language as the demo's toggle buttons, country as a searchable field with the country list. */
+/** SCREEN-022: language as the demo's toggle buttons, country as a searchable list (CountryCombobox). */
 export function LocaleStep({ onDone }: { onDone: () => void }) {
   const { t, language, setLanguage } = useI18n();
   const countries = useCountries();
-  const saved = readPreferences().country ?? 'LK';
-  const [country, setCountry] = useState(() => countries.find((option) => option.code === saved)?.name ?? '');
+  const [country, setCountry] = useState(() => readPreferences().country ?? 'LK');
   const [error, setError] = useState('');
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    const match = countries.find((option) => option.name.toLowerCase() === country.trim().toLowerCase());
-    if (!match) return setError(t('fields.phoneNone'));
-    savePreferences({ language, country: match.code });
+    if (!countries.some((option) => option.code === country)) return setError(t('entry.locale.choose'));
+    savePreferences({ language, country });
     onDone();
   };
   return (
     <>
       <h1>{t('entry.locale.title')}</h1>
-      <form onSubmit={submit}>
+      <form onSubmit={submit} noValidate>
         <div className="m-field" role="group" aria-labelledby="entry-language">
           <span id="entry-language">
             <span aria-hidden="true">🌐 </span>
@@ -164,26 +178,18 @@ export function LocaleStep({ onDone }: { onDone: () => void }) {
               <span aria-hidden="true"> *</span>
             </label>
           </span>
-          <input
+          <CountryCombobox
             id="entry-country"
-            name="country"
-            list="entry-countries"
-            autoComplete="country-name"
-            placeholder={t('entry.locale.search')}
-            required
+            countries={countries}
             value={country}
-            aria-invalid={error ? true : undefined}
-            aria-describedby={error ? 'entry-country-error' : undefined}
-            onChange={(event) => {
-              setCountry(event.target.value);
+            onChange={(code) => {
+              setCountry(code);
               setError('');
             }}
+            invalid={Boolean(error)}
+            describedBy={error ? 'entry-country-error' : undefined}
+            placeholder={t('entry.locale.search')}
           />
-          <datalist id="entry-countries">
-            {countries.map((option) => (
-              <option key={option.code} value={option.name} />
-            ))}
-          </datalist>
         </div>
         <button type="submit" className="m-btn">
           {t('common.continue')}
@@ -191,6 +197,10 @@ export function LocaleStep({ onDone }: { onDone: () => void }) {
         <p className="m-error" role="alert" id="entry-country-error">
           {error}
         </p>
+        <details className="fh-native-help">
+          <summary aria-label={t('entry.locale.helpLabel')}>ⓘ</summary>
+          <p>{t('entry.locale.help')}</p>
+        </details>
       </form>
     </>
   );

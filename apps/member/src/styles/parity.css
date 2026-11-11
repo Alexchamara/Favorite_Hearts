@@ -211,6 +211,11 @@
 #favorite-hearts-product:not(#fh-parity) .m-app[data-theme='dark'] .m-discover-toolbar > .m-choice span {
   color: var(--ui-text) !important;
 }
+/* The error box (.m-error) keeps the demo's pale pink background in dark mode under the dark theme's light danger
+   text (1.66:1); it takes the dark page colour instead. */
+#favorite-hearts-product:not(#fh-parity) .m-app[data-theme='dark'] .m-error {
+  background: var(--ui-bg);
+}
 #favorite-hearts-product:not(#fh-parity) .m-app[data-theme='dark'] .m-common {
   color: var(--ui-copper);
 }
@@ -290,4 +295,87 @@
   line-height: 1.4;
   letter-spacing: normal;
   color: var(--ui-text);
+}
+
+/* Country list on the language and country step (components/form/country-combobox.tsx, auth-2): the demo's input,
+   with a list under it in the demo's menu look (surface, line, control radius, shadow). Options are 44 px tall. */
+#favorite-hearts-product .m-app .fh-combobox {
+  position: relative;
+}
+#favorite-hearts-product .m-app .fh-combobox > input {
+  padding-right: 40px;
+}
+#favorite-hearts-product .m-app .fh-combobox-icon {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  width: 16px;
+  height: 16px;
+  transform: translateY(-50%);
+  color: var(--ui-muted);
+  pointer-events: none;
+}
+#favorite-hearts-product .m-app .fh-combobox > ul {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  max-height: 264px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-control-radius);
+  background: var(--ui-surface);
+  box-shadow: var(--ui-shadow);
+}
+#favorite-hearts-product .m-app .fh-combobox > ul[hidden] {
+  display: none;
+}
+#favorite-hearts-product .m-app .fh-combobox li[role='option'] {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 8px;
+  color: var(--ui-text);
+  font-size: 15px;
+  cursor: pointer;
+}
+#favorite-hearts-product .m-app .fh-combobox li[data-active] {
+  background: var(--ui-soft);
+}
+#favorite-hearts-product .m-app .fh-combobox li[aria-selected='true'] {
+  font-weight: 600;
+}
+#favorite-hearts-product .m-app .fh-combobox .fh-combobox-none {
+  padding: 12px;
+  color: var(--ui-muted);
+  font-size: 14px;
+}
+
+/* Links inside a tick's words (the sign-up consent: Terms, Privacy Policy) are underlined, so they read as links, not
+   only by colour (WCAG 1.4.1); the demo's tick has no links. */
+#favorite-hearts-product .m-app .m-check a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Entry targets of at least 44 px (Stage 5e): the demo's Sign up / Log in buttons are 42 px, its text buttons in the
+   panel ("Show password", "Forgot password?") and the ⓘ notes 32 px. */
+#favorite-hearts-product .m-app.ma-entry .ma-tabs button {
+  height: auto;
+  min-height: 44px;
+}
+#favorite-hearts-product .m-app.ma-entry .ma-panel .m-text {
+  min-height: 44px;
+}
+#favorite-hearts-product .m-app .fh-native-help summary {
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
 }

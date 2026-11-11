@@ -10,7 +10,8 @@
  * on every start). Staff set up two-step login on first sign-in, as on a real environment.
  *
  * Four synthetic test members are seeded (verified, published, "Sandbox test member" in their bio),
- * so discovery and requests can be tried at once. Buying a plan needs the owner to enter payment details
+ * so discovery and requests can be tried at once. They log in with their email address and a random password printed
+ * below (one for all four, new on every start), as members do since 11 Nov 2026. Buying a plan needs the owner to enter payment details
  * first (nothing is pre-filled), so a sandbox-only route also grants a test plan directly:
  * POST http://127.0.0.1:8788/sandbox/plans.
  */
@@ -121,12 +122,17 @@ async function placeholderPhoto(profileId: string, initial: string, color: strin
 }
 
 const days = (n: number) => new Date(Date.now() + n * 86_400_000);
+// A random password for the test members (sandbox only), hashed by Better-Auth like any member's.
+const memberPassword = `member-${randomBytes(9).toString('base64url')}`;
+const authContext = await auth.$context;
+const memberPasswordHash = await authContext.password.hash(memberPassword);
 const seeded: { email: string; name: string; plan: string }[] = [];
 for (const [index, member] of SEED.entries()) {
   const userId = randomUUID();
   const email = `${member.first.toLowerCase()}@sandbox.test`;
   const phone = `+9477000${String(index + 1).padStart(4, '0')}`;
   await db.insert(schema.user).values({ id: userId, name: `${member.first} ${member.last}`, email, emailVerified: true, phoneNumber: phone, phoneNumberVerified: true });
+  await authContext.internalAdapter.linkAccount({ userId, providerId: 'credential', accountId: userId, password: memberPasswordHash });
   await db.insert(schema.memberAccount).values({ userId });
   await db.insert(schema.verificationCase).values({ subjectUserId: userId, documentType: 'nic', status: 'approved', reviewedByUserId: reviewerId, reviewedAt: new Date() });
   const [created] = await db
@@ -190,12 +196,13 @@ Favorite Hearts sandbox (in-memory, nothing is sent or stored for real)
   Member app : ${MEMBER_ORIGIN}/app/      Staff: ${MEMBER_ORIGIN}/app/staff
   Staff      : owner@sandbox.test, reviewer@sandbox.test
   Password   : ${staffPassword}   (both staff accounts; new on every start)
-  Test members (verified and published; sign in with the email code printed below):
+  Test members (verified and published; log in with the email address and this password):
+  Password   : ${memberPassword}   (all four test members; new on every start)
 ${seeded.map((m) => `    ${m.email.padEnd(22)} ${m.name.padEnd(16)} ${m.plan}`).join('\n')}
   Payments   : sign in as the owner first and enter test payment details (nothing is pre-filled).
   Test plan  : curl -X POST http://127.0.0.1:${API_PORT}/sandbox/plans -H 'content-type: application/json' \\
                  -d '{"profileId":"<id from /app/profiles/<id>>","planId":"starter_1m"}'
   Bot check  : ${turnstileSecret ? 'on (Turnstile, checked with Cloudflare)' : 'off (set TURNSTILE_SECRET_KEY to try it)'}
-Sign-in codes, phone codes and invitation links appear below.
+Sign-up codes, reset links, phone codes and invitation links appear below.
 ${line}`);
 });

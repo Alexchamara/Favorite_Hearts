@@ -67,7 +67,7 @@ export function TextField({
 }
 
 /** A country's flag, from the bundled flag-icons set; decorative, the name is always beside it. */
-const Flag = ({ code }: { code: string }) => <span aria-hidden="true" className={`fi fi-${code.toLowerCase()} shrink-0 rounded-[2px]`} />;
+export const Flag = ({ code }: { code: string }) => <span aria-hidden="true" className={`fi fi-${code.toLowerCase()} shrink-0 rounded-[2px]`} />;
 
 /**
  * A phone number: a country dropdown (flag, name and code, with search) and the number typed in groups

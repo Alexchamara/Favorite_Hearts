@@ -216,18 +216,26 @@ def prod_member(browser, args, out, rows):
 
 
 def entry_shots(browser, base, prefs, width, args, out, rows):
-    # First visit: the language and country step.
+    """The entry as the demo's own shots: the language step (from "Join now"), Sign up, Log in, and the code step after
+    a sign-up with a new sandbox address (the sandbox prints the code; nothing is sent)."""
     context, page = new_page(browser, width, args)
-    page.goto(base, wait_until='domcontentloaded')
+    page.goto(base + '?lang=en', wait_until='domcontentloaded')
     shoot(page, out, 'm-entry-locale', width, rows)
     context.close()
-    # Returning visitor: sign-in, then the code step (the sandbox prints the code; nothing is sent).
     context, page = new_page(browser, width, args)
     context.add_init_script(prefs)
     page.goto(base, wait_until='domcontentloaded')
-    shoot(page, out, 'm-entry-signin', width, rows)
+    page.get_by_role('button', name='Sign up', exact=True).click()
+    shoot(page, out, 'm-entry-signup', width, rows)
+    page.get_by_role('button', name='Log in', exact=True).first.click()
+    shoot(page, out, 'm-entry-login', width, rows)
     try:
-        page.get_by_label(re.compile('^Email address')).fill(f'capture-{width}-{int(__import__("time").time())}@sandbox.test')
+        page.get_by_role('button', name='Sign up', exact=True).click()
+        page.get_by_label('Your name (account holder)').fill('Capture Test')
+        page.get_by_label(re.compile('^(Email or phone number|Email address)')).fill(f'capture-{width}-{int(__import__("time").time())}@sandbox.test')
+        page.get_by_label('Password', exact=True).fill('a long walk by the lake')
+        page.get_by_label('Confirm password').fill('a long walk by the lake')
+        page.locator('.m-check input').check()
         page.wait_for_function("!document.querySelector('.ma-panel form button[type=submit]').disabled", timeout=15000)
         page.click('.ma-panel form button[type=submit]')
         page.wait_for_selector('input[autocomplete=one-time-code]', timeout=15000)
