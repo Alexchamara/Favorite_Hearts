@@ -35,6 +35,9 @@ const TURNSTILE_PATHS = [
   '/api/auth/phone-number/send-otp',
   '/api/auth/phone-number/request-password-reset',
   '/api/auth/sign-in/email',
+  '/api/auth/sign-in/phone-number',
+  '/api/auth/member/sign-up',
+  '/api/auth/request-password-reset',
   '/api/v1/invitations/code',
 ];
 

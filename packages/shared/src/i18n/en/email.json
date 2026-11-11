@@ -58,5 +58,22 @@
   "email.handedOver.check": "Check the profile details and your privacy settings when you next sign in.",
   "email.profileDeleted.subject": "A profile you managed was deleted",
   "email.profileDeleted.deleted": "The candidate deleted {profile}, the profile you managed for them. It is no longer shown to anyone, and you no longer have access to it.",
-  "email.profileDeleted.kept": "Some records, such as payments, are kept for a limited time, as our privacy policy explains."
+  "email.profileDeleted.kept": "Some records, such as payments, are kept for a limited time, as our privacy policy explains.",
+  "email.signUp.subject": "Confirm your Favorite Hearts account",
+  "email.signUp.intro": "Your code:",
+  "email.signUp.button": "Confirm my account",
+  "email.signUp.link": "Type the code on the sign-up screen, or confirm in one step with the button.",
+  "email.signUp.ignore": "If you did not sign up, ignore this email: no account is created.",
+  "email.registered.subject": "Someone tried to sign up with your email address",
+  "email.registered.body": "Someone, maybe you, tried to create a Favorite Hearts account with this email address. It already has an account, so nothing was created.",
+  "email.registered.action": "Log in with your password, or reset it if you have forgotten it.",
+  "email.registered.button": "Log in",
+  "email.registered.ignore": "If it was not you, you can ignore this email. Your account has not changed.",
+  "email.reset.subject": "Reset your Favorite Hearts password",
+  "email.reset.intro": "Someone asked to reset the password for this account. Choose a new one with the button below.",
+  "email.reset.button": "Choose a new password",
+  "email.reset.expires": "The link works once and lasts {passwordResetMinutes} minutes.",
+  "email.reset.ignore": "If you did not ask, ignore this email: your password stays the same.",
+  "email.sms.registered": "Favorite Hearts: this number already has an account. Log in with your password, or contact us if you have forgotten it.",
+  "email.warning.resetLink": "Favorite Hearts staff will never ask you for this link or your password. Do not share them with anyone."
 }

@@ -130,5 +130,10 @@
   "api.rule.paymentNotCancellable": "අවලංගු කළ හැක්කේ රිසිට්පතක් නැති ගෙවීමක් පමණි.",
   "api.rule.candidateDecides": "අපේක්ෂකයා මෙම පැතිකඩට එක් වී ඇති බැවින්, එය මැකිය හැක්කේ ඔවුන්ට පමණි. ඒ වෙනුවට ඔබට එය ඔවුන්ට භාර දිය හැක.",
   "api.rule.noCandidate": "අපේක්ෂකයා තවම එක් වී නැති බැවින්, පැතිකඩ භාර දීමට කිසිවෙකු නැත.",
-  "api.rule.accountNotFound": "ගිණුම හමු නොවීය."
+  "api.rule.accountNotFound": "ගිණුම හමු නොවීය.",
+  "api.signUpCodeExpired": "",
+  "api.signUpCodeWrong": "",
+  "api.signUpTooManyTries": "",
+  "api.accountExists": "",
+  "api.loginLocked": ""
 }

@@ -160,5 +160,10 @@
   "api.staff.planNotActive": "This profile has no active plan.",
   "api.staff.planInUse": "This plan was bought or granted, so it stays on record. Retire it instead.",
   "api.staff.priceInvalid": "Enter a price above 0.",
-  "api.staff.planExists": "A plan with this code already exists."
+  "api.staff.planExists": "A plan with this code already exists.",
+  "api.signUpCodeExpired": "That code has expired or was already used. Ask for a new one.",
+  "api.signUpCodeWrong": "That code is not right. Check the latest code we sent you.",
+  "api.signUpTooManyTries": "Too many wrong codes. Ask for a new one.",
+  "api.accountExists": "This email address or phone number already has an account. Log in instead.",
+  "api.loginLocked": "Too many wrong passwords for this account. Try again in {loginLockMinutes} minutes, or reset your password."
 }

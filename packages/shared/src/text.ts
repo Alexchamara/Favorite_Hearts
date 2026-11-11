@@ -14,6 +14,7 @@
 import { MAX_PAYMENT_PROOFS, RENEWAL_GRACE_DAYS, RENEWAL_WINDOW_DAYS } from './billing.ts';
 import { DEFAULT_MANAGER_CAPACITY, DOCUMENT_RETENTION_DAYS, LOCALES, INVITATION_TTL_HOURS, MAX_PHOTOS, MAX_SOCIAL_LINKS } from './domain.ts';
 import { CODE_LENGTH, CODE_TTL_SECONDS } from './login-channels.ts';
+import { LOGIN_LOCK_MINUTES, MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH, PASSWORD_RESET_MINUTES } from './password.ts';
 import { MAX_AGE, MAX_HEIGHT_CM, MIN_AGE, MIN_HEIGHT_CM } from './profile.ts';
 import { REQUEST_COOLDOWN_DAYS, SHORTLIST_LIMIT } from './requests.ts';
 import { RECENT_SIGN_IN_MINUTES, RETENTION_MONTHS } from './safety.ts';
@@ -60,6 +61,10 @@ export const TEXT_CONSTANTS: TextVars = {
   maxHeightCm: MAX_HEIGHT_CM,
   codeLength: CODE_LENGTH,
   codeMinutes: Math.round(CODE_TTL_SECONDS / 60),
+  minPasswordLength: MIN_PASSWORD_LENGTH,
+  maxPasswordLength: MAX_PASSWORD_LENGTH,
+  loginLockMinutes: LOGIN_LOCK_MINUTES,
+  passwordResetMinutes: PASSWORD_RESET_MINUTES,
   maxPhotos: MAX_PHOTOS,
   maxSocialLinks: MAX_SOCIAL_LINKS,
   maxPaymentProofs: MAX_PAYMENT_PROOFS,

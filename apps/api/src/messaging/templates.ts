@@ -164,3 +164,53 @@ export function notificationEmail(
       return null;
   }
 }
+
+/**
+ * Sign-up confirmation (owner decision, 11 Nov 2026): one email holds both the code and a button that confirms in one
+ * step. The button opens the member app with the address and code after "#", so they never reach a server log.
+ */
+export function signUpEmail(language: Language, code: string, link: string) {
+  const say = (key: EmailTextKey) => text(language, key);
+  const subject = say('email.signUp.subject');
+  const lines = [say('email.code.expires'), say('email.warning.thisCode'), say('email.signUp.ignore')];
+  const html = layout(
+    language,
+    subject,
+    `<p style="margin:0 0 8px">${escape(say('email.signUp.intro'))}</p>
+<p style="margin:0 0 24px;font-size:32px;font-weight:700;letter-spacing:6px">${code}</p>
+<p style="margin:0 0 16px">${escape(say('email.signUp.link'))}</p>
+${button(link, say('email.signUp.button'))}
+<p style="margin:0 0 16px">${escape(lines[0]!)}</p>
+<p style="margin:0 0 16px;font-size:14px;color:#6b6b6b">${escape(lines[1]!)}</p>
+${small(lines[2]!)}`,
+  );
+  const textBody = `${say('email.signUp.intro')} ${code}\n\n${say('email.signUp.link')}\n${link}\n\n${lines.join('\n\n')}`;
+  return { subject, text: textBody, html };
+}
+
+/** Someone signed up with an address that already has an account: its owner hears, the screen says nothing more. */
+export function registeredEmail(language: Language, logInLink: string) {
+  const say = (key: EmailTextKey) => text(language, key);
+  const subject = say('email.registered.subject');
+  const lines = [say('email.registered.body'), say('email.registered.action')];
+  const ignore = say('email.registered.ignore');
+  const html = layout(language, subject, `${paragraphs(lines)}\n${button(logInLink, say('email.registered.button'))}\n${small(ignore)}`);
+  return { subject, text: `${lines.join('\n\n')}\n\n${logInLink}\n\n${ignore}`, html };
+}
+
+export const registeredSms = (language: Language) => text(language, 'email.sms.registered');
+
+/** A password reset link (email accounts only; staff and phone-only accounts get none). */
+export function resetEmail(language: Language, link: string) {
+  const say = (key: EmailTextKey) => text(language, key);
+  const subject = say('email.reset.subject');
+  const intro = say('email.reset.intro');
+  const lines = [say('email.reset.expires'), say('email.warning.resetLink'), say('email.reset.ignore')];
+  const html = layout(
+    language,
+    subject,
+    `${paragraphs([intro])}\n${button(link, say('email.reset.button'))}\n<p style="margin:0 0 16px">${escape(lines[0]!)}</p>
+<p style="margin:0 0 16px;font-size:14px;color:#6b6b6b">${escape(lines[1]!)}</p>\n${small(lines[2]!)}`,
+  );
+  return { subject, text: `${intro}\n\n${link}\n\n${lines.join('\n\n')}`, html };
+}

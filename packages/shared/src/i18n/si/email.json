@@ -58,5 +58,22 @@
   "email.handedOver.check": "ඊළඟ වතාවේ ඔබ පිවිසෙන විට පැතිකඩ විස්තර සහ ඔබේ පෞද්ගලිකත්ව සැකසුම් පරීක්ෂා කරන්න.",
   "email.profileDeleted.subject": "ඔබ කළමනාකරණය කළ පැතිකඩක් මකා දමන ලදී",
   "email.profileDeleted.deleted": "අපේක්ෂකයා, ඔබ ඔවුන් වෙනුවෙන් කළමනාකරණය කළ {profile} පැතිකඩ මකා දැමුවා. එය තවදුරටත් කිසිවෙකුට නොපෙන්වන අතර, ඔබට තවදුරටත් එයට ප්‍රවේශය නැත.",
-  "email.profileDeleted.kept": "අපේ පෞද්ගලිකත්ව ප්‍රතිපත්තියේ පැහැදිලි කරන පරිදි, ගෙවීම් වැනි සමහර වාර්තා සීමිත කාලයක් තබා ගැනේ."
+  "email.profileDeleted.kept": "අපේ පෞද්ගලිකත්ව ප්‍රතිපත්තියේ පැහැදිලි කරන පරිදි, ගෙවීම් වැනි සමහර වාර්තා සීමිත කාලයක් තබා ගැනේ.",
+  "email.signUp.subject": "",
+  "email.signUp.intro": "",
+  "email.signUp.button": "",
+  "email.signUp.link": "",
+  "email.signUp.ignore": "",
+  "email.registered.subject": "",
+  "email.registered.body": "",
+  "email.registered.action": "",
+  "email.registered.button": "",
+  "email.registered.ignore": "",
+  "email.reset.subject": "",
+  "email.reset.intro": "",
+  "email.reset.button": "",
+  "email.reset.expires": "",
+  "email.reset.ignore": "",
+  "email.sms.registered": "",
+  "email.warning.resetLink": ""
 }

@@ -35,5 +35,11 @@
   "validation.choosePlan": "සැලැස්මක් තෝරන්න.",
   "validation.paymentChannel": "ඔබ ගෙවන ආකාරය තෝරන්න.",
   "validation.confirmRefundTerms": "ඔබ මුදල් ආපසු ගෙවීමේ කොන්දේසි කියවා ඇති බව තහවුරු කරන්න.",
-  "validation.confirmIrreversible": "මෙය ආපසු හැරවිය නොහැකි බව ඔබට වැටහෙන බව තහවුරු කරන්න."
+  "validation.confirmIrreversible": "මෙය ආපසු හැරවිය නොහැකි බව ඔබට වැටහෙන බව තහවුරු කරන්න.",
+  "validation.password.tooShort": "",
+  "validation.password.tooLong": "",
+  "validation.password.common": "",
+  "validation.password.personal": "",
+  "validation.signUpConsent": "",
+  "validation.emailOrPhone": ""
 }

@@ -37,6 +37,22 @@ export async function consume(db: Db, key: string, rule: RateRule): Promise<Cons
   return { allowed: false, retryAfter: Math.max(1, Math.ceil(Number(row!.remaining))) };
 }
 
+/** Whether `key` is already past `rule` in its current window, without counting this request (log-in lockout). */
+export async function overLimit(db: Db, key: string, rule: RateRule): Promise<Consumed> {
+  const [row] = rows<{ hits: number; remaining: number | string }>(
+    await db.execute(sql`
+      select hits, extract(epoch from window_started_at + make_interval(secs => ${rule.window}::integer) - now()) as remaining
+      from rate_limit_counter where key = ${key}`),
+  );
+  if (!row || Number(row.remaining) <= 0 || Number(row.hits) < rule.max) return { allowed: true, retryAfter: null };
+  return { allowed: false, retryAfter: Math.max(1, Math.ceil(Number(row.remaining))) };
+}
+
+/** Forgets `key`'s count (a successful log-in or password reset ends a run of failures). */
+export async function clearCounter(db: Db, key: string): Promise<void> {
+  await db.execute(sql`delete from rate_limit_counter where key = ${key}`);
+}
+
 /** Better-Auth's custom storage: its own keys, the same counters. */
 export const authRateLimitStorage = (db: Db) => ({
   consume: (key: string, rule: RateRule) => consume(db, `auth:${key}`, rule),

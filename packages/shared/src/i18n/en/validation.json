@@ -59,5 +59,11 @@
   "validation.staff.planReason": "Give the reason, in 5 to 500 characters.",
   "validation.staff.reportDecision": "Choose a decision.",
   "validation.staff.switchOnOff": "Choose on or off.",
-  "validation.staff.unknownSwitch": "Unknown switch."
+  "validation.staff.unknownSwitch": "Unknown switch.",
+  "validation.password.tooShort": "Use at least {minPasswordLength} characters.",
+  "validation.password.tooLong": "Keep it to {maxPasswordLength} characters or fewer.",
+  "validation.password.common": "This password is too common and easy to guess. Choose another one.",
+  "validation.password.personal": "Do not use your name, email address or phone number in your password.",
+  "validation.signUpConsent": "Confirm that you are 18 or older and agree to the Terms and the Privacy Policy.",
+  "validation.emailOrPhone": "Enter an email address or a phone number."
 }

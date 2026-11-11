@@ -64,16 +64,40 @@ address members open: locally the website (`http://localhost:4321`) and the memb
 server (`http://localhost:5173`); in staging and production the site's own origin. The API
 refuses to start when the origin of `MEMBER_APP_URL` is missing from `ALLOWED_ORIGINS`.
 
-## Login codes (email now, SMS built in)
+## Member sign-up and log-in (password, decided 11 Nov 2026)
 
 ```
-Member app ─ authClient.emailOtp.sendVerificationOtp({ email })  ─▶ Better-Auth ─▶ sendEmail()  ─▶ Resend
-           ─ authClient.phoneNumber.sendOtp({ phoneNumber })     ─▶ Better-Auth ─▶ sendSms()    ─▶ SMS adapter
-           ─ signIn.emailOtp / phoneNumber.verify ({ code })     ─▶ Better-Auth ─▶ session cookie
+Sign-up ─ POST /api/auth/member/sign-up  {name, email | phoneNumber, password, consent} ─▶ code by email (with a
+          one-step link) or SMS; nothing is created yet                                  (src/lib/member-access.ts)
+        ─ POST /api/auth/member/sign-up/verify {email | phoneNumber, code} ─▶ account + session cookie
+Log-in  ─ POST /api/auth/sign-in/email | /sign-in/phone-number {…, password}  ─▶ Better-Auth ─▶ session cookie
+Reset   ─ POST /api/auth/request-password-reset {email} ─▶ link /app/reset-password#token=… (60 minutes, one use)
+        ─ POST /api/auth/reset-password {token, newPassword} ─▶ every old session ends
 ```
 
-- Codes: 6 digits, 10 minutes, 5 attempts, 3 requests/min per IP+endpoint (rate limit).
-- Phone-only members get a placeholder email on the reserved `.invalid` domain that is never emailed.
+- **Confirmation.** The pending sign-up waits in Better-Auth's verification table (name, password hash, keyed hash of
+  the code) for the code's 10 minutes. 5 wrong codes per address, then a new code; a new code starts with fresh tries.
+  The email link carries the address and code after `#`, so they never reach a server log.
+- **Who is a member stays private.** Signing up with an address that has an account answers the same on screen, and its
+  owner gets a note (email, or SMS) instead of a code; the password is hashed either way, so the answer takes as long.
+  A reset request answers the same whether or not a link went out. The lockout counts addresses with no account too.
+- **Passwords** (`passwordProblem`, `packages/shared/src/password.ts`, used by the app as members type and by the server,
+  which decides): 8 to 128 characters; refused when common (a list kept in the code: nothing is sent anywhere to be
+  checked, also with digits or symbols added before or after), one repeated character, a keyboard or alphabet run, or
+  containing the member's name, email name or phone number. The same rules apply to a reset and a change. Staff keep
+  12 characters or more.
+- **Lockout.** 5 wrong passwords for one address (any IP address) within 15 minutes lock it until those minutes pass,
+  even for the right password: `429 LOGIN_LOCKED`. A right password clears earlier wrong ones; a reset unlocks it.
+- **Reset.** Email accounts only. Staff reset with the developer (`scripts/staff.ts`); phone-only accounts through
+  support until an SMS provider is set up.
+- **Bot check and limits.** Turnstile on sign-up, both log-ins and reset requests; per-IP and per-address limits below.
+- **Email-code sign-in** (`/sign-in/email-otp`, `/phone-number/verify` for signing in) stays until the member app and
+  the invitation page stop using it (auth-2, auth-3), then it is removed.
+
+### Codes and SMS
+
+- Codes: 6 digits, 10 minutes. Phone-only members get a placeholder email on the reserved `.invalid` domain that is
+  never emailed. Phone sign-up and adding a phone on the Trust page need SMS.
 - `SMS_PROVIDER=none`: the API answers `503 SMS_UNAVAILABLE` and the app hides SMS
   (`VITE_LOGIN_SMS_ENABLED=false`). Nothing pretends a code was sent.
 - Before the domain is verified in Resend, `onboarding@resend.dev` only delivers to the Resend
@@ -110,8 +134,9 @@ The API is built by `createApp(deps)` (`src/app.ts`): database, Better-Auth, sto
 `src/index.ts` wires the real services, and the tests wire PGlite with in-memory fakes. Route code reads and writes
 member data only through `withActor(c, tx => …)` (`src/http.ts`).
 
-- **Members.** They sign in with an email code; SMS codes stay BLOCKED until a provider is chosen. The member account
-  is created on first use, unless the owner has paused sign-ups (`operations_flag`).
+- **Members.** They sign up with an email address (or, once SMS is set up, a phone number) and a password, confirmed
+  once with a code, then log in with the password (see "Member sign-up and log-in"). No account is created while the
+  owner has paused sign-ups (`operations_flag`).
 - **Profiles.** `/api/v1/profiles` covers create (self, or managed with an authority declaration), edit with a version
   check, publish and pause, contacts, and the candidate's controls. Publishing needs a complete profile, no candidate
   objection, and the publisher's approved document plus SMS-verified phone. The publisher is the active manager,
@@ -322,9 +347,10 @@ database rules are in `drizzle/0011_safety_rules.sql`; tests in `test/safety.tes
 
   | What | Limit |
   | --- | --- |
-  | Code requests (email or SMS) | 3 a minute per IP address, and 5 an hour per address whatever the IP |
-  | Signing in with a code | 10 a minute per IP address |
-  | Staff password; staff two-step code | 5 a minute per IP address each |
+  | Code requests (email or SMS, sign-up, reset links) | 3 a minute per IP address, and 5 an hour per address whatever the IP |
+  | Signing in with a code; confirming a sign-up | 10 a minute per IP address; 5 wrong codes per address and code |
+  | Password log-in (email or phone, members and staff) | 5 a minute per IP address; 5 wrong passwords per address lock it for 15 minutes |
+  | Setting a new password (reset or change); staff two-step code | 5 a minute per IP address each |
   | Sending requests | 10 a minute per account (the plan caps still apply) |
   | Answering, withdrawing and ending | 30 a minute per account |
   | Blocks; reports | 20 and 10 an hour per account |

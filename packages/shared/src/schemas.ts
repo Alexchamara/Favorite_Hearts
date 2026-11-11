@@ -36,3 +36,27 @@ export const requestCodeSchema = z.discriminatedUnion('channel', [
   z.object({ channel: z.literal('sms'), phone: phoneSchema }),
 ]);
 export type RequestCodeInput = z.input<typeof requestCodeSchema>;
+
+/**
+ * Member sign-up (owner decision, 11 Nov 2026): the account holder's name, one email address or phone number, a
+ * password (checked by passwordProblem, password.ts) and the consent tick. The address is confirmed with a code before
+ * the account exists.
+ */
+export const memberSignUpSchema = z
+  .object({
+    name: z.string().trim().min(1).max(80),
+    email: emailSchema.optional(),
+    phoneNumber: phoneSchema.optional(),
+    password: z.string().min(1),
+    consent: z.literal(true, { error: 'validation.signUpConsent' }),
+  })
+  .strict()
+  .refine((value) => Boolean(value.email) !== Boolean(value.phoneNumber), { message: 'validation.emailOrPhone', path: ['email'] });
+export type MemberSignUpInput = z.input<typeof memberSignUpSchema>;
+
+/** The code that confirms a sign-up, for the same email address or phone number. */
+export const memberSignUpCodeSchema = z
+  .object({ email: emailSchema.optional(), phoneNumber: phoneSchema.optional(), code: loginCodeSchema })
+  .strict()
+  .refine((value) => Boolean(value.email) !== Boolean(value.phoneNumber), { message: 'validation.emailOrPhone', path: ['email'] });
+
