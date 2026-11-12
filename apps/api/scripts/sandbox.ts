@@ -84,6 +84,10 @@ const config: Config = {
   rateLimit: true,
   clientIpHeader: null,
   signedUrlTtlSeconds: 120,
+  // The admin site arrives in phase admin-2 (docs/ADMIN-PANEL-PLAN.md); the sandbox keeps the member-app staff screens.
+  adminOrigin: null,
+  cloudflareAccess: null,
+  securityAlertEmail: null,
 };
 const auth = createAuth({ db, config, messenger });
 const deps: Deps = { config, db, auth, storage, messenger, turnstile: turnstileSecret ? createTurnstile(turnstileSecret) : null };

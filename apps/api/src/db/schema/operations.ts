@@ -26,9 +26,27 @@ export const auditEvent = pgTable(
     correlationId: text('correlation_id'),
     metadata: jsonb('metadata').$type<Record<string, unknown>>(),
     createdAt: createdAt(),
+    // Admin panel (docs/ADMIN-PANEL-PLAN.md, layer 9): the session, a shortened address (IPv4 /24, IPv6 /48) and the
+    // first 200 characters of the browser string. prev_hash/row_hash chain every row to the one before it (set by a
+    // trigger, drizzle/0018), so an edited or removed row shows up in app.audit_chain_check().
+    sessionId: text('session_id'),
+    ip: text('ip'),
+    userAgent: text('user_agent'),
+    prevHash: text('prev_hash'),
+    rowHash: text('row_hash'),
   },
-  (t) => [index('audit_event_entity_idx').on(t.entityType, t.entityId)],
+  (t) => [index('audit_event_entity_idx').on(t.entityType, t.entityId), index('audit_event_actor_idx').on(t.actorUserId, t.createdAt)],
 );
+
+/**
+ * What the retention sweep removed from the audit trail (the only delete allowed): the row's place and hash, so the
+ * chain can still be checked across the gap. Nothing else about the row is kept.
+ */
+export const auditTombstone = pgTable('audit_tombstone', {
+  seq: bigint('seq', { mode: 'number' }).primaryKey(),
+  rowHash: text('row_hash'),
+  purgedAt: at('purged_at').notNull().defaultNow(),
+});
 
 /** Written in the same transaction as the event; delivered by the notifications.send job. */
 export const notificationOutbox = pgTable(
@@ -37,9 +55,10 @@ export const notificationOutbox = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     /** Idempotency: one notification per event key. */
     eventKey: text('event_key').notNull().unique(),
-    recipientUserId: text('recipient_user_id')
-      .notNull()
-      .references(() => user.id, { onDelete: 'cascade' }),
+    /** A member or staff account; null for a security alert, which goes to `recipientAddress` instead. */
+    recipientUserId: text('recipient_user_id').references(() => user.id, { onDelete: 'cascade' }),
+    /** Security alerts only: the owner's dedicated mailbox (SECURITY_ALERT_EMAIL), written in English. */
+    recipientAddress: text('recipient_address'),
     channel: notificationChannel('channel').notNull(),
     template: text('template').notNull(),
     templateVersion: smallint('template_version').notNull().default(1),
@@ -56,7 +75,10 @@ export const notificationOutbox = pgTable(
     createdAt: createdAt(),
     sentAt: at('sent_at'),
   },
-  (t) => [index('notification_outbox_status_idx').on(t.status, t.createdAt)],
+  (t) => [
+    index('notification_outbox_status_idx').on(t.status, t.createdAt),
+    check('notification_outbox_one_recipient', sql`(${t.recipientUserId} IS NULL) <> (${t.recipientAddress} IS NULL)`),
+  ],
 );
 
 export const operationsFlag = pgTable('operations_flag', {

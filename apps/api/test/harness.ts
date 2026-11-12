@@ -11,6 +11,8 @@ import { drizzle } from 'drizzle-orm/pglite';
 import { migrate } from 'drizzle-orm/pglite/migrator';
 import sharp from 'sharp';
 import { DOCUMENT_PAGES, type DocumentType } from '@fh/shared';
+import type { AccessVerifier } from '../src/admin/access.ts';
+import { createAdminAuth } from '../src/admin/auth.ts';
 import { createApp } from '../src/app.ts';
 import { createAuth } from '../src/auth.ts';
 import type { Config } from '../src/config.ts';
@@ -21,6 +23,9 @@ import type { Turnstile } from '../src/middleware/turnstile.ts';
 import type { Storage } from '../src/storage/storage.ts';
 
 export const ORIGIN = 'http://localhost:5173';
+/** The admin site (docs/ADMIN-PANEL-PLAN.md): its own origin, reaching the API under /api/admin. */
+export const ADMIN_ORIGIN = 'http://localhost:5190';
+export const SECURITY_MAILBOX = 'security@favoritehearts.test';
 const API = 'http://localhost:8787';
 
 /** `accounts`: addresses that signed up through Client.signIn, so the next signIn logs in with the password instead. */
@@ -35,7 +40,7 @@ type FetchApp = { request: (input: string, init?: RequestInit) => Response | Pro
  * `turnstile`: a fake bot check (the real one asks Cloudflare); none by default, as in development.
  * `rateLimit`: on only in the tests of the limits themselves; the client's x-forwarded-for is the trusted address.
  */
-export async function createTestApp(options: { turnstile?: Turnstile; rateLimit?: boolean } = {}) {
+export async function createTestApp(options: { turnstile?: Turnstile; rateLimit?: boolean; accessVerifier?: AccessVerifier } = {}) {
   const db = drizzle({ client: new PGlite(), schema });
   await migrate(db, { migrationsFolder: fileURLToPath(new URL('../drizzle', import.meta.url)) });
 
@@ -72,11 +77,24 @@ export async function createTestApp(options: { turnstile?: Turnstile; rateLimit?
     rateLimit: options.rateLimit ?? false,
     clientIpHeader: 'x-forwarded-for',
     signedUrlTtlSeconds: 120,
+    adminOrigin: ADMIN_ORIGIN,
+    cloudflareAccess: null,
+    securityAlertEmail: SECURITY_MAILBOX,
   };
   const auth = createAuth({ db, config, messenger });
-  const deps: Deps = { config, db, auth, storage, messenger, turnstile: options.turnstile ?? null };
+  const adminAuth = createAdminAuth({ db, config });
+  const deps: Deps = {
+    config,
+    db,
+    auth,
+    adminAuth,
+    accessVerifier: options.accessVerifier ?? null,
+    storage,
+    messenger,
+    turnstile: options.turnstile ?? null,
+  };
   const app = createApp(deps);
-  return { app, db, deps, outbox, files, storage, client: () => new Client(app, outbox) };
+  return { app, db, deps, outbox, files, storage, client: () => new Client(app, outbox), adminClient: () => new AdminClient(app) };
 }
 
 /** The last 6-digit code sent to `to` by email or SMS. */
@@ -215,6 +233,49 @@ export class Client {
       updatePhoneNumber: true,
     });
   }
+}
+
+/**
+ * A browser on the admin site: its own origin and cookies, and the header every admin-site request carries.
+ * Paths are under /api/admin.
+ */
+export class AdminClient {
+  cookies = new Map<string, string>();
+  headers: Record<string, string> = {};
+
+  constructor(private app: FetchApp) {}
+
+  async request(method: string, path: string, body?: unknown, extra: Record<string, string> = {}): Promise<Res> {
+    const headers = new Headers({ origin: ADMIN_ORIGIN, 'x-fh-admin': '1', 'x-forwarded-for': '198.51.100.7', 'user-agent': 'TestBrowser/1.0', ...this.headers, ...extra });
+    if (body !== undefined && !headers.has('content-type')) headers.set('content-type', 'application/json');
+    if (this.cookies.size) headers.set('cookie', [...this.cookies].map(([name, value]) => `${name}=${value}`).join('; '));
+    const res = await this.app.request(`${API}/api/admin${path}`, {
+      method,
+      headers,
+      body: body === undefined ? undefined : typeof body === 'string' ? body : JSON.stringify(body),
+    });
+    for (const cookie of res.headers.getSetCookie()) {
+      const [pair = ''] = cookie.split(';');
+      const index = pair.indexOf('=');
+      const name = pair.slice(0, index);
+      const value = pair.slice(index + 1);
+      if (!value || /max-age=0/i.test(cookie)) this.cookies.delete(name);
+      else this.cookies.set(name, value);
+    }
+    const text = await res.text();
+    let parsed: unknown = text;
+    try {
+      parsed = text ? JSON.parse(text) : null;
+    } catch {
+      // not JSON
+    }
+    return { status: res.status, body: parsed };
+  }
+
+  get = (path: string) => this.request('GET', path);
+  post = (path: string, body: unknown = {}) => this.request('POST', path, body);
+  put = (path: string, body: unknown) => this.request('PUT', path, body);
+  patch = (path: string, body: unknown) => this.request('PATCH', path, body);
 }
 
 let documentPhoto: Promise<Buffer> | null = null;

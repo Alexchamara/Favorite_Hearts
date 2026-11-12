@@ -41,8 +41,37 @@ export const session = pgTable(
       .references(() => user.id, { onDelete: 'cascade' }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
+    // Admin panel (docs/ADMIN-PANEL-PLAN.md). Which sign-in made the session: 'member' (the member app) or 'admin'
+    // (the admin site, its own Better-Auth instance and cookie). Each side refuses the other's sessions.
+    realm: text('realm').notNull().default('member'),
+    // Admin sessions only: how the person proved it was them (passkey, totp, backup_code), or 'enrolment' for the
+    // short session an invite opens to set up two-step login; when they last proved it again (step-up); last request.
+    amr: text('amr'),
+    stepUpAt: timestamp('step_up_at', { withTimezone: true }),
+    lastActiveAt: timestamp('last_active_at', { withTimezone: true }),
   },
   (t) => [index('auth_session_user_idx').on(t.userId)],
+);
+
+/** Passkeys (Better-Auth passkey plugin), registered by staff on the admin site only. */
+export const passkey = pgTable(
+  'auth_passkey',
+  {
+    id: text('id').primaryKey(),
+    name: text('name'),
+    publicKey: text('public_key').notNull(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    credentialID: text('credential_id').notNull().unique(),
+    counter: integer('counter').notNull(),
+    deviceType: text('device_type').notNull(),
+    backedUp: boolean('backed_up').notNull(),
+    transports: text('transports'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    aaguid: text('aaguid'),
+  },
+  (t) => [index('auth_passkey_user_idx').on(t.userId)],
 );
 
 export const account = pgTable(

@@ -14,7 +14,10 @@ import { requestLanguage } from '../text.ts';
  */
 export const loadSession = createMiddleware<AppEnv>(async (c, next) => {
   const { auth, db } = c.var.deps;
-  const result = await auth.api.getSession({ headers: c.req.raw.headers });
+  const found = await auth.api.getSession({ headers: c.req.raw.headers });
+  // The admin site's sessions never count here (docs/ADMIN-PANEL-PLAN.md, layer 2); they are signed with another key
+  // and cookie anyway.
+  const result = found && (found.session as { realm?: string }).realm !== 'admin' ? found : null;
   const user = result?.user ?? null;
   let staffRole: StaffRole | null = null;
   if (user) {

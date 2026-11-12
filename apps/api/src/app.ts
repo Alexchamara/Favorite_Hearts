@@ -7,6 +7,8 @@ import { HttpError, pgError, type AppEnv, type Deps, type PgError } from './http
 import { render, requestLanguage, text, toRef, type Say } from './text.ts';
 import { log } from './lib/log.ts';
 import { rateLimits } from './lib/rate-limit.ts';
+import { randomUUID } from 'node:crypto';
+import { adminMe, adminPolicy, adminRequestGuard, loadAdminSession } from './middleware/admin-session.ts';
 import { loadSession } from './middleware/session.ts';
 import { turnstileGuard } from './middleware/turnstile.ts';
 import { account } from './routes/account.ts';
@@ -35,6 +37,7 @@ const TURNSTILE_PATHS = [
   '/api/auth/member/sign-up/invitation',
   '/api/auth/request-password-reset',
   '/api/v1/invitations/code',
+  '/api/admin/auth/sign-in/email',
 ];
 
 /** Friendly answers for rules the database enforces (the API usually checks first). */
@@ -150,18 +153,21 @@ export function createApp(deps: Deps) {
   });
   app.use('*', async (c, next) => {
     c.set('deps', deps);
+    // One id per request, returned as X-Request-Id and kept in the audit trail as the correlation id.
+    c.set('requestId', randomUUID());
+    c.header('X-Request-Id', c.var.requestId);
     await next();
   });
-  app.use(
-    '/api/*',
-    cors({
-      origin: deps.config.allowedOrigins,
-      credentials: true,
-      allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowHeaders: ['Content-Type', 'Idempotency-Key', 'X-Captcha-Response'],
-      maxAge: 600,
-    }),
-  );
+  // The member app's origins only. The admin site never uses CORS: it reaches /api/admin through its own proxy, on
+  // its own origin, so no other site's script can read or send admin requests.
+  const memberCors = cors({
+    origin: deps.config.allowedOrigins,
+    credentials: true,
+    allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Idempotency-Key', 'X-Captcha-Response'],
+    maxAge: 600,
+  });
+  app.use('/api/*', (c, next) => (c.req.path.startsWith('/api/admin/') ? next() : memberCors(c, next)));
   // Default JSON body limit; document, photo and receipt uploads allow a 5 MiB image plus form overhead.
   const small = bodyLimit({ maxSize: 100 * 1024 });
   const upload = bodyLimit({ maxSize: 6 * 1024 * 1024 });
@@ -211,6 +217,20 @@ export function createApp(deps: Deps) {
     .route('/staff', staff)
     .route('/owner', owner);
   app.route('/api/v1', v1);
+
+  // The admin site (docs/ADMIN-PANEL-PLAN.md): its own sign-in and session, then a permission and step-up check per
+  // route (admin/policy.ts, default deny). The staff and owner routes are the same as under /api/v1 for now; the
+  // member-app ones go when the admin site ships (phase admin-2).
+  const admin = new Hono<AppEnv>()
+    .use(adminRequestGuard)
+    .on(['GET', 'POST'], '/auth/*', (c) => (deps.adminAuth ? deps.adminAuth.handler(c.req.raw) : c.json({ code: 'NOT_FOUND' }, 404)))
+    .use(loadAdminSession)
+    .use(rateLimits)
+    .use(adminPolicy)
+    .get('/me', adminMe)
+    .route('/staff', staff)
+    .route('/owner', owner);
+  app.route('/api/admin', admin);
 
   // Every answer people read is rendered here, in the language the request asks for (text.ts).
   app.notFound((c) => c.json({ code: 'NOT_FOUND', message: text(requestLanguage(c), 'api.notFound') }, 404));

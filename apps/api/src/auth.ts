@@ -26,6 +26,7 @@ import {
   PASSWORD_RESET_MINUTES,
   passwordProblem,
 } from '@fh/shared';
+import { SESSION_FIELDS } from './admin/auth.ts';
 import type { Config } from './config.ts';
 import { account, session, twoFactor as twoFactorTable, user, verification } from './db/schema/auth.ts';
 import { operationsFlag } from './db/schema/operations.ts';
@@ -131,7 +132,8 @@ export function createAuth({ db, config, messenger }: { db: Db; config: Config; 
       },
     },
 
-    session: { expiresIn: 60 * 60 * 24 * 30, updateAge: 60 * 60 * 24 },
+    // The admin site's sign-in shares the session table and declares the same fields (admin/auth.ts).
+    session: { expiresIn: 60 * 60 * 24 * 30, updateAge: 60 * 60 * 24, additionalFields: SESSION_FIELDS },
 
     // Code requests are the most abusable endpoints (D Part 2: rate limits on sign-in and codes). Counted per IP
     // address in Postgres (lib/rate-limit.ts), so the limits hold across restarts and API instances.

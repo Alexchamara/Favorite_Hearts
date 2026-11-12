@@ -214,3 +214,35 @@ export function resetEmail(language: Language, link: string) {
   );
   return { subject, text: `${intro}\n\n${link}\n\n${lines.join('\n\n')}`, html };
 }
+
+// --- Security alerts to the owner's mailbox (docs/ADMIN-PANEL-PLAN.md, layer 10). Staff texts stay in English. ---
+
+const SECURITY_ALERT_TITLES: Record<string, string> = {
+  new_device_sign_in: 'A staff account signed in from a new device',
+  account_locked: 'A staff account is locked after wrong two-step codes',
+  two_factor_changed: 'Two-step login was changed on a staff account',
+  passkey_changed: 'A passkey was added to or removed from a staff account',
+  backup_codes_regenerated: 'New backup codes were made for a staff account',
+  password_changed: 'A staff password was changed',
+  staff_invited: 'Someone was invited to the admin site',
+  staff_joined: 'An invited staff member set up their account',
+  staff_revoked: 'A staff member lost access to the admin site',
+  staff_two_factor_reset: "A staff member's two-step login was reset",
+  payment_details_changed: 'The payment details members pay into were changed',
+};
+
+/** One security alert, in English. Facts only: never a code, password, document or member contact detail. */
+export function securityAlertEmail(payload: Record<string, unknown>, adminOrigin: string | null): Rendered {
+  const title = SECURITY_ALERT_TITLES[String(payload.kind)] ?? 'Security alert';
+  const staff = payload.staff as { name?: string; email?: string } | null;
+  const details = (payload.details ?? {}) as Record<string, string>;
+  const lines = [
+    staff ? `Account: ${staff.name ?? ''} <${staff.email ?? ''}>` : null,
+    `Time (UTC): ${String(payload.at ?? '')}`,
+    ...Object.entries(details).map(([name, value]) => `${name}: ${value}`),
+    'If this was not you or someone you expected, sign in to the admin site, end the sessions and reset the account (docs/ADMIN-RUNBOOK.md).',
+  ].filter((line): line is string => Boolean(line));
+  const link = adminOrigin ? `\n\nAdmin site: ${adminOrigin}` : '';
+  const html = layout('en', title, `${paragraphs(lines)}${adminOrigin ? `\n${button(adminOrigin, 'Open the admin site')}` : ''}`);
+  return { subject: `Favorite Hearts security: ${title}`, text: `${lines.join('\n\n')}${link}`, html };
+}

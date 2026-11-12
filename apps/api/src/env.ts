@@ -47,6 +47,14 @@ const schema = z.object({
   SIGNED_URL_TTL_SECONDS: z.coerce.number().int().min(30).max(900).default(120),
 
   RUN_JOBS: bool.default(true),
+
+  /** The admin site (docs/ADMIN-PANEL-PLAN.md), e.g. https://admin.favoritehearts.com. Empty = no admin site. */
+  ADMIN_URL: z.url().optional().or(z.literal('').transform(() => undefined)),
+  /** Cloudflare Access for the admin site: team domain and application audience tag. Required with ADMIN_URL in production. */
+  CF_ACCESS_TEAM_DOMAIN: z.string().optional().transform((v) => v?.trim().replace(/^https?:\/\//, '').replace(/\/$/, '') || undefined),
+  CF_ACCESS_AUD: z.string().optional().transform((v) => v?.trim() || undefined),
+  /** Security alerts (decision A7), e.g. security@favoritehearts.com. */
+  SECURITY_ALERT_EMAIL: z.email().optional().or(z.literal('').transform(() => undefined)),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -88,6 +96,17 @@ if (!env.ALLOWED_ORIGINS.includes(memberOrigin)) {
   process.exit(1);
 }
 
+// The admin site sits behind Cloudflare Access in production (layer 1): without it the API would take admin requests
+// from anyone who finds the proxy.
+if (isProduction && env.ADMIN_URL && !(env.CF_ACCESS_TEAM_DOMAIN && env.CF_ACCESS_AUD)) {
+  console.error('ADMIN_URL in production needs CF_ACCESS_TEAM_DOMAIN and CF_ACCESS_AUD (Cloudflare Access for the admin site).');
+  process.exit(1);
+}
+if (env.ADMIN_URL && env.ALLOWED_ORIGINS.includes(new URL(env.ADMIN_URL).origin)) {
+  console.error('ALLOWED_ORIGINS must not include the admin site: it reaches the API through its own proxy, never by CORS.');
+  process.exit(1);
+}
+
 export function configFromEnv(): Config {
   return {
     nodeEnv: env.NODE_ENV,
@@ -98,5 +117,9 @@ export function configFromEnv(): Config {
     rateLimit: true,
     clientIpHeader: env.CLIENT_IP_HEADER ?? null,
     signedUrlTtlSeconds: env.SIGNED_URL_TTL_SECONDS,
+    adminOrigin: env.ADMIN_URL ? new URL(env.ADMIN_URL).origin : null,
+    cloudflareAccess:
+      env.CF_ACCESS_TEAM_DOMAIN && env.CF_ACCESS_AUD ? { teamDomain: env.CF_ACCESS_TEAM_DOMAIN, audience: env.CF_ACCESS_AUD } : null,
+    securityAlertEmail: env.SECURITY_ALERT_EMAIL ?? null,
   };
 }

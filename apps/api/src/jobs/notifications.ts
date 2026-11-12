@@ -14,14 +14,15 @@ import type { Db } from '../db/types.ts';
 import { log } from '../lib/log.ts';
 import { rows } from '../lib/profile-view.ts';
 import { PHONE_ONLY_EMAIL_DOMAIN, type Messenger } from '../messaging/messenger.ts';
-import { notificationEmail } from '../messaging/templates.ts';
+import { notificationEmail, securityAlertEmail } from '../messaging/templates.ts';
 
 const MAX_ATTEMPTS = 5;
 
 type Claimed = {
   id: string;
   event_key: string;
-  recipient_user_id: string;
+  recipient_user_id: string | null;
+  recipient_address: string | null;
   template: string;
   payload: Record<string, unknown>;
   attempts: number;
@@ -45,19 +46,33 @@ export async function sendNotifications(
         WHERE channel = 'email' AND attempts < ${MAX_ATTEMPTS}
           AND (status = 'queued' OR (status = 'sending' AND claimed_at < now() - interval '15 minutes'))
         ORDER BY created_at LIMIT ${batchSize} FOR UPDATE SKIP LOCKED)
-      RETURNING id, event_key, recipient_user_id, template, payload, attempts, created_at`),
+      RETURNING id, event_key, recipient_user_id, recipient_address, template, payload, attempts, created_at`),
   ).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
   const result: SendResult = { sent: 0, failed: 0, skipped: 0 };
   const finish = (id: string, values: Partial<typeof notificationOutbox.$inferInsert>) =>
     db.update(notificationOutbox).set(values).where(eq(notificationOutbox.id, id));
   for (const item of claimed) {
+    // Security alerts go to the owner's dedicated mailbox, not to an account (lib/security-alerts.ts).
+    if (item.recipient_address) {
+      try {
+        const message = securityAlertEmail(item.payload, config.adminOrigin);
+        await messenger.sendEmail({ to: item.recipient_address, ...message, idempotencyKey: item.event_key });
+        await finish(item.id, { status: 'sent', sentAt: new Date(), lastError: null });
+        result.sent += 1;
+      } catch (err) {
+        await finish(item.id, { status: item.attempts >= MAX_ATTEMPTS ? 'failed' : 'queued', lastError: (err as Error).message.slice(0, 300) });
+        result.failed += 1;
+        log.warn('jobs.notifications.send_failed', { template: item.template, attempt: item.attempts });
+      }
+      continue;
+    }
     // Sent in the language the member chose in the app (member_account.locale), English otherwise.
     const [recipient] = await db
       .select({ email: user.email, locale: memberAccount.locale })
       .from(user)
       .leftJoin(memberAccount, eq(memberAccount.userId, user.id))
-      .where(eq(user.id, item.recipient_user_id));
+      .where(eq(user.id, item.recipient_user_id!));
     if (!recipient || recipient.email.endsWith(`@${PHONE_ONLY_EMAIL_DOMAIN}`)) {
       await finish(item.id, { status: 'cancelled', lastError: 'no email address (SMS not available yet)' });
       result.skipped += 1;

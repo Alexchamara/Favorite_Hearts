@@ -586,6 +586,13 @@ describe('the retention sweep (section 8)', () => {
     assert.equal((await t.db.select().from(auditEvent).where(eq(auditEvent.entityId, paymentId))).length, 0, 'and the audit trail about it');
     const [run] = await t.db.select().from(auditEvent).where(eq(auditEvent.action, 'retention.sweep')).orderBy(sql`${auditEvent.seq} desc`).limit(1);
     assert.equal((run!.metadata as { removed: { accounts: number } }).removed.accounts, 1);
+    // The sweep is the only delete the audit trail allows, and it leaves tombstones, so the chain still checks.
+    const checked = (await t.db.execute(sql`select app.audit_chain_check() as r, (select count(*)::int from audit_tombstone) as tombstones`)) as unknown as {
+      rows: { r: { ok: boolean }; tombstones: number }[];
+    };
+    const chain = checked.rows[0];
+    assert.equal(chain!.r.ok, true, JSON.stringify(chain!.r));
+    assert.ok(chain!.tombstones > 0);
 
     assert.equal((await t.db.select().from(user).where(eq(user.id, fresh.userId))).length, 1, 'a younger deletion stays');
     assert.equal((await t.db.select().from(retainedIdentity).where(eq(retainedIdentity.userId, fresh.userId))).length, 1);

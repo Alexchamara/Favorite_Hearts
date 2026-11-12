@@ -19,4 +19,16 @@ export type Config = {
    */
   clientIpHeader: string | null;
   signedUrlTtlSeconds: number;
+  /**
+   * The admin site's origin, e.g. https://admin.favoritehearts.com (docs/ADMIN-PANEL-PLAN.md). It reaches this API
+   * through its own proxy under /api/admin, with its own sign-in. Null = no admin site (its routes answer 404).
+   */
+  adminOrigin: string | null;
+  /**
+   * Cloudflare Access in front of the admin site (layer 1): the team domain (e.g. favoritehearts.cloudflareaccess.com)
+   * and the application's audience tag. Every admin request must carry Access's signed token. Null in development.
+   */
+  cloudflareAccess: { teamDomain: string; audience: string } | null;
+  /** The owner's dedicated mailbox for security alerts (decision A7). Null = alerts are only logged and audited. */
+  securityAlertEmail: string | null;
 };

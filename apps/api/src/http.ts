@@ -6,6 +6,8 @@ import type { Context } from 'hono';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import type { z } from 'zod';
 import { issueText, type StaffRole, type TextRef } from '@fh/shared';
+import type { AccessVerifier } from './admin/access.ts';
+import type { AdminAuth } from './admin/auth.ts';
 import type { Auth, AuthSession } from './auth.ts';
 import type { Config } from './config.ts';
 import { runAsActor, type Actor, type ActorTx } from './db/actor.ts';
@@ -15,8 +17,21 @@ import type { Turnstile } from './middleware/turnstile.ts';
 import type { Storage } from './storage/storage.ts';
 import { toRef, type Say } from './text.ts';
 
-/** `turnstile` is null until a Turnstile secret key is configured (then code and password endpoints need a token). */
-export type Deps = { config: Config; db: Db; auth: Auth; storage: Storage; messenger: Messenger; turnstile: Turnstile | null };
+/**
+ * `turnstile` is null until a Turnstile secret key is configured (then code and password endpoints need a token).
+ * `adminAuth` is the admin site's own sign-in (admin/auth.ts), null when there is no admin site (config.adminOrigin).
+ * `accessVerifier` checks Cloudflare Access's token on admin requests (admin/access.ts), null in development.
+ */
+export type Deps = {
+  config: Config;
+  db: Db;
+  auth: Auth;
+  storage: Storage;
+  messenger: Messenger;
+  turnstile: Turnstile | null;
+  adminAuth?: AdminAuth | null;
+  accessVerifier?: AccessVerifier | null;
+};
 
 export type AppEnv = {
   Variables: {
@@ -27,6 +42,10 @@ export type AppEnv = {
     staffRole: StaffRole | null;
     /** Who row-level security sees: null = anonymous. */
     actor: Actor | null;
+    /** This request's id (X-Request-Id), kept in the audit trail as its correlation id. */
+    requestId: string;
+    /** Admin requests: the email Cloudflare Access signed in, when Access is configured. */
+    accessEmail?: string | null;
   };
 };
 

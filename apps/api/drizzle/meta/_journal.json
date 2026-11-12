@@ -120,6 +120,20 @@
       "when": 1794455339679,
       "tag": "0016_open_browsing",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1794467531601,
+      "tag": "0017_admin_security",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1794467582222,
+      "tag": "0018_admin_security_rules",
+      "breakpoints": true
     }
   ]
 }
