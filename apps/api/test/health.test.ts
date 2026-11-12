@@ -7,6 +7,17 @@ import { appliedMigrations, EXPECTED_MIGRATIONS } from '../src/db/migrations.ts'
 import { createTestApp } from './harness.ts';
 
 describe('health and migrations', () => {
+  test('the API root identifies the service and health endpoint', async () => {
+    const t = await createTestApp();
+    const res = await t.app.request('/');
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), {
+      service: 'favorite-hearts-api',
+      status: 'ok',
+      health: '/health',
+    });
+  });
+
   test('a database with every migration is healthy; one behind is not, and says by how much', async () => {
     const t = await createTestApp();
     assert.ok(EXPECTED_MIGRATIONS >= 12);

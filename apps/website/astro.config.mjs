@@ -17,7 +17,7 @@ export default defineConfig({
   // so Join buttons and sign-in work from one address, like in production.
   vite: {
     server: {
-      allowedHosts: ['.trycloudflare.com'],
+      allowedHosts: ['.trycloudflare.com', 'favoritehearts.com', 'www.favoritehearts.com', 'app.favoritehearts.com'],
       proxy: {
         '/app': { target: 'http://localhost:5173', changeOrigin: false },
         '/api': { target: 'http://localhost:8787', changeOrigin: false },

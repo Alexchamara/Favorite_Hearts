@@ -5,7 +5,7 @@
   "description": "Public marketing website: Astro static pages, almost no JavaScript.",
   "type": "module",
   "scripts": {
-    "dev": "astro dev --port 4321",
+    "dev": "astro dev --host 127.0.0.1 --port 4321",
     "build:css": "tailwindcss -c tailwind.config.cjs -i src/styles/tailwind.css -o public/assets/css/tailwind.css --minify",
     "build": "npm run build:css && astro build",
     "preview": "astro preview --port 4321",

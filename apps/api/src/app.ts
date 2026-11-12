@@ -179,6 +179,13 @@ export function createApp(deps: Deps) {
     /^\/api\/v1\/payments\/[^/]+\/proof$/.test(path);
   app.use('/api/*', (c, next) => (c.req.method === 'POST' && isUpload(c.req.path) ? upload : small)(c, next));
 
+  app.get('/', (c) =>
+    c.json({
+      service: 'favorite-hearts-api',
+      status: 'ok',
+      health: '/health',
+    }),
+  );
   app.route('/health', health);
 
   // SMS codes stay off until a provider is configured: say so clearly instead of failing silently.
