@@ -1,5 +1,7 @@
 import { serve } from '@hono/node-server';
 import type PgBoss from 'pg-boss';
+import { createAccessVerifier } from './admin/access.ts';
+import { createAdminAuth } from './admin/auth.ts';
 import { createApp } from './app.ts';
 import { createAuth } from './auth.ts';
 import { createDb } from './db/client.ts';
@@ -34,7 +36,17 @@ const storage = createR2Storage({
   signedUrlTtlSeconds: env.SIGNED_URL_TTL_SECONDS,
 });
 const turnstile = env.TURNSTILE_SECRET_KEY ? createTurnstile(env.TURNSTILE_SECRET_KEY) : null;
-const deps: Deps = { config, db, auth: createAuth({ db, config, messenger }), storage, messenger, turnstile };
+// The admin site (docs/ADMIN-PANEL-PLAN.md): its own sign-in, and Cloudflare Access's token checked on every request.
+const deps: Deps = {
+  config,
+  db,
+  auth: createAuth({ db, config, messenger }),
+  adminAuth: config.adminOrigin ? createAdminAuth({ db, config }) : null,
+  accessVerifier: config.cloudflareAccess ? createAccessVerifier(config.cloudflareAccess) : null,
+  storage,
+  messenger,
+  turnstile,
+};
 const app = createApp(deps);
 
 const server = serve({ fetch: app.fetch, port: env.PORT }, (info) => {

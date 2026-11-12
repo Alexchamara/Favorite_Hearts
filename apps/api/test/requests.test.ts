@@ -11,14 +11,12 @@ import sharp from 'sharp';
 import { entitlementEvent } from '../src/db/schema/billing.ts';
 import { connection, disclosureEvent, interest, quotaLedger } from '../src/db/schema/connections.ts';
 import { auditEvent } from '../src/db/schema/operations.ts';
-import { addStaff } from '../src/lib/staff-accounts.ts';
-import { Client, createTestApp, totp, type Res } from './harness.ts';
+import { Client, createTestApp, staffBrowser, type AdminClient, type Res } from './harness.ts';
 
 let t: Awaited<ReturnType<typeof createTestApp>>;
-let reviewer: Client;
+let reviewer: AdminClient;
 let image: Buffer;
 
-const PASSWORD = 'correct horse battery staple';
 const ok = (res: Res, status = 200) => {
   assert.equal(res.status, status, JSON.stringify(res.body));
   return res.body;
@@ -48,7 +46,7 @@ async function verifiedClient(email: string, name: string): Promise<Client> {
   const client = await t.client().signIn(email, name);
   ok(await client.verifyPhone(nextPhone()));
   const submitted = ok(await client.sendDocument(), 201);
-  ok(await reviewer.post(`/api/v1/staff/verification/${submitted.id}/decision`, { decision: 'approved' }));
+  ok(await reviewer.post(`/api/admin/staff/verification/${submitted.id}/decision`, { decision: 'approved' }));
   return client;
 }
 
@@ -104,11 +102,7 @@ let dilan: Client; // signed in, never verified
 before(async () => {
   t = await createTestApp();
   image = await sharp({ create: { width: 800, height: 600, channels: 3, background: '#c9b8a6' } }).jpeg().toBuffer();
-  await addStaff(t.deps, { email: 'reviewer@favoritehearts.test', name: 'Reviewer', role: 'backup_reviewer', password: PASSWORD });
-  reviewer = t.client();
-  ok(await reviewer.post('/api/auth/sign-in/email', { email: 'reviewer@favoritehearts.test', password: PASSWORD }));
-  const { totpURI } = ok(await reviewer.post('/api/auth/two-factor/enable', { password: PASSWORD }));
-  ok(await reviewer.post('/api/auth/two-factor/verify-totp', { code: totp(totpURI) }));
+  reviewer = await staffBrowser(t, 'reviewer@favoritehearts.test', 'backup_reviewer');
 
   amal = await publishedMember('amal@example.test', 'Amal', { gender: 'man', birthDate: '1993-05-10', heightCm: 175 });
   bina = await publishedMember('bina@example.test', 'Bina', {
@@ -430,16 +424,16 @@ describe('reports and moderation (section 7)', () => {
   test('a serious category hides the profile at once; staff dismissing it restores it', async () => {
     ok(await report(amal, chathu, 'scam'), 201);
     assert.equal((await discoverIds(esha)).includes(chathu.profileId), false);
-    const queue = ok(await reviewer.get('/api/v1/staff/reports')).reports;
+    const queue = ok(await reviewer.get('/api/admin/staff/reports')).reports;
     const item = queue.find((r: { target: { profileId: string } }) => r.target.profileId === chathu.profileId);
     assert.deepEqual([item.target.hidden, item.reporter.displayName], [true, 'Amal']);
-    const decided = ok(await reviewer.post(`/api/v1/staff/reports/${item.id}/decision`, { decision: 'dismissed', note: 'No sign of a scam.' }));
+    const decided = ok(await reviewer.post(`/api/admin/staff/reports/${item.id}/decision`, { decision: 'dismissed', note: 'No sign of a scam.' }));
     assert.equal(decided.contentHidden, false);
     assert.equal((await discoverIds(esha)).includes(chathu.profileId), true);
     const [audited] = await t.db.select().from(auditEvent).where(eq(auditEvent.entityId, item.id));
     assert.equal(audited?.action, 'report.dismissed');
-    rejected(await reviewer.post(`/api/v1/staff/reports/${item.id}/decision`, { decision: 'upheld' }), 409, 'ALREADY_DECIDED');
-    rejected(await amal.client.get('/api/v1/staff/reports'), 403, 'FORBIDDEN');
+    rejected(await reviewer.post(`/api/admin/staff/reports/${item.id}/decision`, { decision: 'upheld' }), 409, 'ALREADY_DECIDED');
+    rejected(await amal.client.get('/api/admin/staff/reports'), 403, 'ADMIN_HEADER_REQUIRED');
   });
 
   test('other categories need 3 different verified members; an upheld report keeps it hidden', async () => {
@@ -450,11 +444,11 @@ describe('reports and moderation (section 7)', () => {
     ok(await report(chathu, fara, 'other'), 201);
     assert.equal((await discoverIds(esha)).includes(fara.profileId), false, 'three different verified members hide it');
 
-    const queue = ok(await reviewer.get('/api/v1/staff/reports')).reports.filter(
+    const queue = ok(await reviewer.get('/api/admin/staff/reports')).reports.filter(
       (r: { target: { profileId: string } }) => r.target.profileId === fara.profileId,
     );
-    ok(await reviewer.post(`/api/v1/staff/reports/${queue[0].id}/decision`, { decision: 'upheld' }));
-    for (const item of queue.slice(1)) ok(await reviewer.post(`/api/v1/staff/reports/${item.id}/decision`, { decision: 'dismissed' }));
+    ok(await reviewer.post(`/api/admin/staff/reports/${queue[0].id}/decision`, { decision: 'upheld' }));
+    for (const item of queue.slice(1)) ok(await reviewer.post(`/api/admin/staff/reports/${item.id}/decision`, { decision: 'dismissed' }));
     assert.equal((await discoverIds(esha)).includes(fara.profileId), false, 'upheld stays hidden');
 
     const draft = ok(await dilan.get('/api/v1/profiles')).profiles[0];
@@ -479,15 +473,15 @@ describe('reports and moderation (section 7)', () => {
     assert.equal(own[0].hidden, true, 'the owner sees it marked hidden');
 
     // Staff see the reported content, hidden photo included, and every look is audited.
-    const item = ok(await reviewer.get('/api/v1/staff/reports')).reports.find((r: { target: { photoId: string | null } }) => r.target.photoId === photoId);
-    const content = ok(await reviewer.get(`/api/v1/staff/reports/${item.id}/content`));
+    const item = ok(await reviewer.get('/api/admin/staff/reports')).reports.find((r: { target: { photoId: string | null } }) => r.target.photoId === photoId);
+    const content = ok(await reviewer.get(`/api/admin/staff/reports/${item.id}/content`));
     assert.equal(content.reportedPhotoId, photoId);
     const reported = content.profile.photos.find((p: { id: string }) => p.id === photoId);
     assert.equal(reported.hidden, true);
     assert.match(reported.url, /\/private\/photos\//);
     const [looked] = await t.db.select().from(auditEvent).where(and(eq(auditEvent.entityId, item.id), eq(auditEvent.action, 'report.content_viewed')));
     assert.ok(looked);
-    rejected(await amal.client.get(`/api/v1/staff/reports/${item.id}/content`), 403, 'FORBIDDEN');
+    rejected(await amal.client.get(`/api/admin/staff/reports/${item.id}/content`), 403, 'ADMIN_HEADER_REQUIRED');
   });
 });
 

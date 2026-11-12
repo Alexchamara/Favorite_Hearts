@@ -8,12 +8,12 @@ import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import type { PaymentSettingView } from '@fh/shared';
 import { CheckboxField, TextAreaField } from '@/components/form/fields';
-import { Card, Loading, Notice } from '@/components/layout';
+import { Card, Loading, Notice } from '@admin/components/shell';
 import { Button } from '@/components/ui/button';
-import { errorMessage, put } from '@/lib/api';
+import { errorMessage, put } from '@admin/lib/api';
 import { formatWhen } from '@/lib/format';
-import { useOwnerSettings } from '@/lib/queries';
-import { queryClient } from '@/lib/query-client';
+import { useOwnerSettings } from '@admin/lib/queries';
+import { queryClient } from '@admin/lib/query-client';
 import { ENGLISH_BILLING } from '@/features/billing/labels';
 
 const { channelLabels } = ENGLISH_BILLING;

@@ -15,16 +15,14 @@ import { entitlementEvent, paymentSubmission } from '../src/db/schema/billing.ts
 import { auditEvent, notificationOutbox } from '../src/db/schema/operations.ts';
 import { sendNotifications } from '../src/jobs/notifications.ts';
 import { queueExpiryWarnings } from '../src/jobs/plan-expiry.ts';
-import { addStaff } from '../src/lib/staff-accounts.ts';
 import type { EmailMessage, Messenger } from '../src/messaging/messenger.ts';
-import { Client, createTestApp, latestCode, latestInvitationToken, TEST_PASSWORD, totp, type Res } from './harness.ts';
+import { Client, createTestApp, latestCode, latestInvitationToken, staffBrowser, TEST_PASSWORD, type AdminClient, type Res } from './harness.ts';
 
 let t: Awaited<ReturnType<typeof createTestApp>>;
-let owner: Client;
-let reviewer: Client;
+let owner: AdminClient;
+let reviewer: AdminClient;
 let image: Buffer;
 
-const PASSWORD = 'correct horse battery staple';
 const ok = (res: Res, status = 200) => {
   assert.equal(res.status, status, JSON.stringify(res.body));
   return res.body;
@@ -51,20 +49,15 @@ const base = {
 
 type Member = { client: Client; profileId: string };
 
-async function staffClient(email: string, role: 'owner' | 'backup_reviewer'): Promise<Client> {
-  await addStaff(t.deps, { email, name: role === 'owner' ? 'Owner' : 'Reviewer', role, password: PASSWORD });
-  const client = t.client();
-  ok(await client.post('/api/auth/sign-in/email', { email, password: PASSWORD }));
-  const { totpURI } = ok(await client.post('/api/auth/two-factor/enable', { password: PASSWORD }));
-  ok(await client.post('/api/auth/two-factor/verify-totp', { code: totp(totpURI) }));
-  return client;
+async function staffClient(email: string, role: 'owner' | 'backup_reviewer'): Promise<AdminClient> {
+  return staffBrowser(t, email, role);
 }
 
 async function verifiedClient(email: string, name: string, phone = nextPhone()): Promise<Client> {
   const client = await t.client().signIn(email, name);
   ok(await client.verifyPhone(phone));
   const submitted = ok(await client.sendDocument(), 201);
-  ok(await reviewer.post(`/api/v1/staff/verification/${submitted.id}/decision`, { decision: 'approved' }));
+  ok(await reviewer.post(`/api/admin/staff/verification/${submitted.id}/decision`, { decision: 'approved' }));
   return client;
 }
 
@@ -110,17 +103,18 @@ async function paid(m: Member, planId: string, extra: Record<string, unknown> = 
   return payment as { id: string; reference: string };
 }
 const approve = (paymentId: string, settlementRef: string) =>
-  owner.post(`/api/v1/owner/payments/${paymentId}/approve`, { settlementRef });
+  owner.post(`/api/admin/owner/payments/${paymentId}/approve`, { settlementRef });
 const usage = async (m: Member) => ok(await m.client.get(`/api/v1/profiles/${m.profileId}/plan`));
 const billing = async (m: Member) => ok(await m.client.get(`/api/v1/profiles/${m.profileId}/billing`));
 const option = (overview: { options: { id: string; change: unknown }[] }, planId: string) =>
   overview.options.find((o) => o.id === planId)!.change as { kind: string; reason: string | null; lostDays: number; renewalOpensAt: string | null };
 const sendRequest = (from: Member, to: Member) =>
   from.client.post(`/api/v1/profiles/${from.profileId}/interests`, { receiverProfileId: to.profileId, confirmSharing: true });
+/** What was done to `entityId`, in order. Opening its detail page is audited too (admin/policy.ts) but left out here. */
 const auditActions = async (entityId: string) =>
-  (await t.db.select({ action: auditEvent.action }).from(auditEvent).where(eq(auditEvent.entityId, entityId)).orderBy(auditEvent.seq)).map(
-    (a) => a.action,
-  );
+  (await t.db.select({ action: auditEvent.action }).from(auditEvent).where(eq(auditEvent.entityId, entityId)).orderBy(auditEvent.seq))
+    .map((a) => a.action)
+    .filter((action) => action !== 'payment.viewed');
 /** A plan event written straight into the database, to place a plan's end in the past or near future. */
 const planEnding = (profileId: string, endsAt: Date, planId = 'starter_1m') =>
   t.db.insert(entitlementEvent).values({ profileId, kind: 'grant', planId, startsAt: new Date(endsAt.getTime() - 30 * DAY), endsAt, dailyRequestCap: 5, monthlyRequestCap: 30 });
@@ -175,31 +169,37 @@ describe('the plan catalogue (section 2)', () => {
 describe('payments are the owner’s alone (sections 9, 10)', () => {
   test('the backup reviewer, members and visitors are refused on every owner route', async () => {
     const routes: [string, string][] = [
-      ['GET', '/api/v1/owner/plans'],
-      ['POST', '/api/v1/owner/plans'],
-      ['PATCH', '/api/v1/owner/plans/starter_1m'],
-      ['DELETE', '/api/v1/owner/plans/starter_1m'],
-      ['POST', '/api/v1/owner/plans/starter_1m/prices'],
-      ['GET', '/api/v1/owner/payment-settings'],
-      ['PUT', '/api/v1/owner/payment-settings/lkr_bank_transfer'],
-      ['GET', '/api/v1/owner/payments'],
-      ['GET', '/api/v1/owner/payments/00000000-0000-4000-8000-000000000000'],
-      ['POST', '/api/v1/owner/payments/00000000-0000-4000-8000-000000000000/approve'],
-      ['POST', '/api/v1/owner/payments/00000000-0000-4000-8000-000000000000/refund'],
-      ['GET', `/api/v1/owner/profiles/${amal?.profileId}/plan`],
-      ['POST', `/api/v1/owner/profiles/${amal?.profileId}/plan/grant`],
+      ['GET', '/api/admin/owner/plans'],
+      ['POST', '/api/admin/owner/plans'],
+      ['PATCH', '/api/admin/owner/plans/starter_1m'],
+      ['DELETE', '/api/admin/owner/plans/starter_1m'],
+      ['POST', '/api/admin/owner/plans/starter_1m/prices'],
+      ['GET', '/api/admin/owner/payment-settings'],
+      ['PUT', '/api/admin/owner/payment-settings/lkr_bank_transfer'],
+      ['GET', '/api/admin/owner/payments'],
+      ['GET', '/api/admin/owner/payments/00000000-0000-4000-8000-000000000000'],
+      ['POST', '/api/admin/owner/payments/00000000-0000-4000-8000-000000000000/approve'],
+      ['POST', '/api/admin/owner/payments/00000000-0000-4000-8000-000000000000/refund'],
+      ['GET', `/api/admin/owner/profiles/${amal?.profileId}/plan`],
+      ['POST', `/api/admin/owner/profiles/${amal?.profileId}/plan/grant`],
     ];
     for (const [method, path] of routes) {
       rejected(await reviewer.request(method, path, method === 'GET' || method === 'DELETE' ? undefined : {}), 403, 'FORBIDDEN');
-      rejected(await amal.client.request(method, path, method === 'GET' || method === 'DELETE' ? undefined : {}), 403, 'FORBIDDEN');
-      rejected(await t.client().request(method, path, method === 'GET' || method === 'DELETE' ? undefined : {}), 401, 'UNAUTHENTICATED');
+      // A member's or visitor's browser is not the admin site: refused before any session is even looked at.
+      rejected(await amal.client.request(method, path, method === 'GET' || method === 'DELETE' ? undefined : {}), 403, 'ADMIN_HEADER_REQUIRED');
+      rejected(await t.client().request(method, path, method === 'GET' || method === 'DELETE' ? undefined : {}), 403, 'ADMIN_HEADER_REQUIRED');
+      // Even with the admin site's header, a member session is not an admin one.
+      amal.client.headers = { 'x-fh-admin': '1' };
+      const asMember = await amal.client.request(method, path, method === 'GET' || method === 'DELETE' ? undefined : {});
+      assert.ok([401, 403].includes(asMember.status), `${method} ${path}: ${JSON.stringify(asMember.body)}`);
+      amal.client.headers = {};
     }
   });
 });
 
 describe('payment details come only from the owner (section 9: never invented)', () => {
   test('nothing is pre-filled, so members cannot pay until the owner enters real details', async () => {
-    const { settings } = ok(await owner.get('/api/v1/owner/payment-settings'));
+    const { settings } = ok(await owner.get('/api/admin/owner/payment-settings'));
     assert.deepEqual(
       settings.map((s: { channel: string; currency: string; enabled: boolean; instructions: string | null }) => [s.channel, s.currency, s.enabled, s.instructions]),
       [
@@ -215,11 +215,11 @@ describe('payment details come only from the owner (section 9: never invented)',
   });
 
   test('the owner enters the details and switches a channel on; every change is audited', async () => {
-    rejected(await owner.put('/api/v1/owner/payment-settings/lkr_bank_transfer', { enabled: true, instructions: null }), 400, 'VALIDATION');
+    rejected(await owner.put('/api/admin/owner/payment-settings/lkr_bank_transfer', { enabled: true, instructions: null }), 400, 'VALIDATION');
     const details = 'TEST ONLY - not a real account. Bank: Test Bank, Account: 0000000000, Name: Test Owner';
-    const saved = ok(await owner.put('/api/v1/owner/payment-settings/lkr_bank_transfer', { enabled: true, instructions: details }));
+    const saved = ok(await owner.put('/api/admin/owner/payment-settings/lkr_bank_transfer', { enabled: true, instructions: details }));
     assert.equal(saved.enabled, true);
-    ok(await owner.put('/api/v1/owner/payment-settings/wise', { enabled: true, instructions: 'TEST ONLY - Wise account test@example.test' }));
+    ok(await owner.put('/api/admin/owner/payment-settings/wise', { enabled: true, instructions: 'TEST ONLY - Wise account test@example.test' }));
     const [logged] = await t.db.select().from(auditEvent).where(and(eq(auditEvent.action, 'payment_settings.updated'), eq(auditEvent.entityId, 'lkr_bank_transfer')));
     assert.deepEqual(logged?.metadata, { before: { enabled: false, instructions: null }, after: { enabled: true, instructions: details } });
     const overview = await billing(chathu);
@@ -233,7 +233,7 @@ describe('payment details come only from the owner (section 9: never invented)',
 describe('the owner manages plans (owner decision, 29 Oct 2026: full control)', () => {
   test('adds, renames, re-prices, retires and deletes a plan nobody bought', async () => {
     const created = ok(
-      await owner.post('/api/v1/owner/plans', {
+      await owner.post('/api/admin/owner/plans', {
         id: 'trial_2m',
         name: 'Trial',
         tier: 'starter',
@@ -246,33 +246,33 @@ describe('the owner manages plans (owner decision, 29 Oct 2026: full control)', 
       201,
     );
     assert.deepEqual(created.prices.map((p: { currency: string; amountMinor: number }) => [p.currency, p.amountMinor]), [['LKR', 100000]]);
-    rejected(await owner.post('/api/v1/owner/plans', { ...created, id: 'trial_2m', prices: { LKR: 1 } }), 400, 'VALIDATION');
+    rejected(await owner.post('/api/admin/owner/plans', { ...created, id: 'trial_2m', prices: { LKR: 1 } }), 400, 'VALIDATION');
     rejected(
-      await owner.post('/api/v1/owner/plans', { id: 'trial_2m', name: 'Again', tier: 'starter', level: 1, termMonths: 1, dailyRequestCap: 1, prices: { LKR: 1 } }),
+      await owner.post('/api/admin/owner/plans', { id: 'trial_2m', name: 'Again', tier: 'starter', level: 1, termMonths: 1, dailyRequestCap: 1, prices: { LKR: 1 } }),
       409,
       'PLAN_EXISTS',
     );
     assert.ok(ok(await t.client().get('/api/v1/plans')).plans.some((p: { id: string }) => p.id === 'trial_2m'));
 
-    assert.equal(ok(await owner.patch('/api/v1/owner/plans/trial_2m', { name: 'Trial plus', description: 'Two months to try' })).name, 'Trial plus');
-    const repriced = ok(await owner.post('/api/v1/owner/plans/trial_2m/prices', { currency: 'LKR', amountMinor: 120000 }));
+    assert.equal(ok(await owner.patch('/api/admin/owner/plans/trial_2m', { name: 'Trial plus', description: 'Two months to try' })).name, 'Trial plus');
+    const repriced = ok(await owner.post('/api/admin/owner/plans/trial_2m/prices', { currency: 'LKR', amountMinor: 120000 }));
     assert.equal(repriced.prices[0].amountMinor, 120000);
     assert.deepEqual(
       repriced.priceHistory.map((v: { amountMinor: number; effectiveTo: string | null }) => [v.amountMinor, v.effectiveTo === null]),
       [[120000, true], [100000, false]],
       'the old price is closed, never edited',
     );
-    ok(await owner.patch('/api/v1/owner/plans/trial_2m', { active: false }));
+    ok(await owner.patch('/api/admin/owner/plans/trial_2m', { active: false }));
     assert.ok(!ok(await t.client().get('/api/v1/plans')).plans.some((p: { id: string }) => p.id === 'trial_2m'), 'retired plans are not sold');
 
-    assert.equal((await owner.delete('/api/v1/owner/plans/trial_2m')).status, 204);
-    assert.ok(!ok(await owner.get('/api/v1/owner/plans')).plans.some((p: { id: string }) => p.id === 'trial_2m'));
+    assert.equal((await owner.delete('/api/admin/owner/plans/trial_2m')).status, 204);
+    assert.ok(!ok(await owner.get('/api/admin/owner/plans')).plans.some((p: { id: string }) => p.id === 'trial_2m'));
     assert.deepEqual(await auditActions('trial_2m'), ['plan.created', 'plan.updated', 'price.changed', 'plan.retired', 'plan.deleted']);
   });
 
   test('a new price never changes a payment already started (spec M01); a used plan is retired, not deleted', async () => {
     ok(
-      await owner.post('/api/v1/owner/plans', {
+      await owner.post('/api/admin/owner/plans', {
         id: 'quote_1m',
         name: 'Quote test',
         tier: 'starter',
@@ -285,14 +285,14 @@ describe('the owner manages plans (owner decision, 29 Oct 2026: full control)', 
     );
     const payment = ok(await start(esha, 'quote_1m'), 201);
     assert.equal(payment.amountMinor, 100000);
-    ok(await owner.post('/api/v1/owner/plans/quote_1m/prices', { currency: 'LKR', amountMinor: 150000 }));
+    ok(await owner.post('/api/admin/owner/plans/quote_1m/prices', { currency: 'LKR', amountMinor: 150000 }));
     assert.equal(ok(await esha.client.get(`/api/v1/payments/${payment.id}`)).amountMinor, 100000, 'the quote keeps its price');
-    rejected(await owner.delete('/api/v1/owner/plans/quote_1m'), 409, 'PLAN_IN_USE');
+    rejected(await owner.delete('/api/admin/owner/plans/quote_1m'), 409, 'PLAN_IN_USE');
 
     // Cancelled before any receipt: the owner may delete that payment, and then the plan.
     assert.equal(ok(await esha.client.post(`/api/v1/payments/${payment.id}/cancel`)).status, 'cancelled');
-    assert.equal((await owner.delete(`/api/v1/owner/payments/${payment.id}`)).status, 204);
-    assert.equal((await owner.delete('/api/v1/owner/plans/quote_1m')).status, 204);
+    assert.equal((await owner.delete(`/api/admin/owner/payments/${payment.id}`)).status, 204);
+    assert.equal((await owner.delete('/api/admin/owner/plans/quote_1m')).status, 204);
     assert.deepEqual(await auditActions(payment.id), ['payment.deleted']);
   });
 });
@@ -376,7 +376,7 @@ describe('the owner’s queue (sections 2, 9)', () => {
   test('waiting payments come first, with signs that the declared residence may not match', async () => {
     // Gita lives in London with a UK phone but declares Sri Lanka, so she is quoted the local price.
     const payment = await paid(gita, 'starter_1m');
-    const { payments } = ok(await owner.get('/api/v1/owner/payments?status=pending_review'));
+    const { payments } = ok(await owner.get('/api/admin/owner/payments?status=pending_review'));
     const flagged = payments.find((p: { id: string }) => p.id === payment.id);
     assert.deepEqual(flagged.residenceFlags, ['profile_country_differs', 'phone_country_differs']);
     assert.deepEqual([flagged.currency, flagged.amountMinor, flagged.residenceCountry, flagged.profile.countryCode], ['LKR', 300000, 'LK', 'GB']);
@@ -387,16 +387,16 @@ describe('the owner’s queue (sections 2, 9)', () => {
 
     // The owner looks up the reference as written on the bank statement.
     const typed = `${payment.reference.slice(0, 2).toLowerCase()}-${payment.reference.slice(2)}`;
-    const found = ok(await owner.get(`/api/v1/owner/payments?q=${encodeURIComponent(typed)}`)).payments;
+    const found = ok(await owner.get(`/api/admin/owner/payments?q=${encodeURIComponent(typed)}`)).payments;
     assert.deepEqual(found.map((p: { id: string }) => p.id), [payment.id]);
   });
 
   test('each receipt opens through a short-lived link, and every look is audited', async () => {
     const { openPayment } = await billing(chathu);
-    const detail = ok(await owner.get(`/api/v1/owner/payments/${openPayment.id}`));
+    const detail = ok(await owner.get(`/api/admin/owner/payments/${openPayment.id}`));
     assert.equal(detail.proofs.length, 5);
     assert.deepEqual(detail.changeNow, { kind: 'new', reason: null, lostDays: 0, renewalOpensAt: null });
-    const link = ok(await owner.get(`/api/v1/owner/payments/${openPayment.id}/proofs/${detail.proofs[0].id}`));
+    const link = ok(await owner.get(`/api/admin/owner/payments/${openPayment.id}/proofs/${detail.proofs[0].id}`));
     assert.match(link.url, /^https:\/\/storage\.test\/private\/payment-proofs\//);
     assert.deepEqual(await auditActions(openPayment.id), ['payment.proof_viewed']);
   });
@@ -405,7 +405,7 @@ describe('the owner’s queue (sections 2, 9)', () => {
 describe('approval (section 9): matched in the statement, used once, never twice', () => {
   test('the owner records the statement line; the plan starts now for whole months on the Sri Lanka clock', async () => {
     const { openPayment } = await billing(chathu);
-    rejected(await owner.post(`/api/v1/owner/payments/${openPayment.id}/approve`, {}), 400, 'VALIDATION');
+    rejected(await owner.post(`/api/admin/owner/payments/${openPayment.id}/approve`, {}), 400, 'VALIDATION');
     const result = ok(await approve(openPayment.id, 'BOC 2026-10-29 FT1001'));
     assert.deepEqual([result.status, result.kind, result.lostDays], ['approved', 'grant', 0]);
     assert.ok(Math.abs(new Date(result.startsAt).getTime() - Date.now()) < 60_000);
@@ -529,8 +529,8 @@ describe('renewal grace (owner decision, 29 Oct 2026: up to 3 days)', () => {
     assert.equal(new Date(plan.graceEndsAt).getTime(), endsAt.getTime() + 3 * DAY);
     ok(await sendRequest(member, amal), 201);
 
-    rejected(await owner.post(`/api/v1/owner/payments/${payment.id}/reject`, { reason: 'no' }), 400, 'VALIDATION');
-    ok(await owner.post(`/api/v1/owner/payments/${payment.id}/reject`, { reason: 'We could not find this transfer in our statement.' }));
+    rejected(await owner.post(`/api/admin/owner/payments/${payment.id}/reject`, { reason: 'no' }), 400, 'VALIDATION');
+    ok(await owner.post(`/api/admin/owner/payments/${payment.id}/reject`, { reason: 'We could not find this transfer in our statement.' }));
     assert.equal((await usage(member)).active, false);
     rejected(await sendRequest(member, gita), 403, 'PLAN_REQUIRED');
   });
@@ -546,17 +546,17 @@ describe('renewal grace (owner decision, 29 Oct 2026: up to 3 days)', () => {
 describe('hold, correction and rejection (spec 9.3, M06)', () => {
   test('the owner can ask for a clearer receipt; the next one puts the payment back in review', async () => {
     const { openPayment } = await billing(gita);
-    rejected(await owner.post(`/api/v1/owner/payments/${openPayment.id}/hold`, {}), 400, 'VALIDATION');
-    const held = ok(await owner.post(`/api/v1/owner/payments/${openPayment.id}/hold`, { message: 'Please upload a receipt that shows the reference.' }));
+    rejected(await owner.post(`/api/admin/owner/payments/${openPayment.id}/hold`, {}), 400, 'VALIDATION');
+    const held = ok(await owner.post(`/api/admin/owner/payments/${openPayment.id}/hold`, { message: 'Please upload a receipt that shows the reference.' }));
     assert.equal(held.status, 'held');
-    const waiting = ok(await owner.get('/api/v1/owner/payments?status=waiting')).payments as { id: string; status: string }[];
+    const waiting = ok(await owner.get('/api/admin/owner/payments?status=waiting')).payments as { id: string; status: string }[];
     assert.ok(waiting.some((p) => p.id === openPayment.id), 'held payments still need a decision');
     assert.ok(waiting.every((p) => p.status === 'pending_review' || p.status === 'held'));
     const seen = ok(await gita.client.get(`/api/v1/payments/${openPayment.id}`));
     assert.deepEqual([seen.status, seen.message], ['held', 'Please upload a receipt that shows the reference.']);
     assert.match(seen.instructions, /TEST ONLY/, 'the account details stay visible while it is open');
     assert.equal(ok(await uploadReceipt(gita, openPayment.id), 201).status, 'pending_review');
-    const detail = ok(await owner.get(`/api/v1/owner/payments/${openPayment.id}`));
+    const detail = ok(await owner.get(`/api/admin/owner/payments/${openPayment.id}`));
     assert.equal(detail.proofs.length, 2, 'the first receipt is kept');
     assert.equal(ok(await approve(openPayment.id, 'BOC 2026-10-29 FT4004')).status, 'approved');
     const keys = (await t.db.select({ key: notificationOutbox.eventKey }).from(notificationOutbox).where(eq(notificationOutbox.recipientUserId, held.payer.userId))).map((r) => r.key);
@@ -565,7 +565,7 @@ describe('hold, correction and rejection (spec 9.3, M06)', () => {
 
   test('a rejection is final and tells the member why; they can start again', async () => {
     const payment = await paid(lahi, 'starter_1m');
-    ok(await owner.post(`/api/v1/owner/payments/${payment.id}/reject`, { reason: 'The amount received was LKR 2,000, not LKR 3,000.' }));
+    ok(await owner.post(`/api/admin/owner/payments/${payment.id}/reject`, { reason: 'The amount received was LKR 2,000, not LKR 3,000.' }));
     const seen = ok(await lahi.client.get(`/api/v1/payments/${payment.id}`));
     assert.deepEqual([seen.status, seen.message, seen.instructions], ['rejected', 'The amount received was LKR 2,000, not LKR 3,000.', null]);
     rejected(await uploadReceipt(lahi, payment.id), 409, 'PAYMENT_CLOSED');
@@ -578,11 +578,11 @@ describe('hold, correction and rejection (spec 9.3, M06)', () => {
 describe('refunds (section 9: duplicate, mistaken or our failure only)', () => {
   test('refunding an approved payment can end its plan, with the reason on record', async () => {
     const [{ id }] = (await t.db.select({ id: paymentSubmission.id }).from(paymentSubmission).where(and(eq(paymentSubmission.profileId, esha.profileId), eq(paymentSubmission.status, 'approved')))) as [{ id: string }];
-    rejected(await owner.post(`/api/v1/owner/payments/${id}/refund`, { reason: 'changed_mind', consequence: 'end_plan' }), 400, 'VALIDATION');
-    const refunded = ok(await owner.post(`/api/v1/owner/payments/${id}/refund`, { reason: 'mistaken_payment', consequence: 'end_plan' }));
+    rejected(await owner.post(`/api/admin/owner/payments/${id}/refund`, { reason: 'changed_mind', consequence: 'end_plan' }), 400, 'VALIDATION');
+    const refunded = ok(await owner.post(`/api/admin/owner/payments/${id}/refund`, { reason: 'mistaken_payment', consequence: 'end_plan' }));
     assert.deepEqual([refunded.status, refunded.refundReason, refunded.planEnded], ['refunded', 'mistaken_payment', true]);
     assert.equal((await usage(esha)).active, false);
-    rejected(await owner.post(`/api/v1/owner/payments/${id}/refund`, { reason: 'mistaken_payment', consequence: 'end_plan' }), 409, 'NOT_REFUNDABLE');
+    rejected(await owner.post(`/api/admin/owner/payments/${id}/refund`, { reason: 'mistaken_payment', consequence: 'end_plan' }), 409, 'NOT_REFUNDABLE');
     assert.deepEqual((await auditActions(id)).slice(-1), ['payment.refunded']);
   });
 
@@ -590,9 +590,9 @@ describe('refunds (section 9: duplicate, mistaken or our failure only)', () => {
     const duplicate = await paid(lahi, 'starter_1m');
     const first = await scalar<string>(sql`select id::text as v from payment_submission where profile_id = ${lahi.profileId} and status = 'pending_review'`);
     assert.equal(first, duplicate.id);
-    rejected(await owner.post(`/api/v1/owner/payments/${duplicate.id}/refund`, { reason: 'duplicate_payment', consequence: 'keep_plan' }), 400, 'SETTLEMENT_REQUIRED');
+    rejected(await owner.post(`/api/admin/owner/payments/${duplicate.id}/refund`, { reason: 'duplicate_payment', consequence: 'keep_plan' }), 400, 'SETTLEMENT_REQUIRED');
     const refunded = ok(
-      await owner.post(`/api/v1/owner/payments/${duplicate.id}/refund`, { reason: 'duplicate_payment', consequence: 'keep_plan', settlementRef: 'BOC 2026-10-29 FT6006' }),
+      await owner.post(`/api/admin/owner/payments/${duplicate.id}/refund`, { reason: 'duplicate_payment', consequence: 'keep_plan', settlementRef: 'BOC 2026-10-29 FT6006' }),
     );
     assert.deepEqual([refunded.status, refunded.settlementRef, refunded.planEnded], ['refunded', 'BOC 2026-10-29 FT6006', false]);
   });
@@ -600,7 +600,7 @@ describe('refunds (section 9: duplicate, mistaken or our failure only)', () => {
 
 describe('manual grant and revoke (compensation, disputes, suspension)', () => {
   test('the owner can grant a plan without a payment and end one, always with a reason', async () => {
-    const path = `/api/v1/owner/profiles/${esha.profileId}/plan`;
+    const path = `/api/admin/owner/profiles/${esha.profileId}/plan`;
     rejected(await owner.post(`${path}/grant`, { planId: 'premium_3m' }), 400, 'VALIDATION');
     const granted = ok(await owner.post(`${path}/grant`, { planId: 'premium_3m', days: 10, reason: 'Our failure: the payment page was down for a day.' }), 201);
     assert.equal(granted.current.planName, 'Premium 3 months');
@@ -623,16 +623,16 @@ describe('owner record keeping', () => {
   test('notes and statement-line corrections are audited; a payment with a receipt cannot be deleted', async () => {
     const { history } = await billing(gita);
     const id = history[0].id;
-    const noted = ok(await owner.patch(`/api/v1/owner/payments/${id}`, { ownerNote: 'Matched on the 29 Oct statement, line 14.' }));
+    const noted = ok(await owner.patch(`/api/admin/owner/payments/${id}`, { ownerNote: 'Matched on the 29 Oct statement, line 14.' }));
     assert.equal(noted.ownerNote, 'Matched on the 29 Oct statement, line 14.');
-    rejected(await owner.post(`/api/v1/owner/payments/${id}/settlement`, { settlementRef: 'BOC 2026-10-29 FT1001', reason: 'Typed the wrong line' }), 409, 'SETTLEMENT_USED');
-    const corrected = ok(await owner.post(`/api/v1/owner/payments/${id}/settlement`, { settlementRef: 'BOC 2026-10-29 FT4005', reason: 'Typed the wrong line' }));
+    rejected(await owner.post(`/api/admin/owner/payments/${id}/settlement`, { settlementRef: 'BOC 2026-10-29 FT1001', reason: 'Typed the wrong line' }), 409, 'SETTLEMENT_USED');
+    const corrected = ok(await owner.post(`/api/admin/owner/payments/${id}/settlement`, { settlementRef: 'BOC 2026-10-29 FT4005', reason: 'Typed the wrong line' }));
     assert.equal(corrected.settlementRef, 'BOC 2026-10-29 FT4005');
     const [logged] = await t.db.select().from(auditEvent).where(and(eq(auditEvent.entityId, id), eq(auditEvent.action, 'payment.settlement_corrected')));
     assert.deepEqual(logged?.metadata, { before: 'BOC 2026-10-29 FT4004', after: 'BOC 2026-10-29 FT4005' });
-    rejected(await owner.delete(`/api/v1/owner/payments/${id}`), 409, 'PAYMENT_HAS_EVIDENCE');
+    rejected(await owner.delete(`/api/admin/owner/payments/${id}`), 409, 'PAYMENT_HAS_EVIDENCE');
     const fresh = ok(await start(lahi, 'starter_1m'), 201);
-    rejected(await owner.post(`/api/v1/owner/payments/${fresh.id}/settlement`, { settlementRef: 'BOC X1', reason: 'Not approved yet' }), 409, 'NO_SETTLEMENT');
+    rejected(await owner.post(`/api/admin/owner/payments/${fresh.id}/settlement`, { settlementRef: 'BOC X1', reason: 'Not approved yet' }), 409, 'NO_SETTLEMENT');
   });
 });
 

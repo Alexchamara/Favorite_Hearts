@@ -10,13 +10,11 @@ import { SHORTLIST_LIMIT } from '@fh/shared';
 import { entitlementEvent } from '../src/db/schema/billing.ts';
 import { shortlist } from '../src/db/schema/connections.ts';
 import { profile } from '../src/db/schema/members.ts';
-import { addStaff } from '../src/lib/staff-accounts.ts';
-import { Client, createTestApp, totp, type Res } from './harness.ts';
+import { Client, createTestApp, staffBrowser, type AdminClient, type Res } from './harness.ts';
 
 let t: Awaited<ReturnType<typeof createTestApp>>;
-let reviewer: Client;
+let reviewer: AdminClient;
 
-const PASSWORD = 'correct horse battery staple';
 const ok = (res: Res, status = 200) => {
   assert.equal(res.status, status, JSON.stringify(res.body));
   return res.body;
@@ -34,7 +32,7 @@ async function verifiedClient(email: string, name: string): Promise<Client> {
   const client = await t.client().signIn(email, name);
   ok(await client.verifyPhone(nextPhone()));
   const submitted = ok(await client.sendDocument(), 201);
-  ok(await reviewer.post(`/api/v1/staff/verification/${submitted.id}/decision`, { decision: 'approved' }));
+  ok(await reviewer.post(`/api/admin/staff/verification/${submitted.id}/decision`, { decision: 'approved' }));
   return client;
 }
 
@@ -72,11 +70,7 @@ let dilan: Client; // signed in, never verified
 
 before(async () => {
   t = await createTestApp();
-  await addStaff(t.deps, { email: 'reviewer@favoritehearts.test', name: 'Reviewer', role: 'backup_reviewer', password: PASSWORD });
-  reviewer = t.client();
-  ok(await reviewer.post('/api/auth/sign-in/email', { email: 'reviewer@favoritehearts.test', password: PASSWORD }));
-  const { totpURI } = ok(await reviewer.post('/api/auth/two-factor/enable', { password: PASSWORD }));
-  ok(await reviewer.post('/api/auth/two-factor/verify-totp', { code: totp(totpURI) }));
+  reviewer = await staffBrowser(t, 'reviewer@favoritehearts.test', 'backup_reviewer');
   kasun = await publishedMember('kasun@example.test', 'Kasun', 'man');
   nimmi = await publishedMember('nimmi@example.test', 'Nimmi', 'woman');
   ruvi = await publishedMember('ruvi@example.test', 'Ruvi', 'woman');

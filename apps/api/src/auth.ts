@@ -5,8 +5,8 @@
  *    reset by an email link; phone-only accounts go through support. Five wrong passwords for one address in 15
  *    minutes lock it until those minutes pass. There is no sign-in by code: a code only confirms a sign-up, an
  *    invitation (routes/invitations.ts) or a phone number added while signed in (the Trust page).
- *  - Staff (owner + backup reviewer): email + password (12 characters or more) + TOTP two-step login.
- *    Staff accounts are provisioned by the owner (scripts/staff.ts); Better-Auth's own sign-up stays disabled.
+ *  - Staff (owner + backup reviewer) never sign in here: they use the admin site's own sign-in (admin/auth.ts), and a
+ *    staff address gets the wrong-password answer on this one. Better-Auth's own sign-up stays disabled.
  * Users and sessions live in our own Postgres (auth_* tables).
  */
 import { betterAuth } from 'better-auth';
@@ -177,8 +177,21 @@ export function createAuth({ db, config, messenger }: { db: Db; config: Config; 
         const loginField = PASSWORD_LOGINS[ctx.path];
         const login = loginField ? body[loginField] : undefined;
         if (typeof login === 'string' && login.trim()) {
-          const locked = await overLimit(db, `login-fail:${hash(normalAddress(login))}`, LOGIN_FAILURES);
+          const key = `login-fail:${hash(normalAddress(login))}`;
+          const locked = await overLimit(db, key, LOGIN_FAILURES);
           if (!locked.allowed) throw new APIError('TOO_MANY_REQUESTS', { code: 'LOGIN_LOCKED', message: text(language, 'api.loginLocked') });
+          // Staff sign in on the admin site only (docs/ADMIN-PANEL-PLAN.md, layer 2). Here a staff address gets the
+          // wrong-password answer, so the member form tells nobody who is staff.
+          const address = normalAddress(login);
+          const [owner] = await db
+            .select({ staff: staffMember.userId })
+            .from(user)
+            .innerJoin(staffMember, eq(staffMember.userId, user.id))
+            .where(loginField === 'email' ? eq(user.email, address) : eq(user.phoneNumber, address));
+          if (owner) {
+            await consume(db, key, LOGIN_FAILURES);
+            throw new APIError('UNAUTHORIZED', { code: 'INVALID_EMAIL_OR_PASSWORD', message: 'Invalid email or password' });
+          }
         }
         const fields = CODE_SENDS[ctx.path] ?? [];
         const address = fields.map((field) => body[field]).find((value) => typeof value === 'string' && value.trim());

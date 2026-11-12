@@ -13,6 +13,7 @@ import sharp from 'sharp';
 import { DOCUMENT_PAGES, type DocumentType } from '@fh/shared';
 import type { AccessVerifier } from '../src/admin/access.ts';
 import { createAdminAuth } from '../src/admin/auth.ts';
+import { createStaffInvite } from '../src/admin/invites.ts';
 import { createApp } from '../src/app.ts';
 import { createAuth } from '../src/auth.ts';
 import type { Config } from '../src/config.ts';
@@ -249,7 +250,8 @@ export class AdminClient {
     const headers = new Headers({ origin: ADMIN_ORIGIN, 'x-fh-admin': '1', 'x-forwarded-for': '198.51.100.7', 'user-agent': 'TestBrowser/1.0', ...this.headers, ...extra });
     if (body !== undefined && !headers.has('content-type')) headers.set('content-type', 'application/json');
     if (this.cookies.size) headers.set('cookie', [...this.cookies].map(([name, value]) => `${name}=${value}`).join('; '));
-    const res = await this.app.request(`${API}/api/admin${path}`, {
+    // Paths are under /api/admin unless given in full (as the staff tests write them: /api/admin/staff/...).
+    const res = await this.app.request(`${API}${path.startsWith('/api/') ? path : `/api/admin${path}`}`, {
       method,
       headers,
       body: body === undefined ? undefined : typeof body === 'string' ? body : JSON.stringify(body),
@@ -276,6 +278,37 @@ export class AdminClient {
   post = (path: string, body: unknown = {}) => this.request('POST', path, body);
   put = (path: string, body: unknown) => this.request('PUT', path, body);
   patch = (path: string, body: unknown) => this.request('PATCH', path, body);
+  delete = (path: string) => this.request('DELETE', path);
+}
+
+/** Every staff member the tests make gets this password (chosen on their invitation link). */
+export const STAFF_TEST_PASSWORD = 'a long staff passphrase 2026';
+
+/**
+ * A staff member as on the real admin site: invited, password chosen on the link, authenticator app set up, then signed
+ * in with the password and a code. `enrol: false` stops after choosing the password (two-step login not set up).
+ */
+export async function staffBrowser(
+  t: { deps: Deps; adminClient: () => AdminClient },
+  email: string,
+  role: 'owner' | 'backup_reviewer',
+  options: { name?: string; enrol?: boolean } = {},
+): Promise<AdminClient & { totpURI?: string }> {
+  const { link } = await createStaffInvite(t.deps, { email, name: options.name ?? (role === 'owner' ? 'Owner' : 'Reviewer'), role, invitedBy: null });
+  const setup = t.adminClient();
+  const accepted = await setup.post('/auth/staff-invite/accept', { token: link.split('#')[1], password: STAFF_TEST_PASSWORD });
+  assert.equal(accepted.status, 200, JSON.stringify(accepted.body));
+  if (options.enrol === false) return setup;
+  const enabled = await setup.post('/auth/two-factor/enable', { password: STAFF_TEST_PASSWORD });
+  assert.equal(enabled.status, 200, JSON.stringify(enabled.body));
+  const totpURI = enabled.body.totpURI as string;
+  assert.equal((await setup.post('/auth/two-factor/verify-totp', { code: totp(totpURI) })).status, 200);
+  const browser = t.adminClient() as AdminClient & { totpURI?: string };
+  const signedIn = await browser.post('/auth/sign-in/email', { email, password: STAFF_TEST_PASSWORD });
+  assert.equal(signedIn.body?.twoFactorRedirect, true, JSON.stringify(signedIn.body));
+  assert.equal((await browser.post('/auth/two-factor/verify-totp', { code: totp(totpURI) })).status, 200);
+  browser.totpURI = totpURI;
+  return browser;
 }
 
 let documentPhoto: Promise<Buffer> | null = null;

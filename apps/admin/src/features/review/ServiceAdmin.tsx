@@ -9,12 +9,12 @@ import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import type { OperationsFlagView } from '@fh/shared';
 import { TextField } from '@/components/form/fields';
-import { Card, Loading, Notice } from '@/components/layout';
+import { Card, Loading, Notice } from '@admin/components/shell';
 import { Button } from '@/components/ui/button';
-import { errorMessage, put } from '@/lib/api';
+import { errorMessage, put } from '@admin/lib/api';
 import { formatWhen } from '@/lib/format';
-import { keys, useOwnerOperations } from '@/lib/queries';
-import { queryClient } from '@/lib/query-client';
+import { keys, useOwnerOperations } from '@admin/lib/queries';
+import { queryClient } from '@admin/lib/query-client';
 
 type Wording = { title: string; on: string; off: string; effect: string; stateOn: string; stateOff: string; turnOn: string; turnOff: string };
 
@@ -81,7 +81,6 @@ function FlagCard({ flag }: { flag: OperationsFlagView }) {
       toast.success(`${words.title}: ${(saved.enabled ? words.stateOn : words.stateOff).toLowerCase()}.`);
       setReason('');
       await queryClient.invalidateQueries({ queryKey: keys.ownerOperations });
-      await queryClient.invalidateQueries({ queryKey: keys.serviceStatus });
     },
   });
   return (

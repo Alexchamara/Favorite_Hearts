@@ -9,12 +9,12 @@ import { toast } from 'sonner';
 import { CURRENCIES, PLAN_TIERS, type OwnerPlanView } from '@fh/shared';
 import { Confirm } from '@/components/confirm';
 import { SelectField, TextAreaField, TextField } from '@/components/form/fields';
-import { Card, Loading, Notice } from '@/components/layout';
+import { Card, Loading, Notice } from '@admin/components/shell';
 import { Button } from '@/components/ui/button';
-import { ApiError, del, errorMessage, patch, post } from '@/lib/api';
+import { ApiError, del, errorMessage, patch, post } from '@admin/lib/api';
 import { formatDay, formatMoney, moneyInput, parseMoney } from '@/lib/format';
-import { useOwnerPlans } from '@/lib/queries';
-import { queryClient } from '@/lib/query-client';
+import { useOwnerPlans } from '@admin/lib/queries';
+import { queryClient } from '@admin/lib/query-client';
 import { ENGLISH_BILLING } from '@/features/billing/labels';
 
 const { limitsText, termText } = ENGLISH_BILLING;

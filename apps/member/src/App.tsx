@@ -15,7 +15,6 @@ const MemberSheet = lazy(() => import('@/features/browse/MemberPage').then((modu
 const VerifyPage = lazy(() => import('@/features/trust/VerifyPage'));
 const PhoneUploadPage = lazy(() => import('@/features/trust/PhoneUploadPage'));
 const InvitePage = lazy(() => import('@/features/invite/InvitePage'));
-const StaffApp = lazy(() => import('@/features/staff/StaffApp'));
 const RelationsPage = lazy(() => import('@/features/requests/RelationsPage'));
 const ShortlistPage = lazy(() => import('@/features/browse/ShortlistPage'));
 const PrivacyPage = lazy(() => import('@/features/account/PrivacyPage'));
@@ -23,12 +22,11 @@ const ContactPage = lazy(() => import('@/features/account/ContactPage'));
 const ConfirmLinkPage = lazy(() => import('@/features/auth/LinkPages').then((module) => ({ default: module.ConfirmLinkPage })));
 const ResetPasswordPage = lazy(() => import('@/features/auth/LinkPages').then((module) => ({ default: module.ResetPasswordPage })));
 
-/** Member-only screens: signed-out visitors go to sign-in, staff to the staff workspace. */
+/** Member-only screens: signed-out visitors go to sign-in. (Staff cannot sign in here: they use the admin site.) */
 function MemberOnly({ children }: { children: ReactNode }) {
   const me = useMe();
   if (me.isPending) return <AppLoading />;
   if (!me.data) return <Navigate to="/" replace />;
-  if (me.data.staffRole) return <Navigate to="/staff" replace />;
   return children;
 }
 
@@ -71,11 +69,15 @@ export default function App() {
             {/* The sign-up email's one-step button and the reset email's link (the code or token after "#"). */}
             <Route path="/confirm" element={<ConfirmLinkPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
+            {/* Staff moved to the admin site (docs/ADMIN-PANEL-PLAN.md, phase admin-2); an old bookmark says where. */}
             <Route
               path="/staff"
               element={
                 <EnglishOnly>
-                  <StaffApp />
+                  <AppShell>
+                    <PageTitle kicker="Favorite Hearts staff" title="Staff work is on the admin site now" />
+                    <Notice>Staff sign in on the admin site with their own account. Members keep using this app.</Notice>
+                  </AppShell>
                 </EnglishOnly>
               }
             />

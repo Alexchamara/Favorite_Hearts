@@ -11,17 +11,15 @@ import { memberAccount } from '../src/db/schema/members.ts';
 import { auditEvent } from '../src/db/schema/operations.ts';
 import { verificationCase, verificationDraft, verificationUploadLink } from '../src/db/schema/trust.ts';
 import { purgeDocuments } from '../src/jobs/purge-documents.ts';
-import { addStaff } from '../src/lib/staff-accounts.ts';
 import { drainStorageDeletions, purgeExpiredDrafts } from '../src/lib/storage-cleanup.ts';
-import { Client, createTestApp, photoForm, testDocumentPhoto, totp, type Res } from './harness.ts';
+import { Client, createTestApp, photoForm, staffBrowser, testDocumentPhoto, type AdminClient, type Res } from './harness.ts';
 
 type App = Awaited<ReturnType<typeof createTestApp>>;
 let t: App;
-let owner: Client;
-let reviewer: Client;
+let owner: AdminClient;
+let reviewer: AdminClient;
 let photo: Buffer;
 
-const PASSWORD = 'correct horse battery staple';
 const ok = (res: Res, status = 200) => {
   assert.equal(res.status, status, JSON.stringify(res.body));
   return res.body;
@@ -32,13 +30,8 @@ const rejected = (res: Res, status: number, code: string) => {
 };
 const documentFiles = () => [...t.files.keys()].filter((key) => key.startsWith('private/documents/')).length;
 
-async function staffClient(email: string, role: 'owner' | 'backup_reviewer'): Promise<Client> {
-  await addStaff(t.deps, { email, name: role, role, password: PASSWORD });
-  const client = t.client();
-  ok(await client.post('/api/auth/sign-in/email', { email, password: PASSWORD }));
-  const { totpURI } = ok(await client.post('/api/auth/two-factor/enable', { password: PASSWORD }));
-  ok(await client.post('/api/auth/two-factor/verify-totp', { code: totp(totpURI) }));
-  return client;
+async function staffClient(email: string, role: 'owner' | 'backup_reviewer'): Promise<AdminClient> {
+  return staffBrowser(t, email, role, { name: role });
 }
 
 /** A client that holds only a phone link's token, as the phone page does. */
@@ -67,12 +60,12 @@ describe('the sides a document needs', () => {
     const sent = ok(await member.post('/api/v1/verification', { documentType: 'nic' }), 201);
     assert.deepEqual(ok(await member.get('/api/v1/verification/drafts')).drafts, [], 'the drafts became the case');
 
-    const item = ok(await reviewer.get('/api/v1/staff/verification')).cases.find((c: { id: string }) => c.id === sent.id);
+    const item = ok(await reviewer.get('/api/admin/staff/verification')).cases.find((c: { id: string }) => c.id === sent.id);
     assert.deepEqual(item.sides, ['front', 'back']);
     for (const side of ['front', 'back']) {
-      assert.match(ok(await reviewer.get(`/api/v1/staff/verification/${sent.id}/document?side=${side}`)).url, /\/private\/documents\//);
+      assert.match(ok(await reviewer.get(`/api/admin/staff/verification/${sent.id}/document?side=${side}`)).url, /\/private\/documents\//);
     }
-    rejected(await reviewer.get(`/api/v1/staff/verification/${sent.id}/document?side=selfie`), 410, 'DOCUMENT_DELETED');
+    rejected(await reviewer.get(`/api/admin/staff/verification/${sent.id}/document?side=selfie`), 410, 'DOCUMENT_DELETED');
     const looks = await t.db.select().from(auditEvent).where(eq(auditEvent.entityId, sent.id));
     assert.deepEqual(looks.map((look) => (look.metadata as { side: string }).side).sort(), ['back', 'front']);
   });
@@ -127,15 +120,15 @@ describe('the sides a document needs', () => {
   });
 
   test('while the owner requires a selfie, a submission needs one; turned off, it does not', async () => {
-    ok(await owner.put('/api/v1/owner/operations/selfie_required', { enabled: true }));
+    ok(await owner.put('/api/admin/owner/operations/selfie_required', { enabled: true }));
     const member = await t.client().signIn('selfie@documents.test', 'Selfie');
     assert.equal(ok(await member.get('/api/v1/verification/drafts')).selfieRequired, true);
     rejected(await member.sendDocument('driving_licence'), 400, 'DOCUMENT_INCOMPLETE');
     ok(await member.post('/api/v1/verification/drafts', photoForm('selfie', photo)), 201);
     const sent = ok(await member.post('/api/v1/verification', { documentType: 'driving_licence' }), 201);
-    const item = ok(await reviewer.get('/api/v1/staff/verification')).cases.find((c: { id: string }) => c.id === sent.id);
+    const item = ok(await reviewer.get('/api/admin/staff/verification')).cases.find((c: { id: string }) => c.id === sent.id);
     assert.deepEqual(item.sides, ['front', 'back', 'selfie']);
-    ok(await owner.put('/api/v1/owner/operations/selfie_required', { enabled: false }));
+    ok(await owner.put('/api/admin/owner/operations/selfie_required', { enabled: false }));
     const later = await t.client().signIn('noselfie@documents.test', 'Later');
     ok(await later.sendDocument('nic'), 201);
   });
@@ -206,13 +199,13 @@ describe('no identity photo is left behind', () => {
   });
 
   test('90 days after the decision every side goes, the back and selfie with the front', async () => {
-    ok(await owner.put('/api/v1/owner/operations/selfie_required', { enabled: true }));
+    ok(await owner.put('/api/admin/owner/operations/selfie_required', { enabled: true }));
     const member = await t.client().signIn('purge@documents.test', 'Purge');
     const before = documentFiles();
     const sent = ok(await member.sendDocument('nic', ['front', 'back', 'selfie']), 201);
-    ok(await owner.put('/api/v1/owner/operations/selfie_required', { enabled: false }));
+    ok(await owner.put('/api/admin/owner/operations/selfie_required', { enabled: false }));
     assert.equal(documentFiles(), before + 3);
-    ok(await reviewer.post(`/api/v1/staff/verification/${sent.id}/decision`, { decision: 'approved' }));
+    ok(await reviewer.post(`/api/admin/staff/verification/${sent.id}/decision`, { decision: 'approved' }));
     await t.db.update(verificationCase).set({ purgeAfter: new Date(Date.now() - 1000) }).where(eq(verificationCase.id, sent.id));
     await purgeDocuments(t.deps);
     await drainStorageDeletions(t.deps);

@@ -377,3 +377,55 @@ The retention test in `test/safety.test.ts` now also asserts that the chain stil
 - **Deleting the newest audit row:** the hash chain can't detect it on its own. The chain check job in admin-3 will record the head hash so this becomes detectable.
 - **Neon dev:** migrations 0017 and 0018 have not been applied (only on request).
 - **Waiting on the owner:** a Cloudflare Access application for the admin site (`CF_ACCESS_TEAM_DOMAIN`, `CF_ACCESS_AUD`), and the security@ mailbox.
+
+### admin-2: The admin site, 12 November 2026
+
+**Built**
+
+- **The app** (`apps/admin`): Vite + React + react-router + TanStack Query.
+  - It reuses the member app's design system and building blocks through the `@/` alias: stylesheets, Radix wrappers, form fields, labels, formatting.
+  - Its own code lives under `@admin/`: the API client, sign-in client, queries, shell and screens. Nothing from the member app's sign-in or queries is imported; the built bundle has no `/api/v1` path.
+- **Sign-in** (`features/sign-in`): a passkey, or the password then an authenticator or backup code. Turnstile is on the password form.
+- **Invitation page** (`features/enrol`, `/invite#token`). The token leaves the address bar at once. Then:
+  1. choose a password
+  2. set up the authenticator app (QR code, key, backup codes)
+  3. add a passkey (recommended), or skip it
+  4. sign in again
+- **Step-up dialog** (`lib/step-up.tsx`): any `STEP_UP_REQUIRED` answer opens "Confirm it is you". You use a passkey or a code, and the request is sent once more.
+- **My security** (`/security`): passkeys (add, remove), new backup codes, change password, signed-in sessions (end one, end the others, sign out everywhere). Every change goes through step-up.
+- **The six staff screens moved** from `apps/member/src/features/staff` to `apps/admin/src/features/review` (git history kept): Workspace, Reports, Payments, Plans, Payment details, Service. Their sign-in parts are gone.
+- **Hosting files:**
+  - `functions/api/admin/[[path]].ts`: a Cloudflare Pages Function that forwards `/api/admin/*` to `API_ORIGIN` and nothing else.
+  - `public/_headers`: CSP with `frame-ancestors 'none'`, HSTS, COOP/CORP, a Permissions-Policy allowing only WebAuthn, noindex, `no-store`. The built page also carries the CSP as a meta tag.
+  - `public/robots.txt`: Disallow all.
+- **API:**
+  - The `/api/v1/staff` and `/api/v1/owner` routes are gone; staff work is on `/api/admin` only.
+  - The member sign-in gives a staff address the wrong-password answer.
+  - `addStaff` (a password someone else typed) and the CLI `add` are gone.
+  - The sandbox serves the admin site and prints one invitation link each for the owner and the reviewer.
+  - Production start-up wires the admin sign-in and the Access verifier when `ADMIN_URL` and `CF_ACCESS_*` are set.
+- **Member app:** `/app/staff` now says staff work is on the admin site. The staff hooks and query keys are gone.
+- **Tests:** the seven test files that used staff now get a real admin session (`staffBrowser` in `test/harness.ts`: invite, then password, authenticator and sign-in) and call `/api/admin/...`.
+
+**Checks**
+
+```
+npm test                     ℹ tests 203  ℹ pass 203  ℹ fail 0 (API); 5 + 9 script tests pass
+npm run typecheck            api, member, website (0 errors), shared, admin (app and Pages function): clean
+npm run build -w @fh/admin   built;  npm run build:site  "No problems found."
+```
+
+**Browser walkthrough** (launch configs `admin-sandbox-api` :8797, then `admin-sandbox` or `admin-preview` :5191; the in-app browser):
+
+- **Owner:** invitation link → password → QR code and backup codes → code accepted → passkey offered → signed out → signed in with the password and a code → all six owner tabs. Saving payment details worked ("Last changed …"). My security showed the 8-hour end and this browser's session.
+- **Backup reviewer:** signed in the same way. Saw only Verification and Reports, with no payment count. `/api/admin/owner/payments` from their browser → 403 `FORBIDDEN`; without the admin header → 403 `ADMIN_HEADER_REQUIRED`. A scripted sign-in without the bot check was refused (`CAPTCHA_REQUIRED`).
+- **The production build** (`vite preview`) ran under its CSP with no violations.
+- **At 375 px** the header first pushed Sign out off screen; it is now icon-only there, with no sideways scroll.
+
+**Not covered yet, or for the owner**
+
+- **Passkey ceremony:** not done in the browser. The browser pane uses this Mac's own Touch ID, which would have saved a real passkey in the keychain. Only the server side was checked (registration options: site ID = the admin host, user verification required). Try one yourself on staging.
+- **Step-up dialog:** not opened in the browser. It only appears 5 minutes after the last check, and the in-memory sandbox can't be aged. The server side is in the tests.
+- **Sandbox alerts:** the sandbox runs no jobs, so security alerts are queued but not printed there. Delivery is tested.
+- **Visitor address behind the proxy:** the Pages Function passes it as `x-fh-client-ip`, but the API doesn't trust that header yet. Decide it with the real hosts in admin-7 (until then admin rate limits and audit rows see the proxy's address).
+- **Still waiting on the owner:** a Cloudflare Pages project for `admin.favoritehearts.com` (with `API_ORIGIN`), the Access application, and the security@ mailbox.

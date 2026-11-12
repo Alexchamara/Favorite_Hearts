@@ -6,8 +6,10 @@
  *
  *   npm run dev:sandbox      → member app at http://localhost:5174/app/ (API on :8788)
  *
- * Two staff accounts are created at start-up with a random password printed below (it changes
- * on every start). Staff set up two-step login on first sign-in, as on a real environment.
+ * Staff use the admin site (apps/admin, docs/ADMIN-PANEL-PLAN.md) at SANDBOX_ADMIN_ORIGIN (default
+ * http://localhost:5190): `npm run dev -w @fh/admin` with API_ORIGIN pointing here. Two invitation links (owner and
+ * backup reviewer) are printed at start-up; each works once. On the link the person chooses their password and sets
+ * up the authenticator app, as on a real environment.
  *
  * Four synthetic test members are seeded (verified, published, "Sandbox test member" in their bio),
  * so discovery and requests can be tried at once. They log in with their email address and a random password printed
@@ -25,11 +27,12 @@ import { migrate } from 'drizzle-orm/pglite/migrator';
 import { Hono } from 'hono';
 import sharp from 'sharp';
 import { createApp } from '../src/app.ts';
+import { createAdminAuth } from '../src/admin/auth.ts';
+import { createStaffInvite } from '../src/admin/invites.ts';
 import { createAuth } from '../src/auth.ts';
 import type { Config } from '../src/config.ts';
 import * as schema from '../src/db/schema/index.ts';
 import type { Deps } from '../src/http.ts';
-import { addStaff } from '../src/lib/staff-accounts.ts';
 import type { Messenger } from '../src/messaging/messenger.ts';
 import { createTurnstile } from '../src/middleware/turnstile.ts';
 import { processPhoto } from '../src/storage/images.ts';
@@ -38,6 +41,7 @@ import { newObjectKey, type Storage } from '../src/storage/storage.ts';
 // Ports can be moved (e.g. to run a second sandbox): SANDBOX_API_PORT and SANDBOX_MEMBER_ORIGIN.
 const API_PORT = Number(process.env.SANDBOX_API_PORT ?? 8788);
 const MEMBER_ORIGIN = process.env.SANDBOX_MEMBER_ORIGIN ?? 'http://localhost:5174';
+const ADMIN_ORIGIN = process.env.SANDBOX_ADMIN_ORIGIN ?? 'http://localhost:5190';
 // Optional bot check: TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA is Cloudflare's always-passing test
 // secret (pair it with VITE_TURNSTILE_SITE_KEY=1x00000000000000000000AA for the member app). Off by default.
 const turnstileSecret = process.env.TURNSTILE_SECRET_KEY || null;
@@ -84,22 +88,25 @@ const config: Config = {
   rateLimit: true,
   clientIpHeader: null,
   signedUrlTtlSeconds: 120,
-  // The admin site arrives in phase admin-2 (docs/ADMIN-PANEL-PLAN.md); the sandbox keeps the member-app staff screens.
-  adminOrigin: null,
+  // The admin site (docs/ADMIN-PANEL-PLAN.md); no Cloudflare Access in the sandbox. Alerts are printed like any email.
+  adminOrigin: ADMIN_ORIGIN,
   cloudflareAccess: null,
-  securityAlertEmail: null,
+  securityAlertEmail: 'security@sandbox.test',
 };
 const auth = createAuth({ db, config, messenger });
-const deps: Deps = { config, db, auth, storage, messenger, turnstile: turnstileSecret ? createTurnstile(turnstileSecret) : null };
+const deps: Deps = {
+  config,
+  db,
+  auth,
+  adminAuth: createAdminAuth({ db, config }),
+  accessVerifier: null,
+  storage,
+  messenger,
+  turnstile: turnstileSecret ? createTurnstile(turnstileSecret) : null,
+};
 
-const staffPassword = randomBytes(12).toString('base64url');
-await addStaff(deps, { email: 'owner@sandbox.test', name: 'Sandbox Owner', role: 'owner', password: staffPassword });
-const { userId: reviewerId } = await addStaff(deps, {
-  email: 'reviewer@sandbox.test',
-  name: 'Sandbox Reviewer',
-  role: 'backup_reviewer',
-  password: staffPassword,
-});
+const ownerInvite = await createStaffInvite(deps, { email: 'owner@sandbox.test', name: 'Sandbox Owner', role: 'owner', invitedBy: null });
+const reviewerInvite = await createStaffInvite(deps, { email: 'reviewer@sandbox.test', name: 'Sandbox Reviewer', role: 'backup_reviewer', invitedBy: null });
 
 // --- Synthetic test members (sandbox only; never seeded anywhere else) ---------------------------------
 
@@ -138,7 +145,7 @@ for (const [index, member] of SEED.entries()) {
   await db.insert(schema.user).values({ id: userId, name: `${member.first} ${member.last}`, email, emailVerified: true, phoneNumber: phone, phoneNumberVerified: true });
   await authContext.internalAdapter.linkAccount({ userId, providerId: 'credential', accountId: userId, password: memberPasswordHash });
   await db.insert(schema.memberAccount).values({ userId });
-  await db.insert(schema.verificationCase).values({ subjectUserId: userId, documentType: 'nic', status: 'approved', reviewedByUserId: reviewerId, reviewedAt: new Date() });
+  await db.insert(schema.verificationCase).values({ subjectUserId: userId, documentType: 'nic', status: 'approved', reviewedByUserId: null, reviewedAt: new Date() });
   const [created] = await db
     .insert(schema.profile)
     .values({
@@ -197,9 +204,11 @@ sandboxApp.route('/', createApp(deps));
 serve({ fetch: sandboxApp.fetch, port: API_PORT, hostname: '127.0.0.1' }, () => {
   console.log(`${line}
 Favorite Hearts sandbox (in-memory, nothing is sent or stored for real)
-  Member app : ${MEMBER_ORIGIN}/app/      Staff: ${MEMBER_ORIGIN}/app/staff
-  Staff      : owner@sandbox.test, reviewer@sandbox.test
-  Password   : ${staffPassword}   (both staff accounts; new on every start)
+  Member app : ${MEMBER_ORIGIN}/app/
+  Admin site : ${ADMIN_ORIGIN}/   (staff; npm run dev -w @fh/admin with API_ORIGIN=http://127.0.0.1:${API_PORT})
+  Invitations (each works once; choose a password and set up an authenticator app there):
+    owner    : ${ownerInvite.link}
+    reviewer : ${reviewerInvite.link}
   Test members (verified and published; log in with the email address and this password):
   Password   : ${memberPassword}   (all four test members; new on every start)
 ${seeded.map((m) => `    ${m.email.padEnd(22)} ${m.name.padEnd(16)} ${m.plan}`).join('\n')}

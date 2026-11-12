@@ -193,7 +193,7 @@ export function createApp(deps: Deps) {
 
   // Everything below is our own API: session loaded once, permission checks per route.
   // profileRequests, profilePhotos and profileBilling have no guard of their own: profiles' requireMember covers
-  // /profiles/*. /owner is the owner's alone (payments): the backup reviewer is refused there and in the database.
+  // /profiles/*. Staff work is on the admin site only (/api/admin below, since phase admin-2).
   const v1 = new Hono<AppEnv>()
     .use(loadSession)
     .use(rateLimits)
@@ -213,14 +213,12 @@ export function createApp(deps: Deps) {
     .route('/invitations', invitations)
     .route('/verification', verification)
     // The phone page of a QR code: a link token, no session (routes/verification.ts).
-    .route('/verification-link', verificationLink)
-    .route('/staff', staff)
-    .route('/owner', owner);
+    .route('/verification-link', verificationLink);
   app.route('/api/v1', v1);
 
   // The admin site (docs/ADMIN-PANEL-PLAN.md): its own sign-in and session, then a permission and step-up check per
-  // route (admin/policy.ts, default deny). The staff and owner routes are the same as under /api/v1 for now; the
-  // member-app ones go when the admin site ships (phase admin-2).
+  // route (admin/policy.ts, default deny). /owner is the owner's alone (payments): the backup reviewer is refused
+  // there, in the route files and in the database.
   const admin = new Hono<AppEnv>()
     .use(adminRequestGuard)
     .on(['GET', 'POST'], '/auth/*', (c) => (deps.adminAuth ? deps.adminAuth.handler(c.req.raw) : c.json({ code: 'NOT_FOUND' }, 404)))

@@ -4,7 +4,7 @@
  */
 import { ArrowUpRight, Heart, Plus, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
-import { Link, Navigate, useLocation, useNavigate } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { DEFAULT_MANAGER_CAPACITY, type ProfileView } from '@fh/shared';
 import { TrustBadges } from '@/components/badges';
 import { AppLoading, AppShell, Card, kickerClass, Loading, Notice, PageTitle } from '@/components/layout';
@@ -29,7 +29,6 @@ export default function Home() {
   const entryMode =
     (location.state as { mode?: string } | null)?.mode === 'login' || (!joined && readPreferences().country) ? 'login' : 'signup';
   if (me.isPending) return <AppLoading />;
-  if (me.data?.staffRole) return <Navigate to="/staff" replace />;
   // Signed out and naming the account: the demo's own entry page. Signed in: the profiles dashboard in the app frame.
   if (!me.data && !localeChosen)
     return (

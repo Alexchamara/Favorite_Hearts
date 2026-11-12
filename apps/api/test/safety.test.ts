@@ -16,18 +16,16 @@ import { memberAccount, privateContact, profile } from '../src/db/schema/members
 import { auditEvent, notificationOutbox, rateLimitCounter, retainedIdentity, storageDeletion } from '../src/db/schema/operations.ts';
 import { verificationCase } from '../src/db/schema/trust.ts';
 import { sweepRetention } from '../src/jobs/retention.ts';
-import { addStaff } from '../src/lib/staff-accounts.ts';
 import { drainStorageDeletions } from '../src/lib/storage-cleanup.ts';
 import { zip } from '../src/lib/zip.ts';
-import { Client, createTestApp, latestCode, latestInvitationToken, TEST_PASSWORD, totp, type Res } from './harness.ts';
+import { Client, createTestApp, latestCode, latestInvitationToken, staffBrowser, TEST_PASSWORD, type AdminClient, type Res } from './harness.ts';
 
 type App = Awaited<ReturnType<typeof createTestApp>>;
 let t: App;
-let owner: Client;
-let reviewer: Client;
+let owner: AdminClient;
+let reviewer: AdminClient;
 let image: Buffer;
 
-const PASSWORD = 'correct horse battery staple';
 const DAY = 86_400_000;
 const ok = (res: Res, status = 200) => {
   assert.equal(res.status, status, JSON.stringify(res.body));
@@ -52,13 +50,8 @@ const base = {
 
 type Member = { client: Client; profileId: string; userId: string; phone: string };
 
-async function staffClient(app: App, email: string, role: 'owner' | 'backup_reviewer'): Promise<Client> {
-  await addStaff(app.deps, { email, name: role === 'owner' ? 'Owner' : 'Reviewer', role, password: PASSWORD });
-  const client = app.client();
-  ok(await client.post('/api/auth/sign-in/email', { email, password: PASSWORD }));
-  const { totpURI } = ok(await client.post('/api/auth/two-factor/enable', { password: PASSWORD }));
-  ok(await client.post('/api/auth/two-factor/verify-totp', { code: totp(totpURI) }));
-  return client;
+async function staffClient(app: App, email: string, role: 'owner' | 'backup_reviewer'): Promise<AdminClient> {
+  return staffBrowser(app, email, role);
 }
 
 const file = (name: string, type = 'image/jpeg') => new File([new Uint8Array(image)], name, { type });
@@ -72,7 +65,7 @@ async function verifiedClient(email: string, name: string, phone = nextPhone()):
   const client = await t.client().signIn(email, name);
   ok(await client.verifyPhone(phone));
   const submitted = ok(await client.sendDocument(), 201);
-  ok(await reviewer.post(`/api/v1/staff/verification/${submitted.id}/decision`, { decision: 'approved' }));
+  ok(await reviewer.post(`/api/admin/staff/verification/${submitted.id}/decision`, { decision: 'approved' }));
   return client;
 }
 
@@ -115,13 +108,13 @@ async function managedProfile(manager: Client, name: string, candidateEmail?: st
 }
 
 const grant = (profileId: string) =>
-  owner.post(`/api/v1/owner/profiles/${profileId}/plan/grant`, { planId: 'starter_1m', days: 30, reason: 'Stage 5a test plan' });
+  owner.post(`/api/admin/owner/profiles/${profileId}/plan/grant`, { planId: 'starter_1m', days: 30, reason: 'Stage 5a test plan' });
 async function connect(from: Member, to: Member) {
   const sent = ok(await from.client.post(`/api/v1/profiles/${from.profileId}/interests`, { receiverProfileId: to.profileId, confirmSharing: true }), 201);
   ok(await to.client.post(`/api/v1/interests/${sent.id}/accept`));
 }
 const enableBankTransfer = () =>
-  owner.put('/api/v1/owner/payment-settings/lkr_bank_transfer', { enabled: true, instructions: 'TEST ONLY - not a real account' });
+  owner.put('/api/admin/owner/payment-settings/lkr_bank_transfer', { enabled: true, instructions: 'TEST ONLY - not a real account' });
 async function approvedPayment(m: Member, settlementRef: string) {
   const payment = ok(
     await m.client.post(`/api/v1/profiles/${m.profileId}/payments`, {
@@ -133,7 +126,7 @@ async function approvedPayment(m: Member, settlementRef: string) {
     201,
   );
   ok(await m.client.post(`/api/v1/payments/${payment.id}/proof`, imageForm('receipt.jpg')), 201);
-  ok(await owner.post(`/api/v1/owner/payments/${payment.id}/approve`, { settlementRef }));
+  ok(await owner.post(`/api/admin/owner/payments/${payment.id}/approve`, { settlementRef }));
   return payment.id as string;
 }
 const deleteAccount = (client: Client) => client.post('/api/v1/account/delete', { confirm: true });
@@ -259,18 +252,18 @@ describe('rate limits (Part 2: sign-in, codes, requests, invitations, reports, u
 
 describe('the owner pauses sign-ups and document submissions (section 10)', () => {
   test('only the owner switches them, each change is audited with its reason, and the app can read them', async () => {
-    rejected(await reviewer.get('/api/v1/owner/operations'), 403, 'FORBIDDEN');
-    rejected(await reviewer.put('/api/v1/owner/operations/signups_paused', { enabled: true }), 403, 'FORBIDDEN');
+    rejected(await reviewer.get('/api/admin/owner/operations'), 403, 'FORBIDDEN');
+    rejected(await reviewer.put('/api/admin/owner/operations/signups_paused', { enabled: true }), 403, 'FORBIDDEN');
     const member = await t.client().signIn('switch-member@example.test', 'Mala');
-    rejected(await member.put('/api/v1/owner/operations/signups_paused', { enabled: true }), 403, 'FORBIDDEN');
-    const { flags } = ok(await owner.get('/api/v1/owner/operations'));
+    rejected(await member.put('/api/admin/owner/operations/signups_paused', { enabled: true }), 403, 'ADMIN_HEADER_REQUIRED');
+    const { flags } = ok(await owner.get('/api/admin/owner/operations'));
     assert.deepEqual(
       flags.map((f: { key: string; enabled: boolean }) => [f.key, f.enabled]),
       [['signups_paused', false], ['document_submissions_paused', false], ['selfie_required', false]],
     );
-    rejected(await owner.put('/api/v1/owner/operations/everything', { enabled: true }), 400, 'VALIDATION');
+    rejected(await owner.put('/api/admin/owner/operations/everything', { enabled: true }), 400, 'VALIDATION');
 
-    const paused = ok(await owner.put('/api/v1/owner/operations/signups_paused', { enabled: true, reason: 'Review queue is full' }));
+    const paused = ok(await owner.put('/api/admin/owner/operations/signups_paused', { enabled: true, reason: 'Review queue is full' }));
     assert.deepEqual([paused.enabled, paused.reason], [true, 'Review queue is full']);
     assert.deepEqual(ok(await t.client().get('/api/v1/service-status')), { signupsPaused: true, documentSubmissionsPaused: false, selfieRequired: false });
     const [entry] = await t.db
@@ -280,8 +273,8 @@ describe('the owner pauses sign-ups and document submissions (section 10)', () =
     assert.deepEqual([entry!.action, entry!.reason, entry!.actorRole], ['operations.paused', 'Review queue is full', 'owner']);
 
     // The selfie switch has no row until the owner first sets it; setting it creates one, audited like the others.
-    rejected(await reviewer.put('/api/v1/owner/operations/selfie_required', { enabled: true }), 403, 'FORBIDDEN');
-    const selfie = ok(await owner.put('/api/v1/owner/operations/selfie_required', { enabled: true, reason: 'Fake profiles seen' }));
+    rejected(await reviewer.put('/api/admin/owner/operations/selfie_required', { enabled: true }), 403, 'FORBIDDEN');
+    const selfie = ok(await owner.put('/api/admin/owner/operations/selfie_required', { enabled: true, reason: 'Fake profiles seen' }));
     assert.equal(selfie.enabled, true);
     assert.equal(ok(await t.client().get('/api/v1/service-status')).selfieRequired, true);
     const [turned] = await t.db
@@ -289,7 +282,7 @@ describe('the owner pauses sign-ups and document submissions (section 10)', () =
       .from(auditEvent)
       .where(and(eq(auditEvent.entityType, 'operations_flag'), eq(auditEvent.entityId, 'selfie_required')));
     assert.equal(turned!.action, 'operations.selfie_required');
-    ok(await owner.put('/api/v1/owner/operations/selfie_required', { enabled: false }));
+    ok(await owner.put('/api/admin/owner/operations/selfie_required', { enabled: false }));
     assert.equal(ok(await t.client().get('/api/v1/service-status')).selfieRequired, false);
   });
 
@@ -301,18 +294,18 @@ describe('the owner pauses sign-ups and document submissions (section 10)', () =
     assert.match(attempt.body.message, /paused/);
     assert.equal((await t.db.select().from(user).where(eq(user.email, 'newcomer@example.test'))).length, 0);
 
-    ok(await owner.put('/api/v1/owner/operations/signups_paused', { enabled: false }));
+    ok(await owner.put('/api/admin/owner/operations/signups_paused', { enabled: false }));
     await t.client().signIn('newcomer@example.test', 'Nuwan');
   });
 
   test('while document submissions are paused, an upload is refused before anything is stored', async () => {
-    ok(await owner.put('/api/v1/owner/operations/document_submissions_paused', { enabled: true }));
+    ok(await owner.put('/api/admin/owner/operations/document_submissions_paused', { enabled: true }));
     assert.equal(ok(await t.client().get('/api/v1/service-status')).documentSubmissionsPaused, true);
     const member = await t.client().signIn('paused-docs@example.test', 'Dilu');
     const stored = t.files.size;
     rejected(await member.sendDocument(), 403, 'DOCUMENTS_PAUSED');
     assert.equal(t.files.size, stored);
-    ok(await owner.put('/api/v1/owner/operations/document_submissions_paused', { enabled: false }));
+    ok(await owner.put('/api/admin/owner/operations/document_submissions_paused', { enabled: false }));
     ok(await member.sendDocument(), 201);
   });
 });
@@ -447,7 +440,7 @@ describe('deleting an account (section 8)', () => {
 
     const payments = await t.db.select().from(paymentSubmission).where(eq(paymentSubmission.payerUserId, ruwan.userId));
     assert.deepEqual(payments.map((p) => [p.id === unsent.id, p.status]).sort(), [[false, 'approved'], [true, 'cancelled']]);
-    const detail = ok(await owner.get(`/api/v1/owner/payments/${paymentId}`));
+    const detail = ok(await owner.get(`/api/admin/owner/payments/${paymentId}`));
     assert.deepEqual(
       [detail.profile.deleted, detail.payer.deleted, detail.payer.name, detail.payer.email, detail.payer.phone],
       [true, true, null, null, null],
@@ -494,8 +487,10 @@ describe('deleting an account (section 8)', () => {
     assert.equal((await outboxRow(`profile.deleted:${managed.profileId}`))?.template, 'profile_deleted');
   });
 
-  test('staff accounts are not deleted here', async () => {
-    rejected(await deleteAccount(owner), 403, 'STAFF_ACCOUNT');
+  test('staff accounts are not deleted here, nor from the admin site', async () => {
+    // The admin cookie means nothing to the member API, and the admin sign-in has no delete endpoint.
+    rejected(await owner.post('/api/v1/account/delete', { confirm: 'DELETE' }), 401, 'UNAUTHENTICATED');
+    assert.equal((await owner.post('/auth/delete-user', {})).status, 404);
   });
 });
 
@@ -507,7 +502,7 @@ describe('banned addresses cannot sign up again (section 8)', () => {
       await nadee.client.post('/api/v1/reports', { reporterProfileId: nadee.profileId, profileId: scammer.profileId, category: 'scam', detail: 'Asked for money' }),
       201,
     );
-    ok(await reviewer.post(`/api/v1/staff/reports/${filed.id}/decision`, { decision: 'upheld', note: 'Confirmed' }));
+    ok(await reviewer.post(`/api/admin/staff/reports/${filed.id}/decision`, { decision: 'upheld', note: 'Confirmed' }));
     const scammerPhone = ok(await scammer.client.get('/api/v1/me')).phoneNumber;
     ok(await deleteAccount(scammer.client));
     assert.equal((await t.db.select().from(retainedIdentity).where(eq(retainedIdentity.userId, scammer.userId)))[0]!.banned, true);
@@ -531,7 +526,7 @@ describe('banned addresses cannot sign up again (section 8)', () => {
     );
     ok(await deleteAccount(gayan.client));
     ok(await sendCode('gayan@example.test'), 200);
-    ok(await reviewer.post(`/api/v1/staff/reports/${filed.id}/decision`, { decision: 'upheld' }));
+    ok(await reviewer.post(`/api/admin/staff/reports/${filed.id}/decision`, { decision: 'upheld' }));
     assert.equal((await sendCode('gayan@example.test')).status, 403);
   });
 
@@ -544,7 +539,7 @@ describe('banned addresses cannot sign up again (section 8)', () => {
       201,
     );
     assert.deepEqual(ok(await deleteAccount(ranjani)), { profilesDeleted: 0, profilesHandedOver: 1 });
-    ok(await reviewer.post(`/api/v1/staff/reports/${filed.id}/decision`, { decision: 'upheld' }));
+    ok(await reviewer.post(`/api/admin/staff/reports/${filed.id}/decision`, { decision: 'upheld' }));
     ok(await sendCode('ranjani@example.test'));
   });
 });

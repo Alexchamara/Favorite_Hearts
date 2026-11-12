@@ -38,8 +38,10 @@ Open **http://localhost:4321** — the website forwards `/app/` to the member ap
 `/api/` to the API, so Join buttons and sign-in work from that one address (as in production).
 
 To try the member and staff screens without Neon, Resend, SMS or R2, run `npm run dev:sandbox` and open
-**http://localhost:5174/app/** (staff: `/app/staff`). It runs the real API on an in-memory database. Sign-in codes,
-invitation links and the staff password print in that terminal; nothing is sent, and everything is gone when it
+**http://localhost:5174/app/**. It runs the real API on an in-memory database. Sign-in codes and invitation links
+print in that terminal, including one invitation link each for the sandbox owner and backup reviewer on the admin site
+(start it with `API_ORIGIN=http://127.0.0.1:8788 npm run dev -w @fh/admin`, http://localhost:5190; each link works
+once, and there the person chooses a password and sets up an authenticator app); nothing is sent, and everything is gone when it
 stops. It can run beside `npm run dev`. Four synthetic test members (verified and published, `@sandbox.test`) are
 ready to sign in, and a test plan can be granted to any profile with
 `curl -X POST http://127.0.0.1:8788/sandbox/plans -H 'content-type: application/json' -d '{"profileId":"…"}'`.
@@ -54,8 +56,9 @@ ten synthetic candidates and a family manager. Each uses a plus-address of that 
 so every sign-in code arrives there. They cover published members with and without plans, one abroad, one managed by
 her mother (sign in as Sunethra), a half-filled draft (Dilan), a document waiting for review with sample photos
 (Hiruni), a rejected one (Sahan), a reported profile (Tharushi) and a paused one (Chamod). Running it again changes
-nothing. Staff accounts: `npm run staff -w @fh/api -- add --email you@example.com --name "Your Name" --role owner`,
-then sign in at `/app/staff`.
+nothing. Staff accounts are on the admin site (`apps/admin`, docs/ADMIN-PANEL-PLAN.md): set `ADMIN_URL` in
+`apps/api/.env`, run `npm run staff -w @fh/api -- invite --email you@example.com --name "Your Name" --role owner`, and
+open the printed link (it works once, for 24 hours).
 
 One deployable folder for static hosting: `npm run build:site` → `dist/site/`
 (website at `/`, member app at `/app/`). The build ends with the site check (`npm run check:site`), which fails on SEO

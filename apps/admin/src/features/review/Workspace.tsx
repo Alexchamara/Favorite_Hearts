@@ -1,27 +1,23 @@
 /**
- * Staff workspace (OWNER-DECISIONS section 10): the owner and the backup reviewer sign in with a
- * password and two-step login, then review identity documents and reports; the owner also runs
- * payments, plans and payment details. The server refuses every staff request until two-step
- * login is on, whatever this screen shows.
+ * Staff workspace (OWNER-DECISIONS section 10), on the admin site since phase admin-2 (docs/ADMIN-PANEL-PLAN.md):
+ * the owner and the backup reviewer review identity documents and reports; the owner also runs payments, plans,
+ * payment details and the service switches. Which tabs show follows the role's permissions from the server
+ * (GET /api/admin/me); the server refuses every route the role does not have anyway (apps/api/src/admin/policy.ts).
  */
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { ShieldCheck } from 'lucide-react';
-import { renderSVG } from 'uqr';
 import type { DocumentSide, StaffQueueItem, VerificationCaseView } from '@fh/shared';
-import { CodeInput, useCodeCheck } from '@/components/form/code-input';
-import { CheckboxField, TextAreaField, TextField } from '@/components/form/fields';
-import { AppShell, Card, Loading, Notice, PageTitle } from '@/components/layout';
-import { useBotCheck } from '@/components/turnstile';
+import { TextAreaField } from '@/components/form/fields';
+import { Loading, Notice } from '@admin/components/shell';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { api, errorMessage, post } from '@/lib/api';
+import { api, errorMessage, post } from '@admin/lib/api';
 import { formatWhen } from '@/lib/format';
-import { authClient } from '@/lib/auth-client';
-import { keys, resetSession, useMe, useOwnerPayments } from '@/lib/queries';
-import { queryClient } from '@/lib/query-client';
+import { keys, useOwnerPayments } from '@admin/lib/queries';
+import { queryClient } from '@admin/lib/query-client';
 import { ENGLISH_LABELS } from '@/features/profile/options';
 import { PaymentDetailsAdmin } from './PaymentDetailsAdmin';
 import { PaymentsQueue } from './PaymentsQueue';
@@ -31,28 +27,6 @@ import { ServiceAdmin } from './ServiceAdmin';
 import { Empty } from './Empty';
 
 const { documentLabels } = ENGLISH_LABELS;
-
-export default function StaffApp() {
-  const me = useMe();
-  return (
-    <AppShell home="/staff" width={me.data?.staffRole && me.data.twoFactorEnabled ? 'wide' : 'narrow'}>
-      {me.isPending ? (
-        <Loading />
-      ) : !me.data ? (
-        <StaffSignIn />
-      ) : !me.data.staffRole ? (
-        <>
-          <PageTitle title="Staff only" />
-          <Notice>This account is not a staff account. Members use the member app.</Notice>
-        </>
-      ) : !me.data.twoFactorEnabled ? (
-        <SetUpTwoStep />
-      ) : (
-        <StaffWorkspace role={me.data.staffRole} />
-      )}
-    </AppShell>
-  );
-}
 
 type Area = 'documents' | 'reports' | 'payments' | 'plans' | 'details' | 'service';
 
@@ -71,7 +45,7 @@ const areas: { value: Area; label: string; ownerOnly?: boolean }[] = [
  * the service switches are the owner's alone; the backup reviewer never sees those tabs or the payments count, and the
  * server refuses them anyway. The demo's consent and featured-profile tabs are not built (no such review here).
  */
-function StaffWorkspace({ role }: { role: 'owner' | 'backup_reviewer' }) {
+export function StaffWorkspace({ role }: { role: 'owner' | 'backup_reviewer' }) {
   const owner = role === 'owner';
   const [area, setArea] = useState<Area>(owner ? 'payments' : 'documents');
   const visible = areas.filter((item) => owner || !item.ownerOnly);
@@ -136,174 +110,6 @@ function Stat({ label, count }: { label: string; count: number | undefined }) {
       <span>{label}</span>
       <strong>{count ?? '–'}</strong>
     </div>
-  );
-}
-
-async function refreshAccount() {
-  await queryClient.refetchQueries({ queryKey: keys.me });
-}
-
-function StaffSignIn() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [code, setCode] = useState('');
-  const [needsCode, setNeedsCode] = useState(false);
-  const [useBackup, setUseBackup] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const bot = useBotCheck();
-
-  async function signIn(event: FormEvent) {
-    event.preventDefault();
-    setBusy(true);
-    setError(null);
-    const result = await authClient.signIn.email({ email, password, fetchOptions: { headers: bot.headers } });
-    bot.reset();
-    setBusy(false);
-    if (result.error) return setError(result.error.message ?? 'Email or password is not right.');
-    if ((result.data as { twoFactorRedirect?: boolean } | null)?.twoFactorRedirect) return setNeedsCode(true);
-    await resetSession();
-  }
-  async function verify(event: FormEvent) {
-    event.preventDefault();
-    setBusy(true);
-    setError(null);
-    const result = await authClient.twoFactor.verifyBackupCode({ code });
-    setBusy(false);
-    if (result.error) return setError(result.error.message ?? 'That code did not work.');
-    await resetSession();
-  }
-  // The authenticator's 6 digits are checked as soon as they are in.
-  const totpEntry = useCodeCheck(
-    async (value) => {
-      const result = await authClient.twoFactor.verifyTotp({ code: value });
-      if (result.error) throw new Error(result.error.message ?? 'That code did not work.');
-    },
-    () => resetSession(),
-  );
-
-  return (
-    <>
-      <PageTitle kicker="Favorite Hearts staff" title="Sign in" />
-      <Card>
-        {error && (
-          <div className="mb-4">
-            <Notice tone="error">{error}</Notice>
-          </div>
-        )}
-        {!needsCode ? (
-          <form onSubmit={signIn} className="flex flex-col gap-4">
-            <TextField label="Email" type="email" autoComplete="username" value={email} onChange={setEmail} />
-            <TextField label="Password" type="password" autoComplete="current-password" value={password} onChange={setPassword} />
-            {bot.widget}
-            <Button type="submit" className="h-11" disabled={busy || !email || !password || !bot.ready}>
-              {busy ? 'Signing in…' : 'Sign in'}
-            </Button>
-          </form>
-        ) : (
-          <form onSubmit={verify} className="flex flex-col gap-4">
-            {useBackup ? (
-              <>
-                <TextField label="Backup code" autoComplete="one-time-code" value={code} onChange={setCode} />
-                <Button type="submit" className="h-11" disabled={busy || !code}>
-                  Continue
-                </Button>
-              </>
-            ) : (
-              <CodeInput label="Code from your authenticator app" value={totpEntry.value} onChange={totpEntry.change} state={totpEntry.state} message={totpEntry.message} />
-            )}
-            <button type="button" className="self-start text-sm text-brand underline underline-offset-4" onClick={() => setUseBackup(!useBackup)}>
-              {useBackup ? 'Use the authenticator app instead' : 'Lost your phone? Use a backup code'}
-            </button>
-          </form>
-        )}
-      </Card>
-    </>
-  );
-}
-
-/** First sign-in: turn on two-step login with an authenticator app; save the backup codes. */
-function SetUpTwoStep() {
-  const [password, setPassword] = useState('');
-  const [setup, setSetup] = useState<{ totpURI: string; backupCodes: string[] } | null>(null);
-  const [saved, setSaved] = useState(false);
-  const [code, setCode] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  async function start(event: FormEvent) {
-    event.preventDefault();
-    setBusy(true);
-    setError(null);
-    const result = await authClient.twoFactor.enable({ password });
-    setBusy(false);
-    if (result.error || !result.data) return setError(result.error?.message ?? 'Could not start the set-up.');
-    if (!('totpURI' in result.data)) return setError('An authenticator app is required for staff two-step login.');
-    setSetup({ totpURI: result.data.totpURI, backupCodes: result.data.backupCodes });
-  }
-  async function confirm(event: FormEvent) {
-    event.preventDefault();
-    setBusy(true);
-    setError(null);
-    const result = await authClient.twoFactor.verifyTotp({ code });
-    setBusy(false);
-    if (result.error) return setError(result.error.message ?? 'That code did not work.');
-    toast.success('Two-step login is on.');
-    await refreshAccount();
-  }
-
-  const secret = setup ? new URL(setup.totpURI).searchParams.get('secret') : null;
-  return (
-    <>
-      <PageTitle kicker="Favorite Hearts staff" title="Turn on two-step login">
-        Staff tools stay locked until it is on. You will need an authenticator app (for example Google Authenticator or
-        Microsoft Authenticator) on your phone.
-      </PageTitle>
-      <Card>
-        {error && (
-          <div className="mb-4">
-            <Notice tone="error">{error}</Notice>
-          </div>
-        )}
-        {!setup ? (
-          <form onSubmit={start} className="flex flex-col gap-4">
-            <TextField label="Confirm your password" type="password" autoComplete="current-password" value={password} onChange={setPassword} />
-            <Button type="submit" className="h-11 self-start" disabled={busy || !password}>
-              Start
-            </Button>
-          </form>
-        ) : (
-          <form onSubmit={confirm} className="flex flex-col gap-5">
-            <div className="grid gap-5 sm:grid-cols-[200px_1fr]">
-              <img
-                src={`data:image/svg+xml;utf8,${encodeURIComponent(renderSVG(setup.totpURI))}`}
-                alt="QR code for your authenticator app"
-                className="size-[200px] rounded-[10px] border bg-white p-2"
-              />
-              <div className="text-sm">
-                <p>1. Scan this code with your authenticator app.</p>
-                <p className="mt-2">
-                  Or enter this key by hand: <code className="font-mono break-all">{secret}</code>
-                </p>
-              </div>
-            </div>
-            <div className="text-sm">
-              <p>2. Save these backup codes somewhere safe and private. Each works once if you lose your phone.</p>
-              <ul className="mt-2 grid grid-cols-2 gap-1 font-mono sm:grid-cols-5">
-                {setup.backupCodes.map((backup) => (
-                  <li key={backup}>{backup}</li>
-                ))}
-              </ul>
-            </div>
-            <CheckboxField checked={saved} onChange={setSaved} label="I have saved my backup codes." />
-            <CodeInput label="3. Enter the 6-digit code from the app" value={code} onChange={setCode} autoFocus={false} />
-            <Button type="submit" className="h-11 self-start" disabled={busy || !saved || code.length !== 6}>
-              Turn on two-step login
-            </Button>
-          </form>
-        )}
-      </Card>
-    </>
   );
 }
 

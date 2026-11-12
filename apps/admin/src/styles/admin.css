@@ -1,0 +1,5 @@
+/* The member app's design system (Tailwind, tokens and the demo's stylesheets), plus the files Tailwind must scan for
+   class names: the member app's shared components and this site's own screens. */
+@import "../../../member/src/styles/index.css";
+@source "../../../member/src";
+@source "..";

@@ -11,8 +11,7 @@ import { LOGIN_FAILURE_LIMIT } from '@fh/shared';
 import { user } from '../src/db/schema/auth.ts';
 import { operationsFlag } from '../src/db/schema/operations.ts';
 import { SIGN_UP_CODE_TRIES } from '../src/lib/member-access.ts';
-import { addStaff } from '../src/lib/staff-accounts.ts';
-import { createTestApp, latestCode, latestInvitationToken, type Outbox, type Res } from './harness.ts';
+import { createTestApp, latestCode, latestInvitationToken, staffBrowser, STAFF_TEST_PASSWORD, type Outbox, type Res } from './harness.ts';
 
 const PASSWORD = 'tea in kandy at seven';
 const ok = (res: Res, status = 200) => {
@@ -202,7 +201,7 @@ describe('log-in lockout and password reset', () => {
     const phone = t.client();
     ok(await phone.post('/api/auth/member/sign-up', { name: 'Kasun', phoneNumber: '+94771234567', password: PASSWORD, consent: true }));
     ok(await phone.post('/api/auth/member/sign-up/verify', { phoneNumber: '+94771234567', code: latestCode(t.outbox, '+94771234567') }));
-    await addStaff({ auth: t.deps.auth, db: t.db }, { email: 'owner@example.test', name: 'Owner', role: 'owner', password: 'correct horse battery staple' });
+    await staffBrowser(t, 'owner@example.test', 'owner', { enrol: false });
     const before = t.outbox.emails.length;
     const visitor = t.client();
     for (const email of ['nobody@example.test', '94771234567@phone.favoritehearts.invalid', 'owner@example.test']) {
@@ -211,17 +210,17 @@ describe('log-in lockout and password reset', () => {
     assert.equal(t.outbox.emails.length, before, 'no email went out');
   });
 
-  test('changing the password while signed in meets the same rules; staff keep 12 characters', async () => {
+  test('changing the password while signed in meets the same rules; staff keep 12 characters, on the admin site only', async () => {
     const t = await createTestApp();
     const client = await member(t, 'change@example.test');
     const weak = rejected(await client.post('/api/auth/change-password', { currentPassword: PASSWORD, newPassword: 'iloveyou2' }), 400, 'VALIDATION');
     assert.match(weak.fields.newPassword, /too common/);
     ok(await client.post('/api/auth/change-password', { currentPassword: PASSWORD, newPassword: 'mangoes after the rain' }));
-    await addStaff({ auth: t.deps.auth, db: t.db }, { email: 'staff@example.test', name: 'Staff', role: 'owner', password: 'correct horse battery staple' });
-    const staff = t.client();
-    ok(await staff.post('/api/auth/sign-in/email', { email: 'staff@example.test', password: 'correct horse battery staple' }));
-    const short = rejected(await staff.post('/api/auth/change-password', { currentPassword: 'correct horse battery staple', newPassword: 'nine char' }), 400, 'VALIDATION');
-    assert.match(short.fields.newPassword, /12 characters/);
+    const staff = await staffBrowser(t, 'staff@example.test', 'owner');
+    const short = await staff.post('/auth/change-password', { currentPassword: STAFF_TEST_PASSWORD, newPassword: 'nine char' });
+    assert.equal(short.status, 400, JSON.stringify(short.body));
+    // The member sign-in gives a staff address the wrong-password answer.
+    rejected(await t.client().post('/api/auth/sign-in/email', { email: 'staff@example.test', password: STAFF_TEST_PASSWORD }), 401, 'INVALID_EMAIL_OR_PASSWORD');
   });
 });
 

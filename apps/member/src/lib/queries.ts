@@ -13,12 +13,6 @@ import type {
   DiscoverPage,
   MemberProfileView,
   MeView,
-  OperationsFlagView,
-  OwnerPaymentDetail,
-  OwnerPaymentItem,
-  OwnerPlanView,
-  OwnerProfilePlan,
-  PaymentSettingView,
   PhotoView,
   PlanUsage,
   ProfileView,
@@ -39,8 +33,6 @@ export const keys = {
   profile: (id: string) => ['profiles', id] as const,
   cases: ['verification'] as const,
   drafts: ['verification', 'drafts'] as const,
-  staffQueue: (status: string) => ['staff', 'verification', status] as const,
-  staffReports: (status: string) => ['staff', 'reports', status] as const,
   discover: (filters: string) => ['discover', filters] as const,
   member: (id: string, as: string | null) => ['member', id, as] as const,
   received: (profileId: string) => ['requests', profileId, 'received'] as const,
@@ -52,12 +44,6 @@ export const keys = {
   plan: (profileId: string) => ['plan', profileId] as const,
   photos: (profileId: string) => ['photos', profileId] as const,
   billing: (profileId: string) => ['billing', profileId] as const,
-  ownerPlans: ['owner', 'plans'] as const,
-  ownerSettings: ['owner', 'settings'] as const,
-  ownerPayments: (status: string, query: string) => ['owner', 'payments', status, query] as const,
-  ownerPayment: (id: string) => ['owner', 'payment', id] as const,
-  ownerProfilePlan: (profileId: string) => ['owner', 'profile-plan', profileId] as const,
-  ownerOperations: ['owner', 'operations'] as const,
   serviceStatus: ['service-status'] as const,
   accountDeletion: ['account', 'deletion'] as const,
 };
@@ -259,38 +245,6 @@ export function useBilling(profileId: string) {
   return useQuery({ queryKey: keys.billing(profileId), queryFn: () => api<BillingOverview>(`/profiles/${profileId}/billing`) });
 }
 
-export function useOwnerPlans() {
-  return useQuery({ queryKey: keys.ownerPlans, queryFn: async () => (await api<{ plans: OwnerPlanView[] }>('/owner/plans')).plans });
-}
-
-export function useOwnerSettings() {
-  return useQuery({
-    queryKey: keys.ownerSettings,
-    queryFn: async () => (await api<{ settings: PaymentSettingView[] }>('/owner/payment-settings')).settings,
-  });
-}
-
-/** `status`: a payment status, `waiting` (in review or held) or `all`; `query`: a reference or statement line. */
-export function useOwnerPayments(status: string, query: string) {
-  return useQuery({
-    queryKey: keys.ownerPayments(status, query),
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      if (status !== 'all') params.set('status', status);
-      if (query) params.set('q', query);
-      return (await api<{ payments: OwnerPaymentItem[] }>(`/owner/payments?${params}`)).payments;
-    },
-  });
-}
-
-export function useOwnerPayment(id: string) {
-  return useQuery({ queryKey: keys.ownerPayment(id), queryFn: () => api<OwnerPaymentDetail>(`/owner/payments/${id}`) });
-}
-
-export function useOwnerProfilePlan(profileId: string) {
-  return useQuery({ queryKey: keys.ownerProfilePlan(profileId), queryFn: () => api<OwnerProfilePlan>(`/owner/profiles/${profileId}/plan`) });
-}
-
 // --- Service switches, deletion and export (Stage 5a) ------------------------------------------------------
 
 /** Whether the owner has paused new sign-ups or document submissions (section 10). */
@@ -304,10 +258,6 @@ export function useServiceStatus() {
     retry: false,
     refetchInterval: (query) => (query.state.status === 'error' && unreachable(query.state.error) ? 5_000 : false),
   });
-}
-
-export function useOwnerOperations() {
-  return useQuery({ queryKey: keys.ownerOperations, queryFn: async () => (await api<{ flags: OperationsFlagView[] }>('/owner/operations')).flags });
 }
 
 /** What deleting the account would do; fetched fresh each time the dialog opens. */

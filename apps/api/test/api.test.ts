@@ -11,14 +11,13 @@ import { verificationCase } from '../src/db/schema/trust.ts';
 import { auditEvent } from '../src/db/schema/operations.ts';
 import { entitlementEvent } from '../src/db/schema/billing.ts';
 import { purgeDocuments } from '../src/jobs/purge-documents.ts';
-import { addStaff, revokeStaff } from '../src/lib/staff-accounts.ts';
-import { Client, createTestApp, latestCode, latestInvitationToken, photoForm, TEST_PASSWORD, totp, type Res } from './harness.ts';
+import { revokeStaff } from '../src/lib/staff-accounts.ts';
+import { Client, createTestApp, latestCode, latestInvitationToken, photoForm, staffBrowser, STAFF_TEST_PASSWORD, TEST_PASSWORD, type AdminClient, type Res } from './harness.ts';
 
 let t: Awaited<ReturnType<typeof createTestApp>>;
-let owner: Client;
-let reviewer: Client;
+let owner: AdminClient;
+let reviewer: AdminClient;
 
-const STAFF_PASSWORD = 'correct horse battery staple';
 
 const ok = (res: Res, status = 200) => {
   assert.equal(res.status, status, JSON.stringify(res.body));
@@ -55,27 +54,16 @@ async function completeProfile(client: Client, profile: { id: string; version: n
 /** Uploads a document for the signed-in member and has the backup reviewer approve it. */
 async function verifyIdentity(client: Client) {
   const submitted = ok(await client.sendDocument(), 201);
-  ok(await reviewer.post(`/api/v1/staff/verification/${submitted.id}/decision`, { decision: 'approved' }));
+  ok(await reviewer.post(`/api/admin/staff/verification/${submitted.id}/decision`, { decision: 'approved' }));
 }
 
-async function staffClient(email: string, role: 'owner' | 'backup_reviewer') {
-  await addStaff(t.deps, { email, name: role === 'owner' ? 'Owner' : 'Reviewer', role, password: STAFF_PASSWORD });
-  const client = t.client();
-  ok(await client.post('/api/auth/sign-in/email', { email, password: STAFF_PASSWORD }));
-  return client;
-}
-
-async function enableTwoFactor(client: Client) {
-  const { totpURI } = ok(await client.post('/api/auth/two-factor/enable', { password: STAFF_PASSWORD }));
-  ok(await client.post('/api/auth/two-factor/verify-totp', { code: totp(totpURI) }));
-}
+/** Staff work on the admin site: invited, two-step login set up, signed in (harness.staffBrowser). */
+const staffClient = (email: string, role: 'owner' | 'backup_reviewer', options?: { enrol?: boolean }) => staffBrowser(t, email, role, options);
 
 before(async () => {
   t = await createTestApp();
   owner = await staffClient('owner@favoritehearts.test', 'owner');
   reviewer = await staffClient('reviewer@favoritehearts.test', 'backup_reviewer');
-  await enableTwoFactor(owner);
-  await enableTwoFactor(reviewer);
 });
 
 describe('accounts (A01, A02, S06)', () => {
@@ -164,13 +152,15 @@ describe('profiles (P01, A04, A05)', () => {
 });
 
 describe('documents, staff review and publishing (P02, P05, P09, S04)', () => {
-  test('staff powers need two-step login, checked by the server (S04)', async () => {
-    const newStaff = await staffClient('second@favoritehearts.test', 'backup_reviewer');
-    rejected(await newStaff.get('/api/v1/staff/verification'), 403, 'TWO_FACTOR_REQUIRED');
+  test('staff powers need two-step login, checked by the server; staff work only on the admin site (S04)', async () => {
+    const newStaff = await staffClient('second@favoritehearts.test', 'backup_reviewer', { enrol: false });
+    rejected(await newStaff.get('/api/admin/staff/verification'), 403, 'ENROLMENT_INCOMPLETE');
     const member = await t.client().signIn('curious@example.test');
-    rejected(await member.get('/api/v1/staff/verification'), 403, 'FORBIDDEN');
-    ok(await reviewer.get('/api/v1/staff/verification'));
-    rejected(await reviewer.get('/api/v1/profiles'), 403, 'STAFF_ACCOUNT');
+    rejected(await member.get('/api/admin/staff/verification'), 403, 'ADMIN_HEADER_REQUIRED');
+    rejected(await member.get('/api/v1/staff/verification'), 404, 'NOT_FOUND');
+    ok(await reviewer.get('/api/admin/staff/verification'));
+    // A staff account cannot sign in to the member app at all: the wrong-password answer, as for anyone.
+    rejected(await t.client().post('/api/auth/sign-in/email', { email: 'reviewer@favoritehearts.test', password: STAFF_TEST_PASSWORD }), 401, 'INVALID_EMAIL_OR_PASSWORD');
   });
 
   test('a document photo bigger than the JSON limit is read as an image, not refused as too large', async () => {
@@ -206,18 +196,18 @@ describe('documents, staff review and publishing (P02, P05, P09, S04)', () => {
     rejected(await member.sendDocument(), 409, 'VERIFICATION_PENDING');
     rejected(await member.post(`/api/v1/profiles/${profile.id}/publish`), 403, 'VERIFICATION_REQUIRED');
 
-    const queue = ok(await reviewer.get('/api/v1/staff/verification')).cases;
+    const queue = ok(await reviewer.get('/api/admin/staff/verification')).cases;
     const item = queue.find((c: { id: string }) => c.id === first.id);
     assert.equal(item.subject.phoneVerified, true);
     assert.equal(JSON.stringify(item).includes('documents/'), false, 'the queue never carries file keys');
-    rejected(await reviewer.post(`/api/v1/staff/verification/${first.id}/decision`, { decision: 'rejected' }), 400, 'VALIDATION');
-    ok(await reviewer.post(`/api/v1/staff/verification/${first.id}/decision`, { decision: 'rejected', reason: 'The photo is blurred.' }));
-    rejected(await owner.post(`/api/v1/staff/verification/${first.id}/decision`, { decision: 'approved' }), 409, 'ALREADY_DECIDED');
+    rejected(await reviewer.post(`/api/admin/staff/verification/${first.id}/decision`, { decision: 'rejected' }), 400, 'VALIDATION');
+    ok(await reviewer.post(`/api/admin/staff/verification/${first.id}/decision`, { decision: 'rejected', reason: 'The photo is blurred.' }));
+    rejected(await owner.post(`/api/admin/staff/verification/${first.id}/decision`, { decision: 'approved' }), 409, 'ALREADY_DECIDED');
     const mine = ok(await member.get('/api/v1/verification')).cases;
     assert.equal(mine[0].decisionReason, 'The photo is blurred.');
 
     const second = ok(await member.sendDocument('driving_licence'), 201);
-    ok(await reviewer.post(`/api/v1/staff/verification/${second.id}/decision`, { decision: 'approved' }));
+    ok(await reviewer.post(`/api/admin/staff/verification/${second.id}/decision`, { decision: 'approved' }));
     const published = ok(await member.post(`/api/v1/profiles/${profile.id}/publish`));
     assert.equal(published.status, 'published');
     assert.ok(published.firstPublishedAt);
@@ -229,7 +219,7 @@ describe('documents, staff review and publishing (P02, P05, P09, S04)', () => {
   test('viewing a document is audited and gives a short-lived link', async () => {
     const member = await t.client().signIn('kasun@example.test');
     const submitted = ok(await member.sendDocument(), 201);
-    const view = ok(await owner.get(`/api/v1/staff/verification/${submitted.id}/document`));
+    const view = ok(await owner.get(`/api/admin/staff/verification/${submitted.id}/document`));
     assert.match(view.url, /^https:\/\/storage\.test\/private\/documents\//);
     assert.equal(view.expiresInSeconds, 120);
     const [logged] = await t.db.select().from(auditEvent).where(eq(auditEvent.entityId, submitted.id));
@@ -352,7 +342,7 @@ describe('document retention (X01, S05)', () => {
   test('files are deleted 90 days after the decision; a failed delete is retried', async () => {
     const member = await t.client().signIn('purge@example.test');
     const submitted = ok(await member.sendDocument(), 201);
-    ok(await reviewer.post(`/api/v1/staff/verification/${submitted.id}/decision`, { decision: 'approved' }));
+    ok(await reviewer.post(`/api/admin/staff/verification/${submitted.id}/decision`, { decision: 'approved' }));
     const [decided] = await t.db.select().from(verificationCase).where(eq(verificationCase.id, submitted.id));
     assert.ok(decided?.purgeAfter && decided.purgeAfter.getTime() - decided.reviewedAt!.getTime() === 90 * 86_400_000);
     const fileKey = `private/${decided!.evidenceKey}`;
@@ -371,14 +361,13 @@ describe('document retention (X01, S05)', () => {
     assert.equal(after?.evidenceKey, null);
     assert.ok(after?.purgedAt);
     assert.equal(after?.status, 'approved', 'the decision itself is kept');
-    rejected(await owner.get(`/api/v1/staff/verification/${submitted.id}/document`), 410, 'DOCUMENT_DELETED');
+    rejected(await owner.get(`/api/admin/staff/verification/${submitted.id}/document`), 410, 'DOCUMENT_DELETED');
   });
 
   test('revoking a staff member ends their access at once (S05)', async () => {
     const leaving = await staffClient('leaving@favoritehearts.test', 'backup_reviewer');
-    await enableTwoFactor(leaving);
-    ok(await leaving.get('/api/v1/staff/verification'));
+    ok(await leaving.get('/api/admin/staff/verification'));
     await revokeStaff(t.deps, 'leaving@favoritehearts.test');
-    rejected(await leaving.get('/api/v1/staff/verification'), 401, 'UNAUTHENTICATED');
+    rejected(await leaving.get('/api/admin/staff/verification'), 401, 'UNAUTHENTICATED');
   });
 });

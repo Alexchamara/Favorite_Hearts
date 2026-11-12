@@ -11,14 +11,14 @@ import { REFUND_CONSEQUENCES, REFUND_REASONS, type OwnerPaymentDetail, type Owne
 import { Confirm } from '@/components/confirm';
 import { CheckboxField, SelectField, TextAreaField, TextField } from '@/components/form/fields';
 import { ArrowUpRight } from 'lucide-react';
-import { Card, Loading, Notice } from '@/components/layout';
+import { Card, Loading, Notice } from '@admin/components/shell';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { api, del, errorMessage, patch, post } from '@/lib/api';
+import { api, del, errorMessage, patch, post } from '@admin/lib/api';
 import { formatMoney, formatWhen, waitedFor } from '@/lib/format';
-import { useOwnerPayment, useOwnerPayments, useOwnerPlans, useOwnerProfilePlan } from '@/lib/queries';
-import { queryClient } from '@/lib/query-client';
+import { useOwnerPayment, useOwnerPayments, useOwnerPlans, useOwnerProfilePlan } from '@admin/lib/queries';
+import { queryClient } from '@admin/lib/query-client';
 import { Empty } from './Empty';
 import { ENGLISH_BILLING, type PaymentStatus, type RefundReason } from '@/features/billing/labels';
 
