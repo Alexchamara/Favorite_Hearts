@@ -110,8 +110,9 @@ describe('the shortlist (N03, owner 6 Nov 2026)', () => {
     rejected(await save(kasun, kasun.profileId), 404, 'PROFILE_UNAVAILABLE');
     const draft = ok(await dilan.post('/api/v1/profiles', { management: 'self', adultDeclared: true }), 201);
     rejected(await save(kasun, draft.id), 404, 'PROFILE_UNAVAILABLE');
-    // An unverified member may not browse, so may not save either.
-    rejected(await save({ client: dilan, profileId: draft.id }, nimmi.profileId), 404, 'PROFILE_UNAVAILABLE');
+    // An unverified member browses (owner decision, 12 Nov 2026), so may save too.
+    const saved = await save({ client: dilan, profileId: draft.id }, nimmi.profileId);
+    assert.ok(saved.status >= 200 && saved.status < 300, JSON.stringify(saved.body));
     rejected(await kasun.client.post(`/api/v1/profiles/${kasun.profileId}/shortlist`, { profileId: 'not-an-id' }), 400, 'VALIDATION');
   });
 

@@ -251,10 +251,9 @@ trying the screens without any service:
 Server side (3a). The rules live in `drizzle/0007_requests_and_privacy.sql`; the routes are `src/routes/discover.ts`,
 `requests.ts`, `photos.ts` and `reports.ts`, plus the report queue in `staff.ts`.
 
-- **Who browses.** Only verified members (owner decision, 29 Oct 2026). That means the account passed its own checks
-  (SMS-verified phone and an approved document), or it operates a profile whose publisher did. A candidate who joined
-  through an invitation relies on the manager's checks. On real environments this waits for the SMS provider, like
-  publishing.
+- **Who browses.** Every signed-in member (owner decision, 12 Nov 2026; it was verified members only, 29 Oct 2026):
+  `app.can_browse` asks only for an active account (`drizzle/0016_open_browsing.sql`). Verification still gates
+  publishing, so sending requests (the sender's profile must be published) and reports (`app.file_report`).
 - **Discovery.**
   - `GET /api/v1/discover` filters on the server and lists newest first, 20 per page with a cursor. Filters: gender,
     age range, country, religion, marital status, height range, and caste (consenting profiles only).

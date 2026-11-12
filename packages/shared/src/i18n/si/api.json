@@ -81,7 +81,6 @@
   "api.payment.closed": "මෙම ගෙවීම වසා ඇත. ඔබට තවමත් සැලැස්ම අවශ්‍ය නම් නව එකක් ආරම්භ කරන්න.",
   "api.payment.proofLimit": "ගෙවීමකට රිසිට්පත් {maxPaymentProofs}ක් දක්වා තිබිය හැක. තවත් යැවීමට අවශ්‍ය නම් අප අමතන්න.",
   "api.payment.uploadUnavailable": "රිසිට්පත් උඩුගත කිරීම තවම ලබා ගත නොහැක.",
-  "api.discover.verificationRequired": "ඔබේ අනන්‍යතා ලේඛනය පරීක්ෂා කර දුරකථනය තහවුරු කළ පසු පිරික්සීම විවෘත වේ.",
   "api.discover.pageExpired": "මෙම පිටු සබැඳිය තවදුරටත් වලංගු නැත.",
   "api.requests.notFound": "ඉල්ලීම හමු නොවීය.",
   "api.requests.closed": "මෙම ඉල්ලීමට දැනටමත් පිළිතුරු දී ඇත, නැතහොත් ආපසු ගෙන ඇත.",

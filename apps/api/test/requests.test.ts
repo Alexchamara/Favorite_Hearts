@@ -133,12 +133,17 @@ before(async () => {
   dilan = await t.client().signIn('dilan@example.test', 'Dilan');
 });
 
-describe('discovery (owner decision 29 Oct 2026: verified members only; sections 1, 6)', () => {
-  test('anonymous and unverified members cannot browse', async () => {
+describe('discovery (owner decision 12 Nov 2026: every signed-in member browses; sections 1, 6)', () => {
+  test('visitors cannot browse; unverified members can, but cannot publish, request or report', async () => {
     rejected(await t.client().get('/api/v1/discover'), 401, 'UNAUTHENTICATED');
-    rejected(await dilan.get('/api/v1/discover'), 403, 'VERIFICATION_REQUIRED');
-    rejected(await dilan.get(`/api/v1/discover/${bina.profileId}`), 403, 'VERIFICATION_REQUIRED');
     rejected(await t.client().get(`/api/v1/profiles/${amal.profileId}/interests`), 401, 'UNAUTHENTICATED');
+    const page = ok(await dilan.get('/api/v1/discover'));
+    assert.ok(page.profiles.some((card: { id: string }) => card.id === bina.profileId), 'an unverified member sees published profiles');
+    ok(await dilan.get(`/api/v1/discover/${bina.profileId}`));
+    const draft = ok(await dilan.get('/api/v1/profiles')).profiles[0] ?? ok(await dilan.post('/api/v1/profiles', { management: 'self', adultDeclared: true }), 201);
+    const request = await dilan.post(`/api/v1/profiles/${draft.id}/interests`, { receiverProfileId: bina.profileId, confirmSharing: true });
+    assert.ok(request.status >= 400, `no request from an unpublished profile: ${JSON.stringify(request.body)}`);
+    rejected(await dilan.post('/api/v1/reports', { reporterProfileId: draft.id, profileId: bina.profileId, category: 'other' }), 403, 'VERIFICATION_REQUIRED');
   });
 
   test('verified members see published profiles, never their own; filters run on the server', async () => {
@@ -197,7 +202,8 @@ describe('requests: plan, limits and the 7-day wait (sections 1, 2, 4)', () => {
   test('sending needs a plan and a published profile, never to your own', async () => {
     rejected(await send(chathu, amal), 403, 'PLAN_REQUIRED');
     rejected(await send(amal, amal), 404, 'PROFILE_UNAVAILABLE');
-    const draft = ok(await dilan.post('/api/v1/profiles', { management: 'self', adultDeclared: true }), 201);
+    // Dilan's draft (made in the discovery test above, or here when this test runs alone).
+    const draft = ok(await dilan.get('/api/v1/profiles')).profiles[0] ?? ok(await dilan.post('/api/v1/profiles', { management: 'self', adultDeclared: true }), 201);
     rejected(
       await dilan.post(`/api/v1/profiles/${draft.id}/interests`, { receiverProfileId: bina.profileId, confirmSharing: true }),
       409,

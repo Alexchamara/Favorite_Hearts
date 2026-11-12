@@ -81,7 +81,6 @@
   "api.payment.closed": "This payment is closed. Start a new one if you still want the plan.",
   "api.payment.proofLimit": "A payment can have up to {maxPaymentProofs} receipts. Contact us if you need to send more.",
   "api.payment.uploadUnavailable": "Receipt upload is not available yet.",
-  "api.discover.verificationRequired": "Browsing opens once your identity document is reviewed and your phone is verified.",
   "api.discover.pageExpired": "This page link is no longer valid.",
   "api.requests.notFound": "Request not found.",
   "api.requests.closed": "This request was already answered or withdrawn.",

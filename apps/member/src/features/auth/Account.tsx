@@ -122,6 +122,8 @@ export function AccountPanel({ initialMode = 'signup' }: { initialMode?: 'signup
         // Staff accounts finish with their two-step code on the staff page.
         if (result?.twoFactorRedirect) return navigate('/staff');
         await resetSession();
+        // Every log-in opens Discover (owner, 12 Nov 2026); staff go on to their workspace from there.
+        navigate('/browse', { replace: true });
       } else {
         const email = 'email' in checked.target ? checked.target.email : '';
         await requestReset(email, bot.headers);
@@ -152,6 +154,8 @@ export function AccountPanel({ initialMode = 'signup' }: { initialMode?: 'signup
     },
     async () => {
       await resetSession();
+      // A new account starts by creating its profile (owner, 12 Nov 2026).
+      navigate('/profiles/new', { replace: true });
     },
   );
 

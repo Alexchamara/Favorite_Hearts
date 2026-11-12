@@ -313,10 +313,10 @@ describe('members browsing', () => {
       assert.deepEqual(await as(chandi, profileIds), [P.A, P.B, P.C, P.M].sort());
     }));
 
-  test('an unverified member sees only their own profile (owner decision, audit N04)', () =>
+  test('an unverified member browses published profiles too, and sees their own (owner decision, 12 Nov 2026)', () =>
     scenario(async (as) => {
-      assert.deepEqual(await as(dave, profileIds), [P.D]);
-      assert.deepEqual(await as(member(u.ruth), profileIds), [P.R], 'after a takeover the candidate needs their own checks');
+      assert.deepEqual(await as(dave, profileIds), [P.A, P.B, P.C, P.D, P.M].sort());
+      assert.deepEqual(await as(member(u.ruth), profileIds), [P.A, P.B, P.C, P.M, P.R].sort());
     }));
 
   test('a suspended member browses nothing', () =>

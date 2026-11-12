@@ -1,5 +1,6 @@
 /**
- * Discovery (OWNER-DECISIONS sections 1, 6, 7; owner decision 29 Oct 2026: verified members only).
+ * Discovery (OWNER-DECISIONS sections 1, 6, 7; owner decision 12 Nov 2026: every signed-in member browses, verified or
+ * not; publishing, requests and reports still need verification, drizzle/0016).
  * Filtering happens here, on the server; members never receive a profile they may not see, nor a field
  * outside the member allowlist. Parents' names and contact details appear only after both accept.
  */
@@ -15,13 +16,6 @@ import { operatedProfile } from '../lib/profile-view.ts';
 import { requireMember } from '../middleware/session.ts';
 
 export const discover = new Hono<AppEnv>().use(requireMember);
-
-/** Browsing opens once the member's identity document is reviewed and phone verified (N04). */
-export async function requireVerifiedMember(tx: Tx): Promise<void> {
-  if (!(await scalar<boolean>(tx, sql`app.is_verified_member()`))) {
-    fail(403, 'VERIFICATION_REQUIRED', 'api.discover.verificationRequired');
-  }
-}
 
 /**
  * Each sort's key and direction (decision B4). The id breaks ties, so paging never repeats or skips a profile; the
@@ -55,7 +49,6 @@ const likeTerm = (text: string) => `%${text.replace(/[\\%_]/g, (match) => `\\${m
 discover.get('/', async (c) => {
   const q = parse(discoverQuerySchema, c.req.query());
   const page = await withActor(c, async (tx): Promise<DiscoverPage> => {
-    await requireVerifiedMember(tx);
     const where: (SQL | undefined)[] = [
       eq(profile.status, 'published'),
       isNull(profile.moderationHiddenAt),
@@ -156,7 +149,6 @@ discover.get('/:id', async (c) => {
   const id = parse(z.uuid({ error: 'api.profile.notFound' }), c.req.param('id'));
   const as = c.req.query('as') === undefined ? null : parse(actingProfileSchema, c.req.query('as'));
   const view = await withActor(c, async (tx): Promise<MemberProfileView> => {
-    await requireVerifiedMember(tx);
     const [row] = await tx.select().from(profile).where(and(eq(profile.id, id), sql`not app.operates_profile(${profile.id})`));
     if (!row) fail(404, 'NOT_FOUND', 'api.profile.unavailable');
     if (as) await operatedProfile(tx, as);

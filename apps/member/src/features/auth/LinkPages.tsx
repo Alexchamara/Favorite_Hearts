@@ -41,7 +41,8 @@ export function ConfirmLinkPage() {
     confirmSignUp(email ? { email } : { phoneNumber: phoneNumber! }, code)
       .then(async () => {
         await resetSession();
-        navigate('/', { replace: true });
+        // The account is new: it starts by creating its profile (owner, 12 Nov 2026).
+        navigate('/profiles/new', { replace: true });
       })
       .catch((err: unknown) => setError(err instanceof Error ? err.message : t('common.somethingWrong')));
   }, [navigate, params, t]);

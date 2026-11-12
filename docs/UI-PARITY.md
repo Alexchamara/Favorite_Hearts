@@ -706,3 +706,12 @@ The member side of the owner decision of 11 Nov 2026 (API: auth-1 in BUILD-PROGR
   for Sinhala.
 - **Checks:** typecheck clean; tests pass (API 184, website 5, text tools 9); `build:site` passes; 81 browser checks
   pass.
+
+### Discover for everyone and where sign-in lands (12 Nov 2026)
+
+- **Owner decision:** Discover and member profiles open to every signed-in member, verified or not (migration
+  `0016_open_browsing.sql` changes `app.can_browse`; the API drops its verification check). The demo's verification
+  gate on Discover (SCREEN-033, `.m-access-gate`) is gone, with its 3 texts and the API's message. Publishing,
+  requests and reports still need verification.
+- **Landing:** a confirmed sign-up (the code or the email link) opens profile creation (`/profiles/new`); every log-in
+  opens Discover (`/browse`); an invited candidate still lands on their accepted profile.

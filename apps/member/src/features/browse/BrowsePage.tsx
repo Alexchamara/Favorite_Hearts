@@ -2,13 +2,14 @@
  * Discover (SCREEN-033/034, 057, 058), on the demo's markup: the page heading with "Your preferences", the toolbar
  * (.m-discover-toolbar: search, the location filter, the sort), the summary line, the result heading, the cards
  * (.m-profile-grid of .m-card) and the right rail (.m-right-rail: the profile being acted for, how connecting works,
- * membership). Owner decision 29 Oct 2026: verified members only. The server applies every filter (decision B4 added
+ * membership). Owner decision 12 Nov 2026: every signed-in member browses, verified or not (publishing, requests and
+ * reports still need verification). The server applies every filter (decision B4 added
  * search, sort, location modes and the culture filters), and they stay in the address, so a search can be shared or
  * reloaded. Photos arrive blurred unless the member chose to show their cover.
  */
 import { useEffect, useState } from 'react';
 import { ArrowRight, ArrowUpRight, ChevronDown, ChevronRight, Crown, Heart, MapPin, Search, ShieldCheck, SlidersHorizontal } from 'lucide-react';
-import { Link, useNavigate, useSearchParams } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { DISCOVER_SORTS, type DiscoverSort, type ProfileView } from '@fh/shared';
 import { SelectField, TextField } from '@/components/form/fields';
 import { AppShell, Loading, Notice } from '@/components/layout';
@@ -85,7 +86,6 @@ export default function BrowsePage() {
   };
 
   const error = discover.error instanceof ApiError ? discover.error : null;
-  const notVerified = error?.code === 'VERIFICATION_REQUIRED';
   const cards = discover.data?.pages.flatMap((page) => page.profiles) ?? [];
   const active = FILTERS.filter((key) => applied[key]).length + (params.get('q') ? 1 : 0) + (params.get('location') ? 1 : 0);
 
@@ -98,7 +98,7 @@ export default function BrowsePage() {
           <p>{t('browse.intro')}</p>
         </div>
         <div className="m-discover-heading-actions">
-          <button type="button" className="m-btn m-secondary" onClick={() => setOpen(true)} disabled={notVerified}>
+          <button type="button" className="m-btn m-secondary" onClick={() => setOpen(true)}>
             <SlidersHorizontal size={17} aria-hidden="true" />
             {t('browse.filters.open')}
             {active > 0 && <span className="sr-only">{t('browse.filters.count', { count: active })}</span>}
@@ -106,17 +106,6 @@ export default function BrowsePage() {
         </div>
       </div>
 
-      {notVerified ? (
-        // SCREEN-033: browsing needs the member's own checks first (owner decision 29 Oct 2026).
-        <section className="m-surface m-access-gate">
-          <span className="m-kicker uppercase">{t('browse.kicker')}</span>
-          <h2>{t('browse.notVerified.title')}</h2>
-          <p>{t('browse.notVerified.body')}</p>
-          <Link className="m-btn" to="/verify">
-            {t('browse.goVerify')}
-          </Link>
-        </section>
-      ) : (
         <div className="m-discover-layout">
           <section aria-label={t('browse.list')}>
             <div className="m-discover-toolbar">
@@ -241,7 +230,6 @@ export default function BrowsePage() {
             </p>
           </aside>
         </div>
-      )}
 
       <PreferencesDialog
         open={open}

@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { ApiError, errorMessage, post } from '@/lib/api';
+import { errorMessage, post } from '@/lib/api';
 import { refreshRelations, useMember, usePhotos } from '@/lib/queries';
 import { suggestionLabel, useLabels } from '@/features/profile/options';
 import { formatDay } from '@/lib/format';
@@ -100,24 +100,14 @@ function PageHeading({ kicker, title, facts }: HeadingProps) {
 function MemberDetail({ id, Heading }: { id: string; Heading: (props: HeadingProps) => ReactNode }) {
   const { acting, profiles, choose, ready } = useActingProfile();
   const member = useMember(id, acting?.id ?? null, ready);
-  const error = member.error instanceof ApiError ? member.error : null;
   const { t } = useI18n();
   if (member.isPending) return <Heading kicker={t('memberPage.kicker')} title={t('common.loading')} facts={null} />;
-  if (error?.code === 'VERIFICATION_REQUIRED' || member.isError)
+  if (member.isError)
     return (
       <>
         <Heading kicker={t('memberPage.kicker')} title={t('memberPage.thisMember')} facts={null} />
         <div className="m-detail-body">
-          {error?.code === 'VERIFICATION_REQUIRED' ? (
-            <Notice title={t('browse.notVerified.title')}>
-              {t('browse.notVerified.body')}{' '}
-              <Link to="/verify" className="text-brand underline underline-offset-4">
-                {t('profile.goToVerification')}
-              </Link>
-            </Notice>
-          ) : (
-            <Notice tone="error">{errorMessage(member.error)}</Notice>
-          )}
+          <Notice tone="error">{errorMessage(member.error)}</Notice>
         </div>
       </>
     );
